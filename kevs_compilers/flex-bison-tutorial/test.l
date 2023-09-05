@@ -1,5 +1,5 @@
 %{
-** C headers, declarations, variables, etc. **
+/* C headers, declarations, variables, etc. */
 #include <stdio.h>
 #include "test.tab.h"
 
@@ -7,12 +7,12 @@ void showError();
 
 %}
 
-** Regular expressions **
+/* Regular expressions */
 
 numbers ([0-9])+
 
 %%
-** Token Specifications **
+/* Token Specifications */
 
 "hello"     {return (STRING);}
 {numbers}   {return (NUM);}
