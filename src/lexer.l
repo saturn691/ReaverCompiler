@@ -1,18 +1,18 @@
-/* Definition section */
 %option noyywrap
 %{
     #include <stdio.h>
     // #include "parser.tab.hpp"
+    // #include "y.tab.h"
 %}
 
-DIGIT               [0-9]
-LETTER              [a-zA-Z]
-IDENTIFIER          {LETTER}({LETTER}|{DIGIT})*
-NUMBER              {DIGIT}+
-HEXADECIMAL         [a-fA-F0-9]
-EXPONENT            [Ee][+-]?{DIGIT}+
-FLDS                (f|F|l|L) /*Floating-point and Long Double Suffix*/
-ILS                 (u|U|l|L)* /*Integer literal suffix*/
+/* https://www.lysator.liu.se/c/ANSI-C-grammar-l.html#MUL-ASSIGN */
+
+D			[0-9]
+L			[a-zA-Z_]
+H			[a-fA-F0-9]
+E			[Ee][+-]?{D}+
+FS			(f|F|l|L) /*Floating-point and Long Double Suffix*/
+IS			(u|U|l|L)* /*Integer literal suffix*/
 
 /* 
     "*" = 0+
@@ -55,13 +55,66 @@ ILS                 (u|U|l|L)* /*Integer literal suffix*/
 "volatile"      { return VOLATILE; }
 "while"         { return WHILE; }
 
+/* lex syntax missing for all the combinations of the above types*/
+
+"..."			{   return(ELLIPSIS); }
+">>="			{   return(RIGHT_ASSIGN); }
+"<<="			{   return(LEFT_ASSIGN); }
+"+="			{   return(ADD_ASSIGN); }
+"-="			{   return(SUB_ASSIGN); }
+"*="			{   return(MUL_ASSIGN); }
+"/="			{   return(DIV_ASSIGN); }
+"%="			{   return(MOD_ASSIGN); }
+"&="			{   return(AND_ASSIGN); }
+"^="			{   return(XOR_ASSIGN); }
+"|="			{   return(OR_ASSIGN); }
+">>"			{   return(RIGHT_OP); }
+"<<"			{   return(LEFT_OP); }
+"++"			{   return(INC_OP); }
+"--"			{   return(DEC_OP); }
+"->"			{   return(PTR_OP); }
+"&&"			{   return(AND_OP); }
+"||"			{   return(OR_OP); }
+"<="			{   return(LE_OP); }
+">="			{   return(GE_OP); }
+"=="			{   return(EQ_OP); }
+"!="			{   return(NE_OP); }
+";"		    	{   return(';'); }
+("{"|"<%")		{   return('{'); }
+("}"|"%>")		{   return('}'); }
+","		    	{   return(','); }
+":"			    {   return(':'); }
+"="			    {   return('='); }
+"("			    {   return('('); }
+")"			    {   return(')'); }
+("["|"<:")		{   return('['); }
+("]"|":>")		{   return(']'); }
+"."			    {   return('.'); }
+"&"			    {   return('&'); }
+"!"			    {   return('!'); }
+"~"		    	{   return('~'); }
+"-"			    {   return('-'); }
+"+"			    {   return('+'); }
+"*"			    {   return('*'); }
+"/"		    	{   return('/'); }
+"%"		    	{   return('%'); }
+"<"		    	{   return('<'); }
+">"		    	{   return('>'); }
+"^"		    	{   return('^'); }
+"|"		    	{   return('|'); }
+"?"		    	{   return('?'); }
+
+[ \t\v\n\f]		{  }
+.			{ /* ignore bad characters */ }
+
+/*Odyssey uses:
+    [ \t\r\n] { ; }
+with no catch*/
 
 %%
 
-/* C Code section */
-int main(void)
+void yyerror (char const *s)
 {
-    yylex(); 
-    // code to use lexer
-    return 0;
-}%%
+  fprintf(stderr, "Lexing error: %s\n", s);
+  exit(1);
+}

@@ -10,12 +10,17 @@ void showError();
 /* Regular expressions */
 
 numbers ([0-9])+
+alpha   ([a-zA-Z])+
 
 %%
 /* Token Specifications */
 
-"hello"     {return (STRING);}
-{numbers}   {return (NUM);}
+{alpha}     {sscanf(yytext, "%s", yylval.name); return (STRING);} 
+/* input from yytext, output to yylval.name */
+/* any kind of input is going into yytext */
+/* union in the yacc file = yylval */
+
+{numbers}   {yyval.number = atoi(yytext); return (NUM)}
 ";"         {return (SEMICOLON);}
 .           {showError(); return (OTHER);}
 
