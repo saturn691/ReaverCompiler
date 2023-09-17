@@ -67,31 +67,28 @@
 
 
 /* First part of user prologue.  */
-#line 1 "parser.y"
+#line 2 "parser.y"
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <iostream>
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include <vector>
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Verifier.h"
 
-extern int yylex();
-void yyerror(const char* s) {
-    fprintf(stderr, "Parse error: %s\n", s);
-    exit(1);
-}
-
+// Define LLVM context, module, and IRBuilder.
 llvm::LLVMContext TheContext;
 llvm::IRBuilder<> Builder(TheContext);
 std::unique_ptr<llvm::Module> TheModule;
-llvm::Function *TheFunction;
 
-int yylval;
+extern int yylex();
+void yyerror(const char *s) { std::cout << "Error: " << s << std::endl; }
 
-#line 95 "parser.tab.c"
+#line 92 "parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -132,9 +129,8 @@ enum yysymbol_kind_t
   YYSYMBOL_10_return_ = 10,                /* "return"  */
   YYSYMBOL_11_ = 11,                       /* ';'  */
   YYSYMBOL_YYACCEPT = 12,                  /* $accept  */
-  YYSYMBOL_program = 13,                   /* program  */
-  YYSYMBOL_function_definition = 14,       /* function_definition  */
-  YYSYMBOL_statement = 15                  /* statement  */
+  YYSYMBOL_function = 13,                  /* function  */
+  YYSYMBOL_statement = 14                  /* statement  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -460,18 +456,18 @@ union yyalloc
 #endif /* !YYCOPY_NEEDED */
 
 /* YYFINAL -- State number of the termination state.  */
-#define YYFINAL  5
+#define YYFINAL  4
 /* YYLAST -- Last index in YYTABLE.  */
 #define YYLAST   13
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  12
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  4
+#define YYNNTS  3
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  4
+#define YYNRULES  3
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  14
+#define YYNSTATES  13
 
 /* YYMAXUTOK -- Last valid token kind.  */
 #define YYMAXUTOK   261
@@ -521,7 +517,7 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int8 yyrline[] =
 {
-       0,    30,    30,    37,    51
+       0,    41,    41,    50
 };
 #endif
 
@@ -539,7 +535,7 @@ static const char *const yytname[] =
 {
   "\"end of file\"", "error", "\"invalid token\"", "DIGIT", "IDENTIFIER",
   "\"int\"", "'('", "')'", "'{'", "'}'", "\"return\"", "';'", "$accept",
-  "program", "function_definition", "statement", YY_NULLPTR
+  "function", "statement", YY_NULLPTR
 };
 
 static const char *
@@ -563,8 +559,8 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-      -5,    -3,     2,    -7,    -2,    -7,    -4,    -1,     0,     3,
-       4,    -6,    -7,    -7
+      -5,    -3,     2,    -2,    -7,    -4,    -1,     0,     3,     4,
+      -6,    -7,    -7
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -572,20 +568,20 @@ static const yytype_int8 yypact[] =
    means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       0,     0,     0,     2,     0,     1,     0,     0,     0,     0,
-       0,     0,     3,     4
+       0,     0,     0,     0,     1,     0,     0,     0,     0,     0,
+       0,     2,     3
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-      -7,    -7,    -7,    -7
+      -7,    -7,    -7
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-       0,     2,     3,    10
+       0,     2,     9
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -593,8 +589,8 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-       1,     4,     5,     7,     6,    13,    11,     8,     0,     0,
-       9,     0,     0,    12
+       1,     3,     4,     6,     5,    12,    10,     7,     0,     0,
+       8,     0,     0,    11
 };
 
 static const yytype_int8 yycheck[] =
@@ -607,20 +603,20 @@ static const yytype_int8 yycheck[] =
    state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,     5,    13,    14,     4,     0,     6,     7,     8,    10,
-      15,     3,     9,    11
+       0,     5,    13,     4,     0,     6,     7,     8,    10,    14,
+       3,     9,    11
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    12,    13,    14,    15
+       0,    12,    13,    14
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
-       0,     2,     1,     7,     3
+       0,     2,     7,     3
 };
 
 
@@ -1083,37 +1079,27 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
-  case 2: /* program: function_definition  */
-#line 31 "parser.y"
-    {
-        TheModule->print(llvm::errs(), nullptr);
+  case 2: /* function: "int" IDENTIFIER '(' ')' '{' statement '}'  */
+#line 41 "parser.y"
+                                                {
+        std::cout << "Function rule triggered. Statement value: " << (yyvsp[0].value) << std::endl;
+        (yyval.value) = (yyvsp[0].value);
     }
-#line 1092 "parser.tab.c"
+#line 1089 "parser.tab.c"
     break;
 
-  case 3: /* function_definition: "int" IDENTIFIER '(' ')' '{' statement '}'  */
-#line 38 "parser.y"
-    {
-        TheFunction = llvm::Function::Create(
-            llvm::FunctionType::get(llvm::Type::getInt32Ty(TheContext), false),
-            llvm::Function::ExternalLinkage,
-            "f", *TheModule
-        );
-        llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheContext, "entry", TheFunction);
-        Builder.SetInsertPoint(BB);
-        Builder.CreateRet(yyvsp[0]);
-    }
-#line 1107 "parser.tab.c"
-    break;
-
-  case 4: /* statement: "return" DIGIT ';'  */
+  case 3: /* statement: "return" DIGIT ';'  */
 #line 51 "parser.y"
-                         { yyval = llvm::ConstantInt::get(TheContext, llvm::APInt(32, yylval)); }
-#line 1113 "parser.tab.c"
+    { 
+        // This block is executed after a return statement is recognized.
+        // A new LLVM constant integer is created with the value provided and is set as the statement's value.
+        (yyval.value) = llvm::ConstantInt::get(TheContext, llvm::APInt(32, (yyvsp[-1].intVal))); 
+    }
+#line 1099 "parser.tab.c"
     break;
 
 
-#line 1117 "parser.tab.c"
+#line 1103 "parser.tab.c"
 
       default: break;
     }
@@ -1306,6 +1292,8 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 54 "parser.y"
+#line 58 "parser.y"
 
 
+// Required function to start parsing when the parser is invoked.
+int yywrap() { return 1; }

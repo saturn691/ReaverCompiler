@@ -1,55 +1,61 @@
+// Define necessary includes for LLVM functionality.
 %{
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <iostream>
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include <vector>
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Verifier.h"
 
-extern int yylex();
-void yyerror(const char* s) {
-    fprintf(stderr, "Parse error: %s\n", s);
-    exit(1);
-}
-
+// Define LLVM context, module, and IRBuilder.
 llvm::LLVMContext TheContext;
 llvm::IRBuilder<> Builder(TheContext);
 std::unique_ptr<llvm::Module> TheModule;
-llvm::Function *TheFunction;
 
-int yylval;
+extern int yylex();
+void yyerror(const char *s) { std::cout << "Error: " << s << std::endl; }
 %}
 
-%token DIGIT IDENTIFIER
+// Declare a union for semantic values. This helps in handling different data types like LLVM values or integers.
+%union {
+    llvm::Value* value;
+    int intVal;
+}
+
+// Declare tokens and their associated types.
+%token <intVal> DIGIT
+%token IDENTIFIER
+%type <value> function statement
+
+// Start rule for the grammar is "function".
+%start function
 
 %%
 
-program:
-    function_definition
-    {
-        TheModule->print(llvm::errs(), nullptr);
+// Rule for parsing a C function definition.
+function: 
+    "int" IDENTIFIER '(' ')' '{' statement '}'  {
+        std::cout << "Function rule triggered. Statement value: " << $<value>7 << std::endl;
+        $$ = $<value>7;
     }
-    ;
+;
 
-function_definition:
-    "int" IDENTIFIER '(' ')' '{' statement '}' 
-    {
-        TheFunction = llvm::Function::Create(
-            llvm::FunctionType::get(llvm::Type::getInt32Ty(TheContext), false),
-            llvm::Function::ExternalLinkage,
-            "f", *TheModule
-        );
-        llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheContext, "entry", TheFunction);
-        Builder.SetInsertPoint(BB);
-        Builder.CreateRet($7);
+
+// Rule for a return statement.
+statement: 
+    "return" DIGIT ';'   // Matches the return statement structure.
+    { 
+        // This block is executed after a return statement is recognized.
+        // A new LLVM constant integer is created with the value provided and is set as the statement's value.
+        $$ = llvm::ConstantInt::get(TheContext, llvm::APInt(32, $2)); 
     }
-    ;
-
-statement:
-    "return" DIGIT ';'   { $$ = llvm::ConstantInt::get(TheContext, llvm::APInt(32, yylval)); }
-    ;
+;
 
 %%
 
+// Required function to start parsing when the parser is invoked.
+int yywrap() { return 1; }

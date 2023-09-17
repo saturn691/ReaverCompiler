@@ -735,7 +735,7 @@ YY_RULE_SETUP
 case 2:
 YY_RULE_SETUP
 #line 8 "lexer.l"
-{ yylval = atoi(yytext); return DIGIT; }
+{ yylval.intVal = atoi(yytext); return DIGIT; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
