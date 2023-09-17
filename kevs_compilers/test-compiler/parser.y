@@ -34,7 +34,7 @@ program:
     ;
 
 function_definition:
-    'int' IDENTIFIER '(' ')' '{' statement '}' 
+    "int" IDENTIFIER '(' ')' '{' statement '}' 
     {
         TheFunction = llvm::Function::Create(
             llvm::FunctionType::get(llvm::Type::getInt32Ty(TheContext), false),
@@ -48,7 +48,7 @@ function_definition:
     ;
 
 statement:
-    'return' DIGIT ';'   { $$ = llvm::ConstantInt::get(TheContext, llvm::APInt(32, yylval)); }
+    "return" DIGIT ';'   { $$ = llvm::ConstantInt::get(TheContext, llvm::APInt(32, yylval)); }
     ;
 
 %%

@@ -55,7 +55,23 @@ IS			(u|U|l|L)* /*Integer literal suffix*/
 "volatile"      { return VOLATILE; }
 "while"         { return WHILE; }
 
-/* lex syntax missing for all the combinations of the above types*/
+/*need special care START*/
+
+{L}({L}|{D})*		{ count(); return(check_type()); }
+
+0[xX]{H}+{IS}?		{ count(); return(CONSTANT); }
+0{D}+{IS}?		{ count(); return(CONSTANT); }
+{D}+{IS}?		{ count(); return(CONSTANT); }
+L?'(\\.|[^\\'])+'	{ count(); return(CONSTANT); }
+
+{D}+{E}{FS}?		{ count(); return(CONSTANT); }
+{D}*"."{D}+({E})?{FS}?	{ count(); return(CONSTANT); }
+{D}+"."{D}*({E})?{FS}?	{ count(); return(CONSTANT); }
+
+L?\"(\\.|[^\\"])*\"	{ count(); return(STRING_LITERAL); }
+
+/*need special care END*/
+
 
 "..."			{   return(ELLIPSIS); }
 ">>="			{   return(RIGHT_ASSIGN); }
