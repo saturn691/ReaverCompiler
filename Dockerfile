@@ -17,7 +17,23 @@ RUN apt-get update && apt-get install -y --fix-missing \
     build-essential \
     ca-certificates \
     curl \
-    device-tree-compiler
+    device-tree-compiler \
+    llvm-14 \
+    clang-14 \
+    llvm-14-tools
+
+# Added by Kevin, not in original Dockerfile
+# Add the LLVM signing key and repository
+RUN apt-get update && apt-get install -y wget gnupg software-properties-common && \
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
+    add-apt-repository "deb http://apt.llvm.org/hirsute/ llvm-toolchain-hirsute-14 main"
+
+# Update package lists
+RUN apt-get update
+
+# Install the LLVM packages
+RUN apt-get install -y llvm-14 clang-14 lld-14
+
 
 # Install RISC-V Toolchain
 WORKDIR /tmp

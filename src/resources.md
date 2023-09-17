@@ -6,6 +6,10 @@ Git pushing
 >> git push origin <<branch name>>
 >> path: /workspaces/ReaverCompiler/
 
+Dockerfile fuckshit
+>> git remote -v
+>> ssh -T git@github.com
+
 Starting Docker
 >> sudo service docker start
 >> docker ps // shows running containers
