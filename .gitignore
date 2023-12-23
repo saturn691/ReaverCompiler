@@ -1,1 +1,8 @@
 bin/
+__pycache__/
+
+src/*.o
+src/lexer.yy.cpp
+src/parser.tab.cpp
+src/parser.tab.hpp
+src/parser.output

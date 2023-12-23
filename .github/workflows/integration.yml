@@ -1,8 +1,17 @@
+# Integration script for GitHub Actions
+# 
+# Install act as a GitHub CLI extension to run locally
+# https://github.com/nektos/act
+# Then run "gh act"
+#
+# Author : William Huynh <wh1022@ic.ac.uk>
+
+
 name: Integration test
 on:
   push:
     branches:
-      - main
+      - '*'
   pull_request:
 
 jobs:
@@ -13,11 +22,6 @@ jobs:
       statuses: write
       checks: write
       contents: read
-    container:
-      image: ghcr.io/langproc/langproc-2022-cw/environment:v1.0.0
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
 
@@ -25,8 +29,8 @@ jobs:
         id: test
         timeout-minutes: 1
         run: |
-          ./test.sh
-
+          scripts/test.sh
+        
       - name: Perm issue fix
         if: success() || failure()
         run: git config --global --add safe.directory "/__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}"
