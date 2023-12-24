@@ -1,14 +1,31 @@
 // References: https://www.lysator.liu.se/c/ANSI-C-grammar-y.html
 
 %code requires{
-  #include <string>
+	#include <string>
 
-  extern FILE *yyin;
+	extern FILE *yyin;
 
-  // Declare functions provided by Flex, 
-  // so that Bison generated code can call them.
-  int yylex(void);
-  void yyerror(const char *);
+	int yylex(void);
+	void yyerror(const char *);
+
+	// Symbol table tool
+	/*
+	void add(char);
+	void insert_type();
+	int search(char *);
+
+	struct table {
+		char *name;
+		char *data_type;
+		char *type;
+		int line;
+	} symbol_table[100];
+
+	int count = 0;
+	int q;
+	char type[10];
+	*/
+
 }
 
 %union{
