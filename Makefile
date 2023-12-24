@@ -4,7 +4,7 @@ CPPFLAGS += -std=c++20 -W -Wall -g -I include
 
 default: bin/c_compiler
 
-src/parser.tab.cpp src/parser.tab.h : src/parser.y
+src/parser.tab.cpp src/parser.tab.hpp : src/parser.y
 	bison -v -d src/parser.y -o src/parser.tab.cpp
 
 src/lexer.yy.cpp : src/lexer.l src/parser.tab.hpp

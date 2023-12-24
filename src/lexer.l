@@ -12,7 +12,6 @@ IS			(u|U|l|L)*
 #include <stdio.h>
 #include "parser.tab.hpp"
 
-void count();
 %}
 
 %%
@@ -54,16 +53,17 @@ void count();
 
 {L}({L}|{D})*		{ yylval.string = new std::string(yytext); return(IDENTIFIER); }
 
-0[xX]{H}+{IS}?		{ return(CONSTANT); }
-0{D}+{IS}?		{ return(CONSTANT); }
-{D}+{IS}?		{ return(CONSTANT); }
-L?'(\\.|[^\\'])+'	{ return(CONSTANT); }
+0[xX]{H}+{IS}?		{ yylval.number = std::stod(yytext); return(CONSTANT); }
+0{D}+{IS}?		{ yylval.number = std::stod(yytext); return(CONSTANT); }
+{D}+{IS}?		{ yylval.number = std::stod(yytext); return(CONSTANT); }
 
-{D}+{E}{FS}?		{ return(CONSTANT); }
-{D}*"."{D}+({E})?{FS}?	{ return(CONSTANT); }
-{D}+"."{D}*({E})?{FS}?	{ return(CONSTANT); }
+L?'(\\.|[^\\'])+'	{ yylval.string = new std::string(yytext); return(CHAR_LITERAL); }
 
-L?\"(\\.|[^\\"])*\"	{ return(STRING_LITERAL); }
+{D}+{E}{FS}?		{ yylval.number = std::stod(yytext); return(CONSTANT); }
+{D}*"."{D}+({E})?{FS}?	{ yylval.number = std::stod(yytext); return(CONSTANT); }
+{D}+"."{D}*({E})?{FS}?	{ yylval.number = std::stod(yytext); return(CONSTANT); }
+
+L?\"(\\.|[^\\"])*\"	{ yylval.string = new std::string(yytext); return(STRING_LITERAL); }
 
 "..."			{ return(ELLIPSIS); }
 ">>="			{ return(RIGHT_ASSIGN); }

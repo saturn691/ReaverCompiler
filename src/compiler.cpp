@@ -3,21 +3,17 @@
 #include <unistd.h>
 
 #include "cli.h"
+#include "ast.hpp"
 
-void compile(std::ostream &w)
+
+void compile(std::string sourcePath, std::ostream &w)
 {
-    w << ".text" << std::endl;
-    w << ".globl f" << std::endl;
-    w << std::endl;
-
-    w << "f:" << std::endl;
-    w << "addi  t0, zero, 0" << std::endl;
-    w << "addi  t0, t0,   5" << std::endl;
-    w << "add   a0, zero, t0" << std::endl;
-    w << "ret" << std::endl;
+    const Node *ast = parseAST();
 }
 
+
 extern FILE *yyin;
+
 
 int main(int argc, char **argv)
 {
@@ -43,7 +39,7 @@ int main(int argc, char **argv)
 
     // Compile the input
     std::cout << "Compiling: " << sourcePath << std::endl;
-    compile(output);
+    compile(sourcePath, output);
     std::cout << "Compiled to: " << outputPath << std::endl;
 
     output.close();

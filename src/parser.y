@@ -1,21 +1,27 @@
 // References: https://www.lysator.liu.se/c/ANSI-C-grammar-y.html
 
 %code requires{
+  #include "ast.hpp"
+
+  #include <cassert>
   #include <string>
 
   extern FILE *yyin;
+  extern const Node *g_root;
 
-  // Declare functions provided by Flex, 
+  // Declare functions provided by Flex,
   // so that Bison generated code can call them.
   int yylex(void);
   void yyerror(const char *);
 }
 
 %union{
+	const Node *node;
+	double number;
 	std::string *string;
 }
 
-%token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
+%token IDENTIFIER CONSTANT STRING_LITERAL CHAR_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
@@ -27,12 +33,44 @@
 
 %token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
 
-%start translation_unit
+
+%type <number> CONSTANT
+%type <string> IDENTIFIER STRING_LITERAL CHAR_LITERAL
+
+%type <node> primary_expression postfix_expression argument_expression_list
+%type <node> unary_expression unary_operator cast_expression
+%type <node> multiplicative_expression additive_expression shift_expression
+%type <node> relational_expression equality_expression and_expression
+%type <node> exclusive_or_expression inclusive_or_expression
+%type <node> logical_and_expression logical_or_expression
+%type <node> conditional_expression assignment_expression assignment_operator
+%type <node> expression constant_expression
+%type <node> declaration declaration_specifiers
+%type <node> init_declarator_list init_declarator
+%type <node> storage_class_specifier type_specifier
+%type <node> struct_or_union_specifier struct_or_union
+%type <node> struct_declarator_list struct_declarator
+%type <node> enum_specifier enumerator_list enumerator
+%type <node> type_qualifier declarator direct_declarator pointer
+%type <node> type_qualifier_list parameter_type_list parameter_list
+%type <node> parameter_declaration identifier_list type_name
+%type <node> abstract_declarator direct_abstract_declarator
+%type <node> initializer initializer_list
+%type <node> statement labeled_statement compound_statement
+%type <node> declaration_list statement_list
+%type <node> expression_statement selection_statement iteration_statement
+%type <node> jump_statement translation_unit
+%type <node> external_declaration function_definition
+
+%start root
 %%
+
+root
+	: translation_unit	{ g_root = $1; }
 
 primary_expression
 	: IDENTIFIER
-	| CONSTANT
+	| CONSTANT			{ $$ = new Number($1); }
 	| STRING_LITERAL
 	| '(' expression ')'
 	;
@@ -432,3 +470,23 @@ function_definition
 	;
 
 %%
+
+
+const Node *g_root;
+
+
+const Node *parseAST(std::string filename)
+{
+	yyin = fopen(filename.c_str(), "r");
+
+	if (yyin == NULL)
+	{
+		std::cerr << "Couldn't open input file " << filename << std::endl;
+		exit(1);
+	}
+
+	g_root = NULL;
+	yyparse();
+
+	return g_root;
+}
