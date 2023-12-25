@@ -2,6 +2,7 @@
 
 %code requires{
 	#include <string>
+	#include "compiler.h"
 
 	extern FILE *yyin;
 
@@ -449,3 +450,9 @@ function_definition
 	;
 
 %%
+
+int main() {
+
+	gen_dot_file(head);
+
+}
