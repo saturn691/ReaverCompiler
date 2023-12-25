@@ -6,9 +6,9 @@
 #include "ast.hpp"
 
 
-void compile(std::string sourcePath, std::ostream &w)
+void compile(std::string sourcePath, std::ostream &filename)
 {
-    const Node *ast = parseAST();
+    const Node *ast = parseAST(sourcePath);
 }
 
 

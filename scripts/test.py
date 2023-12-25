@@ -158,7 +158,7 @@ def run_test(driver: Path, log_queue: queue.Queue) -> int:
             init_message,
             f"Fail: see {log_path}.compiler.stderr.log "
             f"and {log_path}.compiler.stdout.log",
-            J_UNIT_OUTPUT_FILE
+            log_queue
         )
         return 0
 
@@ -319,8 +319,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception as e:
-        print(f"Exception encountered: {e}")
     finally:
         # This solves dodgy terminal behaviour on multithreading
         os.system("stty echo")

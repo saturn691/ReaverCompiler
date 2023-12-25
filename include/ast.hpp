@@ -6,6 +6,7 @@
 #include <ast/primitives/ast_number.hpp>
 #include <ast/primitives/ast_variable.hpp>
 
-extern const Node *parseAST();
+
+extern const Node *parseAST(std::string filename);
 
 #endif /* ast_hpp */
