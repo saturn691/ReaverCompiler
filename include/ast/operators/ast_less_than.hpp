@@ -1,13 +1,13 @@
-#ifndef ast_divide_hpp
-#define ast_divide_hpp
+#ifndef ast_less_than_hpp
+#define ast_less_than_hpp
 
 #include "ast_operator.hpp"
 
 
 /*
- *  Node for divide.
+ *  Node for less than.
 */
-class Divide : public Operator
+class LessThan : public Operator
 {
 public:
     using Operator::Operator;
@@ -18,14 +18,14 @@ public:
 
         dst << indent;
         get_left()->print(dst, indent_level);
-        dst << " / ";
+        dst << " < ";
         get_right()->print(dst, indent_level);
         dst << std::endl;
     }
 
     virtual double evaluate(Context &context) const override
     {
-        throw std::runtime_error("Mul::evaluate() not implemented");
+        throw std::runtime_error("evaluate not implemented");
     }
 
     virtual void gen_asm(
@@ -33,9 +33,9 @@ public:
         std::string dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("Mul::divide_asm() not implemented");
+        throw std::runtime_error("less than not implemented");
     }
 };
 
 
-#endif  /* ast_divide_hpp */
+#endif  /* ast_less_than */
