@@ -8,6 +8,7 @@
 
 void compile(std::string sourcePath, std::ostream &out)
 {
+    // Generate the AST
     const Node *ast = parseAST(sourcePath);
 
     // Print out the AST to stdout

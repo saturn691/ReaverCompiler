@@ -418,7 +418,7 @@ compound_statement
     ;
 
 declaration_list
-    : declaration
+    : declaration                                           { $$ = $1; }
     | declaration_list declaration
     ;
 
@@ -465,7 +465,9 @@ external_declaration
 
 function_definition
     : declaration_specifiers declarator declaration_list compound_statement
-    | declaration_specifiers declarator compound_statement  {  $$ = new FunctionDefinition($1, $2, $3); }
+        { $$ = new FunctionDefinition($1, $2, $3, $4); }
+    | declaration_specifiers declarator compound_statement
+        { $$ = new FunctionDefinition($1, $2, $3); }
     | declarator declaration_list compound_statement
     | declarator compound_statement
     ;

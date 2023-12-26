@@ -3,11 +3,6 @@
 # Author : James Nock (@Jpnock), William Huynh (@saturn691)
 # Year   : 2023
 
-
-
-
-
-
 set -uo pipefail
 shopt -s globstar
 
@@ -43,13 +38,13 @@ for DRIVER in compiler_tests/**/*_driver.c; do
     rm -f "${OUT}.s"
     rm -f "${OUT}.o"
     rm -f "${OUT}"
-    
+
     ./bin/c_compiler \
         -S "${TO_ASSEMBLE}" \
         -o "${OUT}.s" \
         2> "${LOG_PATH}.compiler.stderr.log" \
         > "${LOG_PATH}.compiler.stdout.log"
-    
+
     if [ $? -ne 0 ]; then
         fail_testcase "Fail: see ${LOG_PATH}.compiler.stderr.log and ${LOG_PATH}.compiler.stdout.log"
         continue
@@ -61,7 +56,7 @@ for DRIVER in compiler_tests/**/*_driver.c; do
         -c "${OUT}.s" \
         2> "${LOG_PATH}.assembler.stderr.log" \
         > "${LOG_PATH}.assembler.stdout.log"
-    
+
     if [ $? -ne 0 ]; then
         fail_testcase "Fail: see ${LOG_PATH}.assembler.stderr.log and ${LOG_PATH}.assembler.stdout.log"
         continue

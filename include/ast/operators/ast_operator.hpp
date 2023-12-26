@@ -25,7 +25,7 @@ public:
 
     NodePtr get_right() const
     {
-        return left;
+        return right;
     }
 
     virtual void print(std::ostream &dst, int indent_level) const override
