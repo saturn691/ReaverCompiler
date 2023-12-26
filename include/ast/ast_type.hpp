@@ -2,27 +2,7 @@
 #define ast_type_hpp
 
 #include "ast_node.hpp"
-
-
-/*
- *  Types available in C/C++.
- *  Note that unsigned floats, doubles and long doubles do not exist.
-*/
-enum class Types
-{
-    VOID,
-    CHAR,
-    UNSIGNED_CHAR,
-    SHORT,
-    UNSIGNED_SHORT,
-    INT,
-    UNSIGNED_INT,
-    LONG,
-    UNSIGNED_LONG,
-    FLOAT,
-    DOUBLE,
-    LONG_DOUBLE
-};
+#include "ast_types.hpp"
 
 
 /*
@@ -94,7 +74,7 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        int dest_reg,
+        std::string dest_reg,
         Context &context
     ) const override {
         throw std::runtime_error("Type::gen_asm() not allowed");

@@ -33,7 +33,7 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        int dest_reg,
+        std::string dest_regdest_reg,
         Context &context
     ) const override {
         throw std::runtime_error("Identifier::gen_asm() not implemented");

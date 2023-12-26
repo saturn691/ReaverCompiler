@@ -69,7 +69,7 @@ root
     : translation_unit                                      { g_root = $1; }
 
 primary_expression
-    : IDENTIFIER
+    : IDENTIFIER                                            { $$ = new Identifier(*$1); }
     | CONSTANT                                              { $$ = new Number($1); }
     | STRING_LITERAL
     | '(' expression ')'                                    { $$ = $2; }
@@ -123,7 +123,7 @@ multiplicative_expression
 
 additive_expression
     : multiplicative_expression                             { $$ = $1; }
-    | additive_expression '+' multiplicative_expression
+    | additive_expression '+' multiplicative_expression     { $$ = new Add($1, $3); }
     | additive_expression '-' multiplicative_expression
     ;
 

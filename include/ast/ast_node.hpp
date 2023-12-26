@@ -43,7 +43,7 @@ public:
     // RISC-V asm generation
     virtual void gen_asm(
         std::ostream &dst,
-        int dest_reg,
+        std::string dest_reg,
         Context &context
     ) const {
         throw std::runtime_error("Node::gen_asm() not implemented");

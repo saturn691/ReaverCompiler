@@ -7,6 +7,9 @@
 
 #include <ast/function/ast_function_definition.hpp>
 
+#include <ast/operators/ast_operator.hpp>
+#include <ast/operators/ast_add.hpp>
+
 #include <ast/primitives/ast_number.hpp>
 #include <ast/primitives/ast_identifier.hpp>
 

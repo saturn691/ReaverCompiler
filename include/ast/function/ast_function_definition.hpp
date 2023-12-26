@@ -49,7 +49,7 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        int dest_reg,
+        std::string dest_reg,
         Context &context
     ) const override {
         std::string id = declarator->get_id();

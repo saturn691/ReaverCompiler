@@ -16,7 +16,7 @@ void compile(std::string sourcePath, std::ostream &out)
 
     // Compiile the output into the file
     Context context;
-    ast->gen_asm(out, 10, context);
+    ast->gen_asm(out, "a0", context);
 }
 
 

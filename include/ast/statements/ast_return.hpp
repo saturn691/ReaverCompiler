@@ -23,9 +23,10 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
         dst << indent;
-        dst << "return ";
-        return_node->print(dst, indent_level);
-        dst << std::endl;
+        dst << "return" << std::endl;
+        dst << indent << "(" << std::endl;
+        return_node->print(dst, indent_level + 1);
+        dst << indent << ")" << std::endl;
     }
 
     virtual double evaluate(Context &context) const override
@@ -35,7 +36,7 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        int dest_reg,
+        std::string dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
