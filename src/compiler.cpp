@@ -3,21 +3,25 @@
 #include <unistd.h>
 
 #include "cli.h"
+#include "ast.hpp"
 
-void compile(std::ostream &w)
+
+void compile(std::string sourcePath, std::ostream &out)
 {
-    w << ".text" << std::endl;
-    w << ".globl f" << std::endl;
-    w << std::endl;
+    const Node *ast = parseAST(sourcePath);
 
-    w << "f:" << std::endl;
-    w << "addi  t0, zero, 0" << std::endl;
-    w << "addi  t0, t0,   5" << std::endl;
-    w << "add   a0, zero, t0" << std::endl;
-    w << "ret" << std::endl;
+    // Print out the AST to stdout
+    ast->print(std::cout, 0);
+    std::cout << std::endl;
+
+    // Compiile the output into the file
+    Context context;
+    ast->gen_asm(out, 10, context);
 }
 
+
 extern FILE *yyin;
+
 
 int main(int argc, char **argv)
 {
@@ -43,7 +47,7 @@ int main(int argc, char **argv)
 
     // Compile the input
     std::cout << "Compiling: " << sourcePath << std::endl;
-    compile(output);
+    compile(sourcePath, output);
     std::cout << "Compiled to: " << outputPath << std::endl;
 
     output.close();
