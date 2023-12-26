@@ -23,7 +23,8 @@ typedef const Node *NodePtr;
 class Node
 {
 public:
-    virtual ~Node() {}
+    virtual ~Node()
+    {}
 
     // Tell and expression to print itself to the given stream
     virtual void print(std::ostream &dst, int indent_level) const = 0;

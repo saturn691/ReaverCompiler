@@ -180,20 +180,21 @@ conditional_expression
 assignment_expression
     : conditional_expression                                { $$ = $1; }
     | unary_expression assignment_operator assignment_expression
+        { $$ = new Assign($1, $2, $3); }
     ;
 
 assignment_operator
-    : '='
-    | MUL_ASSIGN
-    | DIV_ASSIGN
-    | MOD_ASSIGN
-    | ADD_ASSIGN
-    | SUB_ASSIGN
-    | LEFT_ASSIGN
-    | RIGHT_ASSIGN
-    | AND_ASSIGN
-    | XOR_ASSIGN
-    | OR_ASSIGN
+    : '='                   { $$ = new AssignOp("="); }
+    | MUL_ASSIGN            { $$ = new AssignOp("*="); }
+    | DIV_ASSIGN            { $$ = new AssignOp("/="); }
+    | MOD_ASSIGN            { $$ = new AssignOp("%="); }
+    | ADD_ASSIGN            { $$ = new AssignOp("+="); }
+    | SUB_ASSIGN            { $$ = new AssignOp("-="); }
+    | LEFT_ASSIGN           { $$ = new AssignOp("<<="); }
+    | RIGHT_ASSIGN          { $$ = new AssignOp(">>="); }
+    | AND_ASSIGN            { $$ = new AssignOp("&="); }
+    | XOR_ASSIGN            { $$ = new AssignOp("~="); }
+    | OR_ASSIGN             { $$ = new AssignOp("|="); }
     ;
 
 expression
@@ -207,7 +208,7 @@ constant_expression
 
 declaration
     : declaration_specifiers ';'                            { $$ = $1; }
-    | declaration_specifiers init_declarator_list ';'
+    | declaration_specifiers init_declarator_list ';'       { $$ = new VariableDeclaration($1, $2); }
     ;
 
 declaration_specifiers
@@ -414,7 +415,7 @@ compound_statement
     : '{' '}'
     | '{' statement_list '}'                                { $$ = $2; }
     | '{' declaration_list '}'                              { $$ = $2; }
-    | '{' declaration_list statement_list '}'
+    | '{' declaration_list statement_list '}'               { $$ = new BinaryNode($2, $3); }
     ;
 
 declaration_list
@@ -424,7 +425,7 @@ declaration_list
 
 statement_list
     : statement                                             { $$ = $1; }
-    | statement_list statement
+    | statement_list statement                              { $$ = new BinaryNode($1, $2); }
     ;
 
 expression_statement
