@@ -53,3 +53,44 @@ int main(int argc, char **argv)
     output.close();
     return 0;
 }
+
+// Dot file generation
+void gen_dot_file(struct node *tree)
+{
+    FILE *fp = fopen("ast.dot", "w");
+
+    if (fp = NULL){
+        perror("Could not open file");
+        return;
+    }
+
+    // Start and generate DOT graph
+    fprintf(fp, "digraph AST {\n");
+    print_dot_file(tree, fp);
+
+    // Close dot file
+    fprintf(fp, "}\n");
+    fclose(fp);
+}
+
+// Print AST in dot format by traversing
+void print_dot(struct node *tree, FILE *fp) {
+    if (tree == NULL)
+        return;
+
+    // Print node token
+    fprintf(fp, "\"%p\" [label=\"%s\"];\n", tree->token, tree->token);
+
+    // Print left child (recursive print)
+    if (tree->left != NULL) {
+        fprintf(fp, "\"%p\" [label=\"%s\"];\n", tree->token, tree->left->token);
+        print_dot(tree->left, fp);
+    }
+
+    // Print right child (recursive print)
+    if (tree->right != NULL) {
+        fprintf(fp, "\"%p\" [label=\"%s\"];\n", tree->token, tree->right->token);
+        print_dot(tree->right, fp);
+    }
+}
+
