@@ -6,9 +6,17 @@
 #include "ast.hpp"
 
 
-void compile(std::string sourcePath, std::ostream &filename)
+void compile(std::string sourcePath, std::ostream &out)
 {
     const Node *ast = parseAST(sourcePath);
+
+    // Print out the AST to stdout
+    ast->print(std::cout, 0);
+    std::cout << std::endl;
+
+    // Compiile the output into the file
+    Context context;
+    ast->gen_asm(out, 10, context);
 }
 
 

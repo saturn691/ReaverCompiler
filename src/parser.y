@@ -238,15 +238,16 @@ storage_class_specifier
     ;
 
 type_specifier
-    : VOID
-    | CHAR
-    | SHORT
-    | INT
-    | LONG
-    | FLOAT
-    | DOUBLE
-    | SIGNED
-    | UNSIGNED
+    : VOID                                                  { $$ = new Type(Types::VOID); }
+    | CHAR                                                  { $$ = new Type(Types::CHAR); }
+    | SHORT                                                 { $$ = new Type(Types::SHORT); }
+    | INT                                                   { $$ = new Type(Types::INT); }
+    | LONG                                                  { $$ = new Type(Types::LONG); }
+    | FLOAT                                                 { $$ = new Type(Types::FLOAT); }
+    | DOUBLE                                                { $$ = new Type(Types::DOUBLE); }
+    /* NOTE: This is a temporary solution- ignore compound types. */
+    | SIGNED                                                { $$ = new Type(Types::INT); }
+    | UNSIGNED                                              { $$ = new Type(Types::UNSIGNED_INT); }
     | struct_or_union_specifier
     | enum_specifier
     | TYPE_NAME
@@ -313,11 +314,11 @@ type_qualifier
 
 declarator
     : pointer direct_declarator
-    | direct_declarator
+    | direct_declarator                                     { $$ = $1; }
     ;
 
 direct_declarator
-    : IDENTIFIER
+    : IDENTIFIER                                            { $$ = new Identifier(*$1); }
     | '(' declarator ')'
     | direct_declarator '[' constant_expression ']'
     | direct_declarator '[' ']'
@@ -395,12 +396,12 @@ initializer_list
     ;
 
 statement
-    : labeled_statement
-    | compound_statement
+    : labeled_statement                                     { $$ = $1; }
+    | compound_statement                                    { $$ = $1; }
     | expression_statement                                  { $$ = $1; }
-    | selection_statement
-    | iteration_statement
-    | jump_statement
+    | selection_statement                                   { $$ = $1; }
+    | iteration_statement                                   { $$ = $1; }
+    | jump_statement                                        { $$ = $1; }
     ;
 
 labeled_statement
@@ -411,8 +412,8 @@ labeled_statement
 
 compound_statement
     : '{' '}'
-    | '{' statement_list '}'
-    | '{' declaration_list '}'
+    | '{' statement_list '}'                                { $$ = $2; }
+    | '{' declaration_list '}'                              { $$ = $2; }
     | '{' declaration_list statement_list '}'
     ;
 
@@ -448,8 +449,8 @@ jump_statement
     : GOTO IDENTIFIER ';'
     | CONTINUE ';'
     | BREAK ';'
-    | RETURN ';'
-    | RETURN expression ';'
+    | RETURN ';'                                            { $$ = new Return(new Number(0)); }
+    | RETURN expression ';'                                 { $$ = new Return($2); }
     ;
 
 translation_unit
@@ -464,7 +465,7 @@ external_declaration
 
 function_definition
     : declaration_specifiers declarator declaration_list compound_statement
-    | declaration_specifiers declarator compound_statement
+    | declaration_specifiers declarator compound_statement  {  $$ = new FunctionDefinition($1, $2, $3); }
     | declarator declaration_list compound_statement
     | declarator compound_statement
     ;

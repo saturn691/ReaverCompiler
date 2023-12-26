@@ -4,6 +4,9 @@
 #include "../ast_node.hpp"
 
 
+/*
+ *  Leaf node for numbers (e.g. "10" in "int x = 10;")
+*/
 class Number : public Node
 {
 public:
@@ -12,23 +15,23 @@ public:
     virtual ~Number()
     {}
 
-    virtual void print(std::ostream &dst) const override
+    virtual void print(std::ostream &dst, int indent_level) const override
     {
         dst << value;
     }
 
-    virtual double evaluate(
-        const std::map<std::string,double> &bindings
-    ) const override {
+    virtual double evaluate(Context &context) const override
+    {
         return value;
     }
 
     virtual void gen_asm(
         std::ostream &dst,
-        std::string dest_reg,
+        int dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("Number::gen_asm() not implemented");
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        dst << indent << "li x" << dest_reg << ", " << value << std::endl;
     }
 
 private:
