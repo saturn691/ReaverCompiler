@@ -16,6 +16,11 @@ public:
     virtual ~AssignOp()
     {}
 
+    virtual std::string get_id() const override
+    {
+        return op;
+    }
+
     virtual void print(std::ostream &dst, int indent_level) const override
     {
         dst << op;

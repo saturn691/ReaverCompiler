@@ -81,7 +81,9 @@ public:
 
         // Body section
         dst << id << ":" << std::endl;
+        context.init_stack(dst);
         compound_statement->gen_asm(dst, dest_reg, context);
+        // context.end_stack is called before return
     }
 
 private:

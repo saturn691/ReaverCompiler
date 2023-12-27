@@ -29,7 +29,7 @@ public:
         declaration_specifiers->print(dst, 0);
         dst << " ";
         init_declarator_list->print(dst, 0);
-        dst << ";"<< std::endl;
+        dst << ";" << std::endl;
     }
 
     virtual double evaluate(Context &context) const override
@@ -42,6 +42,10 @@ public:
         std::string dest_reg,
         Context &context
     ) const override {
+        // Reserve space on the stack
+        // TODO deal with other types (not just ints)
+        // TODO deal with multiple declarations
+        context.allocate_stack(4, init_declarator_list->get_id());
     }
 
 private:

@@ -42,7 +42,31 @@ public:
         std::string dest_reg,
         Context &context
     ) const override {
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        std::string id = assignment_operator->get_id();
+        int stack_loc = context.variable_map.at(
+            unary_expression->get_id()).stack_location;
+
+        // TODO consider other types
+        // Put the assignment expression into a temporary register
+        std::string reg = context.allocate_register(Types::INT);
+        assignment_expression->gen_asm(dst, reg, context);
+
+        // TODO implement for all assignment operators
+        if (id == "=")
+        {
+            // TODO consider other types
+            dst << indent << "sw " << reg << ", "
+                << stack_loc << "(s0)" << std::endl;
+        }
+        else
+        {
+            throw std::runtime_error("Assign::gen_asm() not implemented");
+        }
+
+        context.deallocate_register(reg);
     }
+
 private:
     NodePtr unary_expression;
     NodePtr assignment_operator;

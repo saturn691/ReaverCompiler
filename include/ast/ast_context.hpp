@@ -2,18 +2,31 @@
 #define ast_context_hpp
 
 #include <unordered_map>
+#include <string>
+#include <iostream>
+#include <stdexcept>
 
 #include "ast_types.hpp"
+
+#define AST_STACK_ALIGN             16
+#define AST_STACK_ALLOCATE          64
+#define AST_PRINT_INDENT_SPACES     4
+
+struct Variable
+{
+    int stack_location;
+    int bytes;
+};
 
 
 /*
  *  Stores the states (e.g. variable lookup tables) and registers under usage.
+ *  Manages the stack allocation.
 */
 class Context
 {
 public:
-    std::unordered_map<std::string, int> identifier_value_map;
-    std::unordered_map<std::string, Types> identifier_type_map;
+    std::unordered_map<std::string, Variable> variable_map;
 
     std::string allocate_register(Types type)
     {
@@ -21,7 +34,7 @@ public:
         {
             case Types::INT:
             case Types::UNSIGNED_INT:
-                // Search temporary registers
+                // Search temporary registers (t0-t2)
                 for (int i = 0; i <= 2; ++i)
                 {
                     if (registers[i + 5] == 0)
@@ -30,6 +43,7 @@ public:
                         return "t" + std::to_string(i);
                     }
                 }
+                // Search temporary registers (t3-t6)
                 for (int i = 0; i <= 3; ++i)
                 {
                     if (registers[i + 28] == 0)
@@ -47,7 +61,68 @@ public:
         }
     }
 
+    void deallocate_register(std::string register_name)
+    {
+        auto it = register_map.find(register_name);
+        auto it_f = register_map_f.find(register_name);
+
+        if (it != register_map.end())
+        {
+            register_map[register_name] = 0;
+        }
+        else if (it_f != register_map_f.end())
+        {
+            register_map_f[register_name] = 0;
+        }
+        else
+        {
+            throw std::runtime_error(
+                "Context::deallocate_register() - unrecognised register"
+            );
+        }
+    }
+
+    void init_stack(std::ostream& dst)
+    {
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        int stack_top = (AST_STACK_ALLOCATE - 4);
+
+        // Save the frame pointer (s0) into the top of the stack
+        dst << indent << "addi sp, sp, -" << AST_STACK_ALLOCATE << std::endl;
+        dst << indent << "sw s0, " << stack_top << "(sp)" << std::endl;
+        dst << indent << "addi s0, sp, " << AST_STACK_ALLOCATE << std::endl;
+
+        // Move the fp offset down by one alignment, to align the data
+        frame_pointer_offset = -(AST_STACK_ALLOCATE - AST_STACK_ALIGN);
+    }
+
+    void end_stack(std::ostream& dst)
+    {
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        dst << indent << "addi sp, sp, " << AST_STACK_ALLOCATE << std::endl;
+    }
+
+    int allocate_stack(int bytes, std::string id = "")
+    {
+        if (frame_pointer_offset - bytes < -AST_STACK_ALLOCATE)
+        {
+            throw std::runtime_error(
+                "Context::allocate_stack() - Stack Overflow"
+            );
+        }
+
+        frame_pointer_offset -= bytes;
+
+        if (!id.empty())
+        {
+            variable_map[id] = {frame_pointer_offset, bytes};
+        }
+
+        return frame_pointer_offset;
+    }
+
 private:
+    // Integer registers
     std::array<int, 32> registers = {   // REG      ABI     DESCRIPTION
         1,                              // x0       zero    zero constant
         1,                              // x1       ra      return address
@@ -69,6 +144,79 @@ private:
         0, 0, 0, 0, 0, 0,               // f12-17   fa2-7   arguments
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1,   // f18-27   fs2-11  saved regs
         0, 0, 0, 0                      // f28-31   ft8-11  temporaries
+    };
+
+    // Points to the bottom of the data in the frame
+    int frame_pointer_offset;
+
+    std::unordered_map<std::string, int> register_map = {
+        {"zero", 0},
+        {"ra", 1},
+        {"sp", 2},
+        {"gp", 3},
+        {"tp", 4},
+        {"t0", 5},
+        {"t1", 6},
+        {"t2", 7},
+        {"s0", 8},
+        {"s1", 9},
+        {"a0", 10},
+        {"a1", 11},
+        {"a2", 12},
+        {"a3", 13},
+        {"a4", 14},
+        {"a5", 15},
+        {"a6", 16},
+        {"a7", 17},
+        {"s2", 18},
+        {"s3", 19},
+        {"s4", 20},
+        {"s5", 21},
+        {"s6", 22},
+        {"s7", 23},
+        {"s8", 24},
+        {"s9", 25},
+        {"s10", 26},
+        {"s11", 27},
+        {"t3", 28},
+        {"t4", 29},
+        {"t5", 30},
+        {"t6", 31}
+    };
+
+    std::unordered_map<std::string, int> register_map_f = {
+        {"ft0", 0},
+        {"ft1", 1},
+        {"ft2", 2},
+        {"ft3", 3},
+        {"ft4", 4},
+        {"ft5", 5},
+        {"ft6", 6},
+        {"ft7", 7},
+        {"fs0", 8},
+        {"fs1", 9},
+        {"fa0", 10},
+        {"fa1", 11},
+        {"fa2", 12},
+        {"fa3", 13},
+        {"fa4", 14},
+        {"fa5", 15},
+        {"fa6", 16},
+        {"fa7", 17},
+        {"fs2", 18},
+        {"fs3", 19},
+        {"fs4", 20},
+        {"fs5", 21},
+        {"fs6", 22},
+        {"fs7", 23},
+        {"fs8", 24},
+        {"fs9", 25},
+        {"fs10", 26},
+        {"fs11", 27},
+        {"ft8", 28},
+        {"ft9", 29},
+        {"ft10", 30},
+        {"ft11", 31}
     };
 };
 

@@ -9,8 +9,6 @@
 
 #include "ast_context.hpp"
 
-#define AST_PRINT_INDENT_SPACES         4
-
 
 class Node;
 

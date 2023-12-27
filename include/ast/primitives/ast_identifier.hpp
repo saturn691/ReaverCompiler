@@ -33,10 +33,16 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        std::string dest_regdest_reg,
+        std::string dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("Identifier::gen_asm() not implemented");
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        // Find the id on the stack - will throw exception if not found.
+        int stack_loc = context.variable_map.at(id).stack_location;
+
+        // TODO- deal with other types
+        dst << indent << "lw " << dest_reg << ", "
+            << stack_loc << "(s0)" << std::endl;
     }
 
 private:
