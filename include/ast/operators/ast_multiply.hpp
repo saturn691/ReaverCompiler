@@ -33,7 +33,19 @@ public:
         std::string dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("Mul::gen_asm() not implemented");
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        std::string temp_reg1 = context.allocate_register(Types::INT);
+        std::string temp_reg2 = context.allocate_register(Types::INT);
+
+        get_left()->gen_asm(dst, temp_reg1, context);
+        get_right()->gen_asm(dst, temp_reg2, context);
+
+        // TODO handle multiple types
+        dst << indent << "mul " << dest_reg
+            << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+
+        context.deallocate_register(temp_reg1);
+        context.deallocate_register(temp_reg2);
     }
 };
 

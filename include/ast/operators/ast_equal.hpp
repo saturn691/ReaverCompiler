@@ -33,7 +33,31 @@ public:
         std::string dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("not implemented");
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        std::string temp_reg1 = context.allocate_register(Types::INT);
+        std::string temp_reg2 = context.allocate_register(Types::INT);
+
+        get_left()->gen_asm(dst, temp_reg1, context);
+        get_right()->gen_asm(dst, temp_reg2, context);
+
+        /*
+        A note from William: GCC compiles the equals as the following:
+            ; x == y
+            sub	    a5,a4,a5
+            seqz	a5,a5
+            andi	a5,a5,0xff
+        However, I don't really see the point of the andi instruction.
+        If something breaks down the line, try putting the andi back in.
+        */
+
+        // TODO handle multiple types
+        dst << indent << "sub " << dest_reg
+            << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+        dst << indent << "seqz " << dest_reg
+            << ", " << dest_reg << std::endl;
+
+        context.deallocate_register(temp_reg1);
+        context.deallocate_register(temp_reg2);
     }
 };
 

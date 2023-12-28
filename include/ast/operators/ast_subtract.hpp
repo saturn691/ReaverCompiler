@@ -41,8 +41,12 @@ public:
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);
 
+        // TODO handle multiple types
         dst << indent << "sub " << dest_reg
-            << ", " << temp_reg1 << ", " << temp_reg2;
+            << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+
+        context.deallocate_register(temp_reg1);
+        context.deallocate_register(temp_reg2);
     }
 };
 

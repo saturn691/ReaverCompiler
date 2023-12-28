@@ -6,6 +6,7 @@
 
 /*
  *  Node for Logical AND.
+ *  Logical AND is defined as: (a > 0) && (b > 0)
 */
 class LogicalAnd : public Operator
 {
@@ -33,7 +34,51 @@ public:
         std::string dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("logical_and() not implemented");
+        /*
+        A note from William: GCC compiles the equals as the following:
+            ; x && y (a4 && a5)
+                lw	a5,-20(s0)
+                beq	a5,zero,.L2
+                lw	a5,-24(s0)
+                beq	a5,zero,.L2
+                li	a5,1
+                j	.L4
+            .L2:
+                li	a5,0
+            .L4:
+                mv	a0,a5
+
+        One optimiation is to immediately put the result into the destination
+        register instead of a5.
+
+        There are more efficient ways to optimize this, such as using the
+        "snez" instruction, but this is a good enough for now.
+        */
+
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        std::string temp_reg = context.allocate_register(Types::INT);
+        std::string label1 = context.get_unique_label("LOGICAL_AND");
+        std::string label2 = context.get_unique_label("LOGICAL_AND");
+
+        // TODO handle multiple types
+        get_left()->gen_asm(dst, temp_reg, context);
+        dst << indent << "beq " << temp_reg
+            << ", zero, " << label1 << std::endl;
+
+        get_right()->gen_asm(dst, temp_reg, context);
+        dst << indent << "beq " << temp_reg
+            << ", zero, " << label1 << std::endl;
+
+        // Put the result into the destination register - see note above.
+        dst << indent << "li " << dest_reg << ", 1" << std::endl;
+        dst << indent << "j " << label2 << std::endl;
+
+        dst << label1 << ":" << std::endl;
+        dst << indent << "li " << dest_reg << ", 0" << std::endl;
+
+        dst << label2 << ":" << std::endl;
+
+        context.deallocate_register(temp_reg);
     }
 };
 
