@@ -10,6 +10,7 @@
 class FunctionDefinition : public Node
 {
 public:
+    // No arguments provided into the function definition
     FunctionDefinition(
         NodePtr _declaration_specifier,
         NodePtr _declarator,
@@ -20,10 +21,24 @@ public:
         compound_statement(_compound_statement)
     {}
 
+    // Arguments provided into the function definition
+    FunctionDefinition(
+        NodePtr _declaration_specifier,
+        NodePtr _declarator,
+        NodePtr _declaration_list,
+        NodePtr _compound_statement
+    ) :
+        declaration_specifier(_declaration_specifier),
+        declarator(_declarator),
+        declaration_list(_declaration_list),
+        compound_statement(_compound_statement)
+    {}
+
     virtual ~FunctionDefinition()
     {
         delete declaration_specifier;
         delete declarator;
+        delete declaration_list;
         delete compound_statement;
     }
 
@@ -35,7 +50,12 @@ public:
         declaration_specifier->print(dst, 0);
         dst << " ";
         declarator->print(dst, 0);
-        dst << std::endl;
+        dst << "(";
+        if (declaration_list)
+        {
+            declaration_list->print(dst, 0);
+        }
+        dst << ")" << std::endl;
 
         dst << "{" << std::endl;
         compound_statement->print(dst, indent_level + 1);
@@ -49,7 +69,7 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        int dest_reg,
+        std::string dest_reg,
         Context &context
     ) const override {
         std::string id = declarator->get_id();
@@ -61,12 +81,15 @@ public:
 
         // Body section
         dst << id << ":" << std::endl;
+        context.init_stack(dst);
         compound_statement->gen_asm(dst, dest_reg, context);
+        // context.end_stack is called before return
     }
 
 private:
     NodePtr declaration_specifier;
     NodePtr declarator;
+    NodePtr declaration_list;
     NodePtr compound_statement;
 };
 

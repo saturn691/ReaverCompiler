@@ -27,11 +27,11 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        int dest_reg,
+        std::string dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        dst << indent << "li x" << dest_reg << ", " << value << std::endl;
+        dst << indent << "li " << dest_reg << ", " << value << std::endl;
     }
 
 private:

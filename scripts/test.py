@@ -11,6 +11,7 @@ __author__ = "William Huynh"
 
 import argparse
 import os
+import shutil
 import subprocess
 import queue
 from pathlib import Path
@@ -276,6 +277,11 @@ def main():
         version=f"BetterTesting {__version__}"
     )
     args = parser.parse_args()
+
+    try:
+        shutil.rmtree(OUTPUT_FOLDER)
+    except Exception as e:
+        print(f"Error: {e}")
 
     Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
 

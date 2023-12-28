@@ -9,8 +9,6 @@
 
 #include "ast_context.hpp"
 
-#define AST_PRINT_INDENT_SPACES         4
-
 
 class Node;
 
@@ -23,7 +21,8 @@ typedef const Node *NodePtr;
 class Node
 {
 public:
-    virtual ~Node() {}
+    virtual ~Node()
+    {}
 
     // Tell and expression to print itself to the given stream
     virtual void print(std::ostream &dst, int indent_level) const = 0;
@@ -43,7 +42,7 @@ public:
     // RISC-V asm generation
     virtual void gen_asm(
         std::ostream &dst,
-        int dest_reg,
+        std::string dest_reg,
         Context &context
     ) const {
         throw std::runtime_error("Node::gen_asm() not implemented");
