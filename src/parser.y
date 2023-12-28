@@ -332,12 +332,14 @@ declarator
 
 direct_declarator
     : IDENTIFIER                                            { $$ = new Identifier(*$1); }
-    | '(' declarator ')'
+    | '(' declarator ')'                                    { $$ = $2; }
+    /* Array declarations with size or without size: arr[5] or arr[] */
     | direct_declarator '[' constant_expression ']'
     | direct_declarator '[' ']'
-    | direct_declarator '(' parameter_type_list ')'
-    | direct_declarator '(' identifier_list ')'
-    | direct_declarator '(' ')'
+    /* Function declarators like so: f(int x) or f(int), f(x), f() */
+    | direct_declarator '(' parameter_type_list ')'         { $$ = new FunctionDeclarator($1, $3); }
+    | direct_declarator '(' identifier_list ')'             /* for old K&R functions */
+    | direct_declarator '(' ')'                             { $$ = new FunctionDeclarator($1, NULL); }
     ;
 
 pointer
@@ -354,24 +356,25 @@ type_qualifier_list
 
 
 parameter_type_list
-    : parameter_list
+    : parameter_list                                        { $$ = $1; }
     | parameter_list ',' ELLIPSIS
     ;
 
 parameter_list
-    : parameter_declaration
-    | parameter_list ',' parameter_declaration
+    : parameter_declaration                                 { $$ = $1; }
+    | parameter_list ',' parameter_declaration              { $$ = new FunctionParameterList($1, $3); }
     ;
 
 parameter_declaration
-    : declaration_specifiers declarator
+    : declaration_specifiers declarator                     { $$ = new FunctionParameter($1, $2); }
     | declaration_specifiers abstract_declarator
-    | declaration_specifiers
+    | declaration_specifiers                                { $$ = $1; }
     ;
 
 identifier_list
-    : IDENTIFIER
+    : IDENTIFIER                                            { $$ = new Identifier(*$1); }
     | identifier_list ',' IDENTIFIER
+        { $$ = new BinaryNode($1, new Identifier(*$3)); }
     ;
 
 type_name
@@ -432,7 +435,7 @@ compound_statement
 
 declaration_list
     : declaration                                           { $$ = $1; }
-    | declaration_list declaration
+    | declaration_list declaration                          { $$ = new BinaryNode($1, $2); }
     ;
 
 statement_list
@@ -478,7 +481,7 @@ external_declaration
 
 function_definition
     : declaration_specifiers declarator declaration_list compound_statement
-        { $$ = new FunctionDefinition($1, $2, $3, $4); }
+        /* This is the old K&R way function definition in C and can be ignored */
     | declaration_specifiers declarator compound_statement
         { $$ = new FunctionDefinition($1, $2, $3); }
     | declarator declaration_list compound_statement

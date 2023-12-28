@@ -6,7 +6,10 @@
 #include <ast/ast_node.hpp>
 #include <ast/ast_type.hpp>
 
+#include <ast/function/ast_function_declarator.hpp>
 #include <ast/function/ast_function_definition.hpp>
+#include <ast/function/ast_function_parameter.hpp>
+#include <ast/function/ast_function_parameter_list.hpp>
 
 #include <ast/operators/assign/ast_assign_op.hpp>
 #include <ast/operators/assign/ast_assign.hpp>

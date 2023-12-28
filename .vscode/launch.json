@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/local_var/single_var.c",
+                "compiler_tests/integer/add.c",
                 "-o",
-                "bin/output/local_var/single_var/single_var.s"
+                "bin/output/integer/add/add.s"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

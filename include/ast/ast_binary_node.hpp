@@ -39,7 +39,7 @@ public:
         right->gen_asm(dst, dest_reg, context);
     }
 
-private:
+protected:
     NodePtr left;
     NodePtr right;
 };

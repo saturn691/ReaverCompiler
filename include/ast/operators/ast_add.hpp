@@ -42,7 +42,7 @@ public:
         get_right()->gen_asm(dst, temp_reg2, context);
 
         dst << indent << "add " << dest_reg
-            << ", " << temp_reg1 << ", " << temp_reg2;
+            << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
     }
 };
 
