@@ -68,11 +68,11 @@ public:
 
         if (it != register_map.end())
         {
-            register_map[register_name] = 0;
+            registers[it->second] = 0;
         }
         else if (it_f != register_map_f.end())
         {
-            register_map_f[register_name] = 0;
+            registers_f[it->second] = 0;
         }
         else
         {
@@ -121,6 +121,16 @@ public:
         return frame_pointer_offset;
     }
 
+    std::string get_unique_label(std::string prefix = "")
+    {
+        unsigned int id = tag_next_id;
+        tag_next_id++;
+
+        std::string tag = prefix + std::to_string(id);
+
+        return tag;
+    }
+
 private:
     // Integer registers
     std::array<int, 32> registers = {   // REG      ABI     DESCRIPTION
@@ -149,7 +159,7 @@ private:
     // Points to the bottom of the data in the frame
     int frame_pointer_offset;
 
-    std::unordered_map<std::string, int> register_map = {
+    const std::unordered_map<std::string, int> register_map = {
         {"zero", 0},
         {"ra", 1},
         {"sp", 2},
@@ -184,7 +194,7 @@ private:
         {"t6", 31}
     };
 
-    std::unordered_map<std::string, int> register_map_f = {
+    const std::unordered_map<std::string, int> register_map_f = {
         {"ft0", 0},
         {"ft1", 1},
         {"ft2", 2},
@@ -218,6 +228,8 @@ private:
         {"ft10", 30},
         {"ft11", 31}
     };
+
+    unsigned int tag_next_id = 0;
 };
 
 
