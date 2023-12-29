@@ -38,10 +38,6 @@
 
 #include <ast/variable/ast_variable_declaration.hpp>
 
-#include <ast/initializer/ast_simple_initializer.hpp>
-// #include <ast/initializer/ast_array_initializer.hpp> // Not implemented yet
-// #include <ast/initializer/ast_struct_initializer.hpp> // Not implemented yet
-
 extern const Node *parseAST(std::string filename);
 
 #endif /* ast_hpp */

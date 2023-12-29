@@ -239,7 +239,7 @@ init_declarator_list
 
 init_declarator
     : declarator                                            { $$ = $1; }
-    | declarator '=' initializer                            { $$ = new SimpleInitializer($1, $3); }
+    | declarator '=' initializer                            { $$ = new Assign($1, "=", $3); }
     ;
 
 storage_class_specifier
