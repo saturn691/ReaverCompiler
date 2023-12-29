@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/local_var/constant_initialiser.c",
+                "compiler_tests/functions/call_mutual_recursive.c",
                 "-o",
-                "bin/output/local_var/constant_initialiser/constant_initialiser.s"
+                "bin/output/functions/call_mutual_recursive/call_mutual_recursive.s"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

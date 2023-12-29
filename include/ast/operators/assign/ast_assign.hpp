@@ -19,6 +19,12 @@ public:
         assignment_operator(_assignment_operator),
         assignment_expression(_assignment_expression)
     {}
+
+    virtual std::string get_id() const override
+    {
+        return unary_expression->get_id();
+    }
+
     virtual void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');

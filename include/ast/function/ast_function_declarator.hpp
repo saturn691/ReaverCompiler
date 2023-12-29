@@ -51,15 +51,20 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        dst << get_id() << ":" << std::endl;
-        context.init_stack(dst);
-        std::string input_reg = "a0";
-
-        // Put parameters on the stack
-        if (identifier_list)
+        // Ok, if you're reading this, please don't question this line
+        // This is to prevent declarations from generating assembly
+        if (dest_reg == "MAGIC CODE")
         {
-            // Here we use dest_reg to pass the register of the parameters
-            identifier_list->gen_asm(dst, input_reg, context);
+            dst << get_id() << ":" << std::endl;
+            context.init_stack(dst);
+            std::string input_reg = "a0";
+
+            // Put parameters on the stack
+            if (identifier_list)
+            {
+                // Here we use dest_reg to pass the register of the parameters
+                identifier_list->gen_asm(dst, input_reg, context);
+            }
         }
     }
 
