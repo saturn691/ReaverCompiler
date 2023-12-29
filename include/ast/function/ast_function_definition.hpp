@@ -50,7 +50,7 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        std::string dest_reg,
+        std::string &dest_reg,
         Context &context
     ) const override {
         std::string id = declarator->get_id();
@@ -61,7 +61,7 @@ public:
         dst << std::endl;
 
         // Body section
-        declarator->gen_asm(dst, "x", context);
+        declarator->gen_asm(dst, dest_reg, context);
         // context.init_stack is called in the declarator
         compound_statement->gen_asm(dst, dest_reg, context);
         // context.end_stack is called before return

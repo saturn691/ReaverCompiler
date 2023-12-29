@@ -87,8 +87,8 @@ postfix_expression
     ;
 
 argument_expression_list
-    : assignment_expression
-    | argument_expression_list ',' assignment_expression
+    : assignment_expression                                 { $$ = $1; }
+    | argument_expression_list ',' assignment_expression    { $$ = new FunctionParameterList($1, $3); }
     ;
 
 unary_expression

@@ -175,7 +175,7 @@ private:
     };
 
     // Points to the bottom of the data in the frame
-    int frame_pointer_offset;
+    int frame_pointer_offset = 0;
 
     const std::unordered_map<std::string, int> register_map = {
         {"zero", 0},

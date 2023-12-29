@@ -48,11 +48,14 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        std::string dest_reg,
+        std::string &dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        std::string input_reg = "a0";
 
+        // First argument goes into a0
+        argument_expression_list->gen_asm(dst, input_reg, context);
         dst << indent << "call " << get_id() << std::endl;
     }
 

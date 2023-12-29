@@ -48,17 +48,18 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        std::string dest_reg,
+        std::string &dest_reg,
         Context &context
     ) const override {
         dst << get_id() << ":" << std::endl;
         context.init_stack(dst);
+        std::string input_reg = "a0";
 
         // Put parameters on the stack
         if (identifier_list)
         {
             // Here we use dest_reg to pass the register of the parameters
-            identifier_list->gen_asm(dst, "a0", context);
+            identifier_list->gen_asm(dst, input_reg, context);
         }
     }
 

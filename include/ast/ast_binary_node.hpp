@@ -32,7 +32,7 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        std::string dest_reg,
+        std::string &dest_reg,
         Context &context
     ) const override {
         left->gen_asm(dst, dest_reg, context);

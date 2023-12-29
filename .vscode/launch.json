@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/integer/add.c",
+                "compiler_tests/functions/call_five_args_internal.c",
                 "-o",
-                "bin/output/integer/add/add.s"
+                "bin/output/functions/call_five_args_internal/call_five_args_internal.s"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
