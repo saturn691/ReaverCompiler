@@ -54,6 +54,9 @@ public:
         Context &context
     ) const override {
         std::string id = declarator->get_id();
+        // Ok, if you're reading this, please don't question this line
+        // This is to prevent declarations from generating assembly
+        std::string code = "MAGIC CODE";
 
         // Header section
         dst << ".text" << std::endl;
@@ -61,7 +64,7 @@ public:
         dst << std::endl;
 
         // Body section
-        declarator->gen_asm(dst, dest_reg, context);
+        declarator->gen_asm(dst, code, context);
         // context.init_stack is called in the declarator
         compound_statement->gen_asm(dst, dest_reg, context);
         // context.end_stack is called before return
