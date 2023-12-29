@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/integer/add.c",
+                "compiler_tests/local_var/constant_initialiser.c",
                 "-o",
-                "bin/output/integer/add/add.s"
+                "bin/output/local_var/constant_initialiser/constant_initialiser.s"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
