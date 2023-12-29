@@ -26,14 +26,17 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        std::string dest_reg,
+        std::string &dest_reg,
         Context &context
     ) const override {
-        // Cheeky way to get the next register, but works for now
-        std::string next_dest_reg = dest_reg[0] + std::to_string(std::stoi(dest_reg.substr(1)) + 1);
-
+        // The function parameter list is held in the LEFT node
         left->gen_asm(dst, dest_reg, context);
-        right->gen_asm(dst, next_dest_reg, context);
+
+        // Cheeky way to get the next register, but works for now
+        int next_reg = std::stoi(dest_reg.substr(1)) + 1;
+        dest_reg = dest_reg[0] + std::to_string(next_reg);
+
+        right->gen_asm(dst, dest_reg, context);
     }
 
 private:

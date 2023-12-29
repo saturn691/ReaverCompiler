@@ -31,14 +31,14 @@ public:
 
     virtual void gen_asm(
         std::ostream &dst,
-        std::string dest_reg,
+        std::string &dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string temp_reg1 = context.allocate_register(Types::INT);
-        std::string temp_reg2 = context.allocate_register(Types::INT);
-
         get_left()->gen_asm(dst, temp_reg1, context);
+
+        std::string temp_reg2 = context.allocate_register(Types::INT);
         get_right()->gen_asm(dst, temp_reg2, context);
 
         // TODO handle multiple types
