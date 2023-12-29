@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/functions/call_five_args_internal.c",
+                "compiler_tests/local_var/constant_initialiser.c",
                 "-o",
-                "bin/output/functions/call_five_args_internal/call_five_args_internal.s"
+                "bin/output/local_var/constant_initialiser/constant_initialiser.s"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

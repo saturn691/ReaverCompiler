@@ -3,5 +3,6 @@
 ## Author : Kevin (@booth-algo)
 ## Note : I'm lazy
 
-# scripts/test.py compiler_tests/integer/ -v
-scripts/test.py compiler_tests/integer/
+make
+scripts/test.py compiler_tests/
+# scripts/test.py compiler_tests/local_var/ -v
