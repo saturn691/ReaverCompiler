@@ -5,8 +5,8 @@
 
 
 /*
- *  Node for defining function parameters
- *  Example: "int x" in f(int x) { return x; }
+ *  Node for defining function parameter list
+ *  Example: "int x, int y, int z" in f(int x, int y, int z) { return x; }
 */
 class FunctionParameterList : public BinaryNode
 {

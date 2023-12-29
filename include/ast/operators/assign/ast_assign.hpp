@@ -5,7 +5,7 @@
 
 
 /*
- *  Node for assignment (e.g. "int x = 5;")
+ *  Node for assignment (e.g. "x = 5;")
 */
 class Assign : public Node
 {
@@ -24,11 +24,11 @@ public:
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
 
         dst << indent;
-        unary_expression->print(dst, 0);
+        unary_expression->print(dst, 0); // x
         dst << " ";
-        assignment_operator->print(dst, 0);
+        assignment_operator->print(dst, 0); // =
         dst << " ";
-        assignment_expression->print(dst, 0);
+        assignment_expression->print(dst, 0); // 5
         dst << ";" << std::endl;
     }
 
