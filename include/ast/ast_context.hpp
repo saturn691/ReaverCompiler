@@ -84,21 +84,39 @@ public:
 
     void init_stack(std::ostream& dst)
     {
+        /*
+        Due to the compiler being one pass, we need to assume that functions
+        could be called at any time. Therefore it is necessary to save ra onto
+        the stack.
+
+        In the future, when the compiler is multi-pass, this can be optimised
+        away when a function call is not required.
+        */
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        int stack_top = (AST_STACK_ALLOCATE - 4);
+        int ra_location = (AST_STACK_ALLOCATE - 4);
+        int s0_location = ra_location - 4;
 
         // Save the frame pointer (s0) into the top of the stack
+        // Note that this is with respect to (sp) not (s0)
         dst << indent << "addi sp, sp, -" << AST_STACK_ALLOCATE << std::endl;
-        dst << indent << "sw s0, " << stack_top << "(sp)" << std::endl;
+        dst << indent << "sw ra, " << ra_location << "(sp)" << std::endl;
+        dst << indent << "sw s0, " << s0_location << "(sp)" << std::endl;
         dst << indent << "addi s0, sp, " << AST_STACK_ALLOCATE << std::endl;
 
         // Move the fp offset down by one alignment, to align the data
-        frame_pointer_offset = -(AST_STACK_ALLOCATE - AST_STACK_ALIGN);
+        frame_pointer_offset = -AST_STACK_ALIGN;
     }
 
     void end_stack(std::ostream& dst)
     {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        int ra_location = (AST_STACK_ALLOCATE - 4);
+        int s0_location = ra_location - 4;
+
+        // Load the frame pointer (s0) and the return address (ra)
+        // Note that this is with respect to (sp) not (s0)
+        dst << indent << "lw ra, " << ra_location << "(sp)" << std::endl;
+        dst << indent << "lw s0, " << s0_location << "(sp)" << std::endl;
         dst << indent << "addi sp, sp, " << AST_STACK_ALLOCATE << std::endl;
     }
 
