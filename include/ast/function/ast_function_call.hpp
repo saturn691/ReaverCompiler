@@ -55,7 +55,10 @@ public:
         std::string input_reg = "a0";
 
         // First argument goes into a0
-        argument_expression_list->gen_asm(dst, input_reg, context);
+        if (argument_expression_list)
+        {
+            argument_expression_list->gen_asm(dst, input_reg, context);
+        }
         dst << indent << "call " << get_id() << std::endl;
     }
 
