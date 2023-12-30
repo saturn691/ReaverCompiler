@@ -32,6 +32,15 @@
 #include <ast/operators/ast_logical_and.hpp> // Logical AND, "&&"
 #include <ast/operators/ast_logical_or.hpp> // Logical OR, "||"
 
+// Conditionals
+#include <ast/conditionals/ast_if_else.hpp>
+// #include <ast/conditionals/ast_ternary.hpp>
+
+// Loops
+// #include <ast/loops/ast_for.hpp>
+// #include <ast/loops/ast_while.hpp>
+
+// Primitives
 #include <ast/primitives/ast_number.hpp>
 #include <ast/primitives/ast_identifier.hpp>
 

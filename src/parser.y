@@ -184,9 +184,11 @@ logical_or_expression
         { $$ = new LogicalOr($1, $3); }
     ;
 
+// fuck
 conditional_expression
     : logical_or_expression                                 { $$ = $1; }
     | logical_or_expression '?' expression ':' conditional_expression
+        { $$ = new Ternary($3, $5, $7); }
     ;
 
 assignment_expression
@@ -448,9 +450,10 @@ expression_statement
     | expression ';'                                        { $$ = $1; }
     ;
 
+// TODO: Implement if-else statements fuck
 selection_statement
-    : IF '(' expression ')' statement
-    | IF '(' expression ')' statement ELSE statement
+    : IF '(' expression ')' statement                       { $$ = new If($3, $5); }
+    | IF '(' expression ')' statement ELSE statement        { $$ = new IfElse($3, $5, $7); }
     | SWITCH '(' expression ')' statement
     ;
 
