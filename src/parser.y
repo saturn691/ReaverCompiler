@@ -82,18 +82,19 @@ postfix_expression
     | postfix_expression '(' argument_expression_list ')'   { $$ = new FunctionCall($1, $3); }
     | postfix_expression '.' IDENTIFIER
     | postfix_expression PTR_OP IDENTIFIER
-    | postfix_expression INC_OP
+    | postfix_expression INC_OP                             { $$ = new PostIncrement($1); }
     | postfix_expression DEC_OP
     ;
 
 argument_expression_list
     : assignment_expression                                 { $$ = $1; }
-    | argument_expression_list ',' assignment_expression    { $$ = new FunctionParameterList($1, $3); }
+    | argument_expression_list ',' assignment_expression
+        { $$ = new FunctionParameterList($1, $3); }
     ;
 
 unary_expression
     : postfix_expression                                    { $$ = $1; }
-    | INC_OP unary_expression
+    | INC_OP unary_expression                               { $$ = new PreIncrement($2); }
     | DEC_OP unary_expression
     | unary_operator cast_expression
     | SIZEOF unary_expression
@@ -449,7 +450,6 @@ expression_statement
     | expression ';'                                        { $$ = $1; }
     ;
 
-// TODO: Implement if-else statements fuck
 selection_statement
     : IF '(' expression ')' statement                       { $$ = new IfElse($3, $5); }
     | IF '(' expression ')' statement ELSE statement        { $$ = new IfElse($3, $5, $7); }
@@ -460,7 +460,9 @@ iteration_statement
     : WHILE '(' expression ')' statement
     | DO statement WHILE '(' expression ')' ';'
     | FOR '(' expression_statement expression_statement ')' statement
+        { $$ = new For($3, $4, $6); }
     | FOR '(' expression_statement expression_statement expression ')' statement
+        { $$ = new For($3, $4, $5, $7); }
     ;
 
 jump_statement

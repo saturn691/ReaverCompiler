@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/control_flow/if_true.c",
+                "compiler_tests/control_flow/if_else_false.c",
                 "-o",
-                "bin/output/control_flow/if_true/if_true.s"
+                "bin/output/control_flow/if_else_false/if_else_false.s"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
