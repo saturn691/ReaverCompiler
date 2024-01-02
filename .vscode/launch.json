@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/functions/call_mutual_recursive.c",
+                "compiler_tests/control_flow/if_true.c",
                 "-o",
-                "bin/output/functions/call_mutual_recursive/call_mutual_recursive.s"
+                "bin/output/control_flow/if_true/if_true.s"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
