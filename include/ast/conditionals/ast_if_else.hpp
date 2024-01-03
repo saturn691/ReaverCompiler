@@ -11,17 +11,17 @@ class IfElse : public Node
 {
 public:
     IfElse(
-        NodePtr _expression,
+        NodePtr _condition,
         NodePtr _then_statement,
         NodePtr _else_statement = nullptr
     ) :
-        expression(_expression),
+        condition(_condition),
         then_statement(_then_statement),
         else_statement(_else_statement)
     {}
 
     virtual ~IfElse(){
-        delete expression;
+        delete condition;
         delete then_statement;
         delete else_statement;
     }
@@ -33,7 +33,7 @@ public:
         dst << indent;
         dst << "if" << std::endl;
         dst << indent << "(" << std::endl;
-        expression->print(dst, indent_level + 1); // condition
+        condition->print(dst, indent_level + 1); // condition
         dst << indent << ")" << std::endl;
         dst << indent << "{" << std::endl;
         then_statement->print(dst, indent_level + 1); // then statement
@@ -62,29 +62,36 @@ public:
 
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
 
-        expression->gen_asm(dst, dest_reg, context);
-        if (else_statement != nullptr) {
-            dst << indent << "beq a0, zero, else" << std::endl;
-        } else {
-            dst << indent << "beq a0, zero, end" << std::endl;
+        std::string else_label = context.get_unique_label("if");
+        std::string end_label = context.get_unique_label("if");
+
+        std::string condition_reg = context.allocate_register(Types::INT);
+
+        condition->gen_asm(dst, condition_reg, context);
+
+        if (else_statement != nullptr)
+        {
+            dst << indent << "beq " << condition_reg << ", zero, " << else_label << std::endl;
+        }
+        else
+        {
+            dst << indent << "beq " << condition_reg << ", zero, " << end_label << std::endl;
         }
 
-        dst << "then:" << std::endl; // doesn't make a difference
         then_statement->gen_asm(dst, dest_reg, context);
-        dst << indent << "j end" << std::endl;
+        dst << indent << "j " << end_label << std::endl;
 
-        if (else_statement != nullptr) {
-            dst << "else:" << std::endl;
+        if (else_statement != nullptr)
+        {
+            dst << else_label << ":" << std::endl;
             else_statement->gen_asm(dst, dest_reg, context);
-            // dst << indent << "j end" << std::endl;
         }
 
-        dst << "end:" << std::endl;
-
+        dst << end_label << ":" << std::endl;
     }
 
 private:
-    NodePtr expression;
+    NodePtr condition;
     NodePtr then_statement;
     NodePtr else_statement;
 };

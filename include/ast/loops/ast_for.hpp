@@ -52,12 +52,16 @@ public:
         initiation->print(dst, indent_level + 1); // initiation
         condition->print(dst, indent_level + 1); // condition
         dst << indent << ";" << std::endl;
-        if (iteration != nullptr) {
+        if (iteration != nullptr)
+        {
             iteration->print(dst, indent_level + 1); // iteration
         }
         dst << indent << ")" << std::endl;
         dst << indent << "{" << std::endl;
-        statement->print(dst, indent_level + 1); // statement
+        if (statement != nullptr)
+        {
+            statement->print(dst, indent_level + 1); // statement
+        }
         dst << indent << "}" << std::endl;
     }
 
@@ -71,44 +75,44 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        // TODO: idk fix this shit
-        // TODO: Label naming for loops
+        std::string start_label = context.get_unique_label("for");
+        std::string end_label = context.get_unique_label("for");
 
-        static int loop_counter = 0;  // Unique loop identifier
-        int curr_loop = loop_counter++;
-
-        std::string loop_start_label = "loop_start_" + std::to_string(curr_loop);
-        std::string loop_end_label = "loop_end_" + std::to_string(curr_loop);
+        std::string loop_reg = context.allocate_register(Types::INT);
 
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
 
         // Loop initialization
-        if (initiation) {
-            initiation->gen_asm(dst, dest_reg, context);
+        if (initiation)
+        {
+            initiation->gen_asm(dst, loop_reg, context);
         }
 
-        dst << loop_start_label << ":" << std::endl;  // Loop start label
+        dst << start_label << ":" << std::endl;
 
         // Loop condition
-        if (condition) {
-            condition->gen_asm(dst, dest_reg, context);
-            dst << indent << "beqz " << dest_reg << ", " << loop_end_label << std::endl;
+        if (condition)
+        {
+            condition->gen_asm(dst, loop_reg, context);
+            dst << indent << "beqz " << loop_reg << ", " << end_label << std::endl;
         }
 
         // Loop statement
-        if (statement) {
+        if (statement)
+        {
             statement->gen_asm(dst, dest_reg, context);
         }
 
         // Loop iteration
-        if (iteration) {
-            iteration->gen_asm(dst, dest_reg, context);
+        if (iteration)
+        {
+            iteration->gen_asm(dst, loop_reg, context);
         }
 
-        // Jump back to start
-        dst << indent << "j " << loop_start_label << std::endl;
+        dst << indent << "j " << start_label << std::endl;
+        dst << end_label << ":" << std::endl;
 
-        dst << loop_end_label << ":" << std::endl;  // Loop end label
+        context.deallocate_register(loop_reg);
     }
 
 private:

@@ -206,10 +206,15 @@ def run_test(driver: Path, log_queue: queue.Queue) -> int:
         return 0
 
     # Simulate
-    simulation_result = subprocess.run(
-        ["spike", "pk", log_path],
-        stdout=open(f"{log_path}.simulation.log", "w")
-    )
+    try:
+        simulation_result = subprocess.run(
+            ["spike", "pk", log_path],
+            stdout=open(f"{log_path}.simulation.log", "w"),
+            timeout=3
+        )
+    except subprocess.TimeoutExpired:
+        print("The subprocess timed out.")
+        simulation_result = subprocess.CompletedProcess(args=[], returncode=1)
 
     if simulation_result.returncode != 0:
         fail_testcase(

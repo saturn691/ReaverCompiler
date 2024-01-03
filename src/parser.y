@@ -143,6 +143,7 @@ relational_expression
     | relational_expression '<' shift_expression
         { $$ = new LessThan($1, $3);}
     | relational_expression '>' shift_expression
+        { $$ = new GreaterThan($1, $3);}
     | relational_expression LE_OP shift_expression
         { $$ = new LessThanEqual($1, $3);}
     | relational_expression GE_OP shift_expression
@@ -429,7 +430,7 @@ labeled_statement
     ;
 
 compound_statement
-    : '{' '}'
+    : '{' '}'                                               { $$ = NULL; }
     | '{' statement_list '}'                                { $$ = $2; }
     | '{' declaration_list '}'                              { $$ = $2; }
     | '{' declaration_list statement_list '}'               { $$ = new BinaryNode($2, $3); }
@@ -458,6 +459,7 @@ selection_statement
 
 iteration_statement
     : WHILE '(' expression ')' statement
+        { $$ = new While($3, $5);}
     | DO statement WHILE '(' expression ')' ';'
     | FOR '(' expression_statement expression_statement ')' statement
         { $$ = new For($3, $4, $6); }

@@ -28,11 +28,11 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        operand->gen_asm(dst, dest_reg, context);
-        dst << indent << "addi " << dest_reg << ", " << dest_reg << ", 1" << std::endl;
-        // if (operand->isVariable()) {
-        //     dst << "sw " << dest_reg << ", " << stack_offset << "(s0)" << std::endl;
-        // }
+        operand->gen_asm(dst, dest_reg, context); // x
+        dst << indent << "addi " << dest_reg << ", " << dest_reg << ", 1" << std::endl; // ++
+
+        int stack_loc = context.variable_map.at(operand->get_id()).stack_location;
+        dst << "sw " << dest_reg << ", " << stack_loc << "(s0)" << std::endl;
     }
 
 private:
