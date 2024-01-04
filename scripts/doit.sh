@@ -5,4 +5,4 @@
 
 make
 scripts/test.py compiler_tests/
-# scripts/test.py compiler_tests/local_var/ -v
+# scripts/test.py compiler_tests/control_flow/ -v

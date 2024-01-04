@@ -50,8 +50,7 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id = assignment_operator->get_id();
-        int stack_loc = context.variable_map.at(
-            unary_expression->get_id()).stack_location;
+        int stack_loc = context.variable_map.at(unary_expression->get_id()).stack_location;
 
         // TODO consider other types
         // Put the assignment expression into a temporary register
