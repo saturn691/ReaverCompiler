@@ -70,6 +70,23 @@ public:
                 }
                 break;
 
+            case Types::DOUBLE:
+                if (dest_reg[0] != 'f')
+                {
+                    // ".d" refers to double precision floating point
+                    dst << indent << "fadd.d " << temp_reg1
+                        << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+
+                    dst << indent << "fmv.d " << dest_reg
+                        << ", " << temp_reg1 << std::endl;
+                }
+                else
+                {
+                    dst << indent << "fadd.d " << dest_reg
+                        << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+                }
+                break;
+
             // TODO handle multiple types
             default:
                 throw std::runtime_error("Add::gen_asm() not implemented");

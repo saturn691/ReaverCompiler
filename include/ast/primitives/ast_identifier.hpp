@@ -59,6 +59,11 @@ public:
                     << stack_loc << "(s0)" << std::endl;
                 break;
 
+            case Types::DOUBLE:
+                dst << indent << "fld " << dest_reg << ", "
+                    << stack_loc << "(s0)" << std::endl;
+                break;
+
             // TODO- deal with other types
             default:
                 throw std::runtime_error("Identifier::gen_asm() not implemented");

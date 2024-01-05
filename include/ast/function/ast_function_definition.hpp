@@ -43,7 +43,7 @@ public:
         dst << "}";
     }
 
-    Types get_type(Context &context) const override
+    virtual Types get_type(Context &context) const override
     {
         return declaration_specifier->get_type(context);
     }
@@ -88,6 +88,10 @@ public:
         // context.init_stack is called in the declarator
         compound_statement->gen_asm(dst, return_reg, context);
         // context.end_stack is called before return
+
+        // Footer section
+        std::cout << std::endl;
+        context.gen_memory_asm(dst);
     }
 
 private:

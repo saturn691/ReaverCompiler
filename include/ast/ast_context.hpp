@@ -30,23 +30,9 @@ public:
     {
         switch (type)
         {
-            case Types::INT:
-            case Types::UNSIGNED_INT:
-                // Search temporary registers (t0-t6)
-                for (int i = 0; i <= 6; ++i)
-                {
-                    std::string register_name = "t" + std::to_string(i);
-                    int reg_index = register_map.at(register_name);
-
-                    if (registers[reg_index] == 0)
-                    {
-                        registers[reg_index] = 1;
-                        return register_name;
-                    }
-                }
-                break;
 
             case Types::FLOAT:
+            case Types::DOUBLE:
                 // Search temporary registers (ft0-ft11)
                 for (int i = 0; i <= 11; ++i)
                 {
@@ -61,23 +47,17 @@ public:
                 }
                 break;
 
-            default:
+            case Types::LONG_DOUBLE:
                 throw std::runtime_error(
                     "Context::allocate_register() - unrecognised type"
                 );
-        }
-    }
+                break;
 
-    std::string allocate_arg_register(Types type)
-    {
-        switch (type)
-        {
-            case Types::INT:
-            case Types::UNSIGNED_INT:
-                // Search argument registers (a0-a7)
-                for (int i = 0; i <= 7; ++i)
+            default:
+                // Search temporary registers (t0-t6)
+                for (int i = 0; i <= 6; ++i)
                 {
-                    std::string register_name = "a" + std::to_string(i);
+                    std::string register_name = "t" + std::to_string(i);
                     int reg_index = register_map.at(register_name);
 
                     if (registers[reg_index] == 0)
@@ -87,9 +67,16 @@ public:
                     }
                 }
                 break;
+        }
+    }
 
+    std::string allocate_arg_register(Types type)
+    {
+        switch (type)
+        {
             case Types::FLOAT:
-                // Search temporary registers (fa0-fa7)
+            case Types::DOUBLE:
+                // Search argument registers (fa0-fa7)
                 for (int i = 0; i <= 7; ++i)
                 {
                     std::string register_name = "fa" + std::to_string(i);
@@ -103,10 +90,25 @@ public:
                 }
                 break;
 
-            default:
+            case Types::LONG_DOUBLE:
                 throw std::runtime_error(
-                    "Context::allocate_register() - unrecognised type"
+                    "Context::allocate_arg_register() - not implemented"
                 );
+
+            default:
+                // Search argument registers (a0-a7)
+                for (int i = 0; i <= 7; ++i)
+                {
+                    std::string register_name = "a" + std::to_string(i);
+                    int reg_index = register_map.at(register_name);
+
+                    if (registers[reg_index] == 0)
+                    {
+                        registers[reg_index] = 1;
+                        return register_name;
+                    }
+                }
+                break;
         }
     }
 
@@ -128,6 +130,25 @@ public:
             throw std::runtime_error(
                 "Context::deallocate_register() - unrecognised register"
             );
+        }
+    }
+
+    void deallocate_arg_registers()
+    {
+        // Search argument registers (fa0-fa7)
+        for (int i = 0; i <= 7; ++i)
+        {
+            std::string register_name = "fa" + std::to_string(i);
+            int reg_index = register_map_f.at(register_name);
+            registers_f[reg_index] = 0;
+        }
+
+        // Search argument registers (a0-a7)
+        for (int i = 0; i <= 7; ++i)
+        {
+            std::string register_name = "a" + std::to_string(i);
+            int reg_index = register_map.at(register_name);
+            registers[reg_index] = 0;
         }
     }
 
@@ -200,6 +221,41 @@ public:
         return tag;
     }
 
+    void add_memory_data(std::string label, int value)
+    {
+        memory_map.insert(std::make_pair(label, value));
+    }
+
+    void gen_memory_asm(std::ostream& dst)
+    {
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
+        dst << ".section .rodata" << std::endl;
+
+        std::string id;
+        int val;
+
+        for (const auto& [id, val] : memory_map)
+        {
+            // This is what GCC does.
+            dst << ".align 2" << std::endl;
+            dst << "." << id << ":" << std::endl;
+
+            // Necessary for floating point representations.
+            dst << indent << ".word " << val << std::endl;
+        }
+    }
+
+    void add_function_declaration(std::string id)
+    {
+        function_declaration_map.insert({id, std::vector<Types>()});
+    }
+
+    void add_function_declaration_type(std::string id, Types type)
+    {
+        function_declaration_map[id].push_back(type);
+    }
+
     Types get_type(std::string id) const
     {
         return variable_map.at(id).type;
@@ -213,6 +269,12 @@ public:
 private:
     // Contains the map of identifiers to variable properties (defined above)
     std::unordered_map<std::string, Variable> variable_map;
+
+    // Contains the map of labels to word values
+    std::unordered_map<std::string, int> memory_map;
+
+    // Stores the types of function declarations
+    std::unordered_map<std::string, std::vector<Types>> function_declaration_map;
 
     // Integer registers
     std::array<int, 32> registers = {   // REG      ABI     DESCRIPTION

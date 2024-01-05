@@ -53,28 +53,40 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         Types type = get_type(context);
-        int stack_loc = context.allocate_stack(type, get_id());
-        std::string arg_reg = context.allocate_arg_register(type);
+        std::string id = get_id();
+        context.add_function_declaration_type(id, type);
 
-        switch (type)
+        if (dest_reg == "MAGIC CODE")
         {
-            case Types::INT:
-            case Types::UNSIGNED_INT:
-                dst << indent << "sw " << arg_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
+            std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+            int stack_loc = context.allocate_stack(type, id);
+            std::string arg_reg = context.allocate_arg_register(type);
 
-            case Types::FLOAT:
-                dst << indent << "fsw " << arg_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
+            switch (type)
+            {
+                case Types::INT:
+                case Types::UNSIGNED_INT:
+                    dst << indent << "sw " << arg_reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
 
-            default:
-                throw std::runtime_error(
-                    "FunctionParameter::gen_asm() not implemented"
-                );
+                case Types::FLOAT:
+                    dst << indent << "fsw " << arg_reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
+
+                case Types::DOUBLE:
+                    // Not in RISC-V cheatsheet but in specification
+                    dst << indent << "fsd " << arg_reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
+
+                default:
+                    throw std::runtime_error(
+                        "FunctionParameter::gen_asm() not implemented"
+                    );
+            }
         }
     }
 
