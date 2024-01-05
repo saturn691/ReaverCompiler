@@ -31,6 +31,11 @@ public:
         return declarator->get_id();
     }
 
+    virtual Types get_type(Context &context) const override
+    {
+        return declaration_specifiers->get_type(context);
+    }
+
     virtual void print(std::ostream &dst, int indent_level) const override
     {
         declaration_specifiers->print(dst, 0);
@@ -49,11 +54,28 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        // TODO consider other types
-        int stack_loc = context.allocate_stack(4, get_id());
+        Types type = get_type(context);
+        int stack_loc = context.allocate_stack(type, get_id());
+        std::string arg_reg = context.allocate_arg_register(type);
 
-        dst << indent << "sw " << dest_reg << ", "
-            << stack_loc << "(s0)" << std::endl;
+        switch (type)
+        {
+            case Types::INT:
+            case Types::UNSIGNED_INT:
+                dst << indent << "sw " << arg_reg << ", "
+                    << stack_loc << "(s0)" << std::endl;
+                break;
+
+            case Types::FLOAT:
+                dst << indent << "fsw " << arg_reg << ", "
+                    << stack_loc << "(s0)" << std::endl;
+                break;
+
+            default:
+                throw std::runtime_error(
+                    "FunctionParameter::gen_asm() not implemented"
+                );
+        }
     }
 
 private:

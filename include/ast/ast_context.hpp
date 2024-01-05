@@ -15,7 +15,7 @@
 struct Variable
 {
     int stack_location;
-    int bytes;
+    Types type;
 };
 
 
@@ -26,30 +26,79 @@ struct Variable
 class Context
 {
 public:
-    std::unordered_map<std::string, Variable> variable_map;
-
     std::string allocate_register(Types type)
     {
         switch (type)
         {
             case Types::INT:
             case Types::UNSIGNED_INT:
-                // Search temporary registers (t0-t2)
-                for (int i = 0; i <= 2; ++i)
+                // Search temporary registers (t0-t6)
+                for (int i = 0; i <= 6; ++i)
                 {
-                    if (registers[i + 5] == 0)
+                    std::string register_name = "t" + std::to_string(i);
+                    int reg_index = register_map.at(register_name);
+
+                    if (registers[reg_index] == 0)
                     {
-                        registers[i + 5] = 1;
-                        return "t" + std::to_string(i);
+                        registers[reg_index] = 1;
+                        return register_name;
                     }
                 }
-                // Search temporary registers (t3-t6)
-                for (int i = 0; i <= 3; ++i)
+                break;
+
+            case Types::FLOAT:
+                // Search temporary registers (ft0-ft11)
+                for (int i = 0; i <= 11; ++i)
                 {
-                    if (registers[i + 28] == 0)
+                    std::string register_name = "ft" + std::to_string(i);
+                    int reg_index = register_map_f.at(register_name);
+
+                    if (registers_f[reg_index] == 0)
                     {
-                        registers[i + 28] = 1;
-                        return "t" + std::to_string(i + 3);
+                        registers_f[reg_index] = 1;
+                        return register_name;
+                    }
+                }
+                break;
+
+            default:
+                throw std::runtime_error(
+                    "Context::allocate_register() - unrecognised type"
+                );
+        }
+    }
+
+    std::string allocate_arg_register(Types type)
+    {
+        switch (type)
+        {
+            case Types::INT:
+            case Types::UNSIGNED_INT:
+                // Search argument registers (a0-a7)
+                for (int i = 0; i <= 7; ++i)
+                {
+                    std::string register_name = "a" + std::to_string(i);
+                    int reg_index = register_map.at(register_name);
+
+                    if (registers[reg_index] == 0)
+                    {
+                        registers[reg_index] = 1;
+                        return register_name;
+                    }
+                }
+                break;
+
+            case Types::FLOAT:
+                // Search temporary registers (fa0-fa7)
+                for (int i = 0; i <= 7; ++i)
+                {
+                    std::string register_name = "fa" + std::to_string(i);
+                    int reg_index = register_map_f.at(register_name);
+
+                    if (registers_f[reg_index] == 0)
+                    {
+                        registers_f[reg_index] = 1;
+                        return register_name;
                     }
                 }
                 break;
@@ -72,7 +121,7 @@ public:
         }
         else if (it_f != register_map_f.end())
         {
-            registers_f[it->second] = 0;
+            registers_f[it_f->second] = 0;
         }
         else
         {
@@ -120,8 +169,10 @@ public:
         dst << indent << "addi sp, sp, " << AST_STACK_ALLOCATE << std::endl;
     }
 
-    int allocate_stack(int bytes, std::string id = "")
+    int allocate_stack(Types type, std::string id = "")
     {
+        unsigned int bytes = type_size_map.at(type);
+
         if (frame_pointer_offset - bytes < -AST_STACK_ALLOCATE)
         {
             throw std::runtime_error(
@@ -133,7 +184,7 @@ public:
 
         if (!id.empty())
         {
-            variable_map[id] = {frame_pointer_offset, bytes};
+            variable_map[id] = {frame_pointer_offset, type};
         }
 
         return frame_pointer_offset;
@@ -149,7 +200,20 @@ public:
         return tag;
     }
 
+    Types get_type(std::string id) const
+    {
+        return variable_map.at(id).type;
+    }
+
+    int get_stack_location(std::string id) const
+    {
+        return variable_map.at(id).stack_location;
+    }
+
 private:
+    // Contains the map of identifiers to variable properties (defined above)
+    std::unordered_map<std::string, Variable> variable_map;
+
     // Integer registers
     std::array<int, 32> registers = {   // REG      ABI     DESCRIPTION
         1,                              // x0       zero    zero constant
@@ -177,6 +241,11 @@ private:
     // Points to the bottom of the data in the frame
     int frame_pointer_offset = 0;
 
+    unsigned int tag_next_id = 0;
+
+    // Constants --------------------------------------------------------------
+
+    // Register map from name to index
     const std::unordered_map<std::string, int> register_map = {
         {"zero", 0},
         {"ra", 1},
@@ -212,6 +281,7 @@ private:
         {"t6", 31}
     };
 
+    // Floating point register map from name to index
     const std::unordered_map<std::string, int> register_map_f = {
         {"ft0", 0},
         {"ft1", 1},
@@ -247,7 +317,21 @@ private:
         {"ft11", 31}
     };
 
-    unsigned int tag_next_id = 0;
+    // Map from type to size in bytes
+    const std::unordered_map<Types, unsigned int> type_size_map = {
+        {Types::VOID,               0},
+        {Types::UNSIGNED_CHAR,      1},
+        {Types::CHAR,               1},
+        {Types::UNSIGNED_SHORT,     2},
+        {Types::SHORT,              2},
+        {Types::UNSIGNED_INT,       4},
+        {Types::INT,                4},
+        {Types::UNSIGNED_LONG,      8},
+        {Types::LONG,               8},
+        {Types::FLOAT,              4},
+        {Types::DOUBLE,             8},
+        {Types::LONG_DOUBLE,        8}
+    };
 };
 
 

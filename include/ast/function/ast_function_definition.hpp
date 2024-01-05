@@ -43,6 +43,11 @@ public:
         dst << "}";
     }
 
+    Types get_type(Context &context) const override
+    {
+        return declaration_specifier->get_type(context);
+    }
+
     virtual double evaluate(Context &context) const override
     {
         throw std::runtime_error("FunctionDefinition::evaluate() not implemented");
@@ -57,6 +62,21 @@ public:
         // Ok, if you're reading this, please don't question this line
         // This is to prevent declarations from generating assembly
         std::string code = "MAGIC CODE";
+        Types type = get_type(context);
+        std::string return_reg = "";
+
+        switch (type)
+        {
+            case Types::FLOAT:
+            case Types::DOUBLE:
+            case Types::LONG_DOUBLE:
+                return_reg = "fa0";
+                break;
+
+            default:
+                return_reg = "a0";
+                break;
+        }
 
         // Header section
         dst << ".text" << std::endl;
@@ -66,7 +86,7 @@ public:
         // Body section
         declarator->gen_asm(dst, code, context);
         // context.init_stack is called in the declarator
-        compound_statement->gen_asm(dst, dest_reg, context);
+        compound_statement->gen_asm(dst, return_reg, context);
         // context.end_stack is called before return
     }
 

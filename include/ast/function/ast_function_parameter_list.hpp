@@ -31,11 +31,6 @@ public:
     ) const override {
         // The function parameter list is held in the LEFT node
         left->gen_asm(dst, dest_reg, context);
-
-        // Cheeky way to get the next register, but works for now
-        int next_reg = std::stoi(dest_reg.substr(1)) + 1;
-        dest_reg = dest_reg[0] + std::to_string(next_reg);
-
         right->gen_asm(dst, dest_reg, context);
     }
 

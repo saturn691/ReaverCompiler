@@ -31,7 +31,7 @@ public:
         operand->gen_asm(dst, dest_reg, context); // x
         dst << indent << "addi " << dest_reg << ", " << dest_reg << ", 1" << std::endl; // ++
 
-        int stack_loc = context.variable_map.at(operand->get_id()).stack_location;
+        int stack_loc = context.get_stack_location(operand->get_id());
         dst << "sw " << dest_reg << ", " << stack_loc << "(s0)" << std::endl;
     }
 

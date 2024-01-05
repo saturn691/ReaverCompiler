@@ -45,9 +45,12 @@ public:
         Context &context
     ) const override {
         // Reserve space on the stack
-        // TODO deal with other types (not just ints)
         // TODO deal with multiple declarations
-        context.allocate_stack(4, init_declarator_list->get_id());
+        context.allocate_stack(
+            get_type(context),
+            init_declarator_list->get_id()
+        );
+
         init_declarator_list->gen_asm(dst, dest_reg, context);
     }
 

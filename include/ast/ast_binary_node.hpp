@@ -25,6 +25,36 @@ public:
         right->print(dst, indent_level);
     }
 
+    virtual Types get_type(Context &context) const override
+    {
+        Types left_type = left->get_type(context);
+        Types right_type = right->get_type(context);
+        Types return_type;
+
+        /*
+        This logic might seem a bit strange, but it checks the left and right
+        types and returns the one with the higher priority.
+
+        e.g. INT + INT -> INT
+        e.g. INT + FLOAT -> FLOAT
+        e.g. UNSIGNED_INT + INT -> INT
+        */
+
+        if (left_type > right_type)
+        {
+            return_type = left_type;
+        }
+        else
+        {
+            return_type = right_type;
+        }
+
+        return return_type;
+    }
+
+    NodePtr get_left() const { return left; }
+    NodePtr get_right() const { return right; }
+
     virtual double evaluate(Context &context) const override
     {
         throw std::runtime_error("Return::evaluate() not implemented");

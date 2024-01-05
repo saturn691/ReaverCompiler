@@ -57,7 +57,10 @@ public:
         {
             dst << get_id() << ":" << std::endl;
             context.init_stack(dst);
-            std::string input_reg = "a0";
+
+            // This doesn't really matter, registers will be allocated by
+            // Context &context
+            std::string input_reg = "";
 
             // Put parameters on the stack
             if (identifier_list)
