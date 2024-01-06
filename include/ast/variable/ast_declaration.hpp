@@ -1,18 +1,22 @@
-#ifndef ast_variable_declaration_hpp
-#define ast_variable_declaration_hpp
+#ifndef ast_declaration_hpp
+#define ast_declaration_hpp
 
 #include "../ast_node.hpp"
 
 
 /*
- *  Node for variable declarations (e.g. "int x;")
+ *  Node for declarations
+ *  (e.g. "int x;")
+ *
+ *  Can be used for both variables and function declarations
+ *  (e.g. "int f(int x)").
+ *
  *  Currently cannot support multiple types, (e.g. "float x");
- *  Currently cannot support multiple declarations (e.g. "int x, y;")
 */
-class VariableDeclaration : public Node
+class Declaration : public Node
 {
 public:
-    VariableDeclaration(
+    Declaration(
         NodePtr _declaration_specifiers,
         NodePtr _init_declarator_list
     ) :
@@ -20,7 +24,7 @@ public:
         init_declarator_list(_init_declarator_list)
     {}
 
-    virtual ~VariableDeclaration()
+    virtual ~Declaration()
     {}
 
     virtual void print(std::ostream &dst, int indent_level) const override
@@ -49,12 +53,8 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        // Reserve space on the stack
-        // TODO deal with multiple declarations
-        context.allocate_stack(
-            get_type(context),
-            init_declarator_list->get_id()
-        );
+        // Pass information about the type, down the AST tree
+        context.current_declaration_type = get_type(context);
 
         init_declarator_list->gen_asm(dst, dest_reg, context);
     }
@@ -65,4 +65,4 @@ private:
 };
 
 
-#endif  /* ast_variable_declaration_hpp */
+#endif  /* ast_declaration_hpp */

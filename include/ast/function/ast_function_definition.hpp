@@ -63,6 +63,9 @@ public:
         // This is to prevent declarations from generating assembly
         std::string code = "MAGIC CODE";
         Types type = get_type(context);
+
+        // Let the children nodes know of the return type
+        context.current_declaration_type = type;
         std::string return_reg = "";
 
         switch (type)

@@ -12,10 +12,16 @@
 #define AST_STACK_ALLOCATE          64
 #define AST_PRINT_INDENT_SPACES     4
 
-struct Variable
+/*
+ *  Identifiers can be used to refer to variables or functions.
+ *  However, we don't really know. A union could have been used, maybe in
+ *  2 pass compiler. Right now, this is kinda a mess.
+*/
+struct FunctionVariable
 {
     int stack_location;
     Types type;
+    std::vector<Types> parameter_types;
 };
 
 
@@ -133,6 +139,86 @@ public:
         }
     }
 
+    void push_registers(std::ostream& dst)
+    {
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
+        dst << "# Pushing registers onto stack (if any)" << std::endl;
+
+        // Search temporary registers (fa0-fa7)
+        for (int i = 0; i <= 11; ++i)
+        {
+            std::string register_name = "ft" + std::to_string(i);
+            int reg_index = register_map_f.at(register_name);
+            if (registers_f[reg_index] == 1)
+            {
+                registers_f[reg_index] = 0;
+                // 32-bit registers
+                int stack_loc = allocate_stack(
+                    Types::DOUBLE,
+                    "!" + register_name
+                );
+                dst << indent << "fsw " << register_name
+                    << ", " << stack_loc << "(s0)" << std::endl;
+            }
+        }
+
+        // Search temporary registers (a0-a7)
+        for (int i = 0; i <= 6; ++i)
+        {
+            std::string register_name = "t" + std::to_string(i);
+            int reg_index = register_map.at(register_name);
+            if (registers[reg_index] == 1)
+            {
+                registers[reg_index] = 0;
+                // 32-bit registers
+                int stack_loc = allocate_stack(
+                    Types::LONG,
+                    "!" + register_name
+                );
+                dst << indent << "sw " << register_name
+                    << ", " << stack_loc << "(s0)" << std::endl;
+            }
+        }
+    }
+
+    void pop_registers(std::ostream& dst)
+    {
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        std::vector<std::string> to_erase;
+        dst << "# Popping registers from stack (if any)" << std::endl;
+
+        for (const auto& pair : identifier_map)
+        {
+            if (pair.first[0] == '!')
+            {
+                std::string dest_reg = pair.first.substr(1);
+                int stack_loc = pair.second.stack_location;
+                Types type = pair.second.type;
+
+                switch (type)
+                {
+                    case Types::DOUBLE:
+                        dst << indent << "flw " << dest_reg << ", "
+                            << stack_loc << "(s0)" << std::endl;
+                        break;
+                    default:
+                        dst << indent << "lw " << dest_reg << ", "
+                            << stack_loc << "(s0)" << std::endl;
+                        break;
+                }
+
+                to_erase.push_back("!" + dest_reg);
+                pop_stack(8);
+            }
+        }
+
+        for (std::string e : to_erase)
+        {
+            identifier_map.erase(e);
+        }
+    }
+
     void deallocate_arg_registers()
     {
         // Search argument registers (fa0-fa7)
@@ -193,7 +279,18 @@ public:
     int allocate_stack(Types type, std::string id = "")
     {
         unsigned int bytes = type_size_map.at(type);
+        int stack_loc = push_stack(bytes);
 
+        if (!id.empty())
+        {
+            identifier_map[id] = {stack_loc, type};
+        }
+
+        return stack_loc;
+    }
+
+    int push_stack(int bytes)
+    {
         if (frame_pointer_offset - bytes < -AST_STACK_ALLOCATE)
         {
             throw std::runtime_error(
@@ -203,12 +300,12 @@ public:
 
         frame_pointer_offset -= bytes;
 
-        if (!id.empty())
-        {
-            variable_map[id] = {frame_pointer_offset, type};
-        }
-
         return frame_pointer_offset;
+    }
+
+    void pop_stack(int bytes)
+    {
+        frame_pointer_offset += bytes;
     }
 
     std::string get_unique_label(std::string prefix = "")
@@ -248,33 +345,47 @@ public:
 
     void add_function_declaration(std::string id)
     {
-        function_declaration_map.insert({id, std::vector<Types>()});
+        FunctionVariable function;
+        function.stack_location = -1;
+        function.type = current_declaration_type;
+        function.parameter_types.clear();
+
+        identifier_map.insert({id, function});
+        current_id = id;
     }
 
-    void add_function_declaration_type(std::string id, Types type)
+    void add_function_declaration_type(Types type, bool is_return_type = false)
     {
-        function_declaration_map[id].push_back(type);
+        identifier_map[current_id].parameter_types.push_back(type);
     }
 
     Types get_type(std::string id) const
     {
-        return variable_map.at(id).type;
+        return identifier_map.at(id).type;
     }
 
     int get_stack_location(std::string id) const
     {
-        return variable_map.at(id).stack_location;
+        return identifier_map.at(id).stack_location;
     }
+
+    /*
+    When declaring a variable or a function, say int x, y, z;, we need to know
+    the type of x, y, and z. However, because the compiler uses in-order
+    traversal, we traverse [int x, y, z] first then [x] then [y] then [z].
+    There is no way for [x] to get the information down from it's parent, so
+    we define this to pass down this information.
+    */
+    // The type of the current variable/function declaration.
+    Types current_declaration_type;
+    std::string current_id;
 
 private:
     // Contains the map of identifiers to variable properties (defined above)
-    std::unordered_map<std::string, Variable> variable_map;
+    std::unordered_map<std::string, FunctionVariable> identifier_map;
 
     // Contains the map of labels to word values
     std::unordered_map<std::string, int> memory_map;
-
-    // Stores the types of function declarations
-    std::unordered_map<std::string, std::vector<Types>> function_declaration_map;
 
     // Integer registers
     std::array<int, 32> registers = {   // REG      ABI     DESCRIPTION

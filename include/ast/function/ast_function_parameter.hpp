@@ -55,13 +55,13 @@ public:
     ) const override {
         Types type = get_type(context);
         std::string id = get_id();
-        context.add_function_declaration_type(id, type);
+        context.add_function_declaration_type(type);
 
         if (dest_reg == "MAGIC CODE")
         {
             std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-            int stack_loc = context.allocate_stack(type, id);
             std::string arg_reg = context.allocate_arg_register(type);
+            int stack_loc = context.allocate_stack(type, id);
 
             switch (type)
             {
