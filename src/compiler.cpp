@@ -17,7 +17,9 @@ void compile(std::string sourcePath, std::ostream &out)
 
     // Compiile the output into the file
     Context context;
-    std::string output_register = "a0";
+
+    // This doesn't matter- will either be a0 or fa0
+    std::string output_register = "";
 
     ast->gen_asm(out, output_register, context);
 }

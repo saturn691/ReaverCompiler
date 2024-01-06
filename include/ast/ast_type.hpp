@@ -62,7 +62,7 @@ public:
         }
     }
 
-    Types get_type() const
+    virtual Types get_type(Context &context) const override
     {
         return type;
     }

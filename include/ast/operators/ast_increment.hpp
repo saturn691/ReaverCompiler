@@ -22,17 +22,28 @@ public:
         dst << "++" << std::endl;
     }
 
+    virtual Types get_type(Context &context) const override
+    {
+        return operand->get_type(context);
+    }
+
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        operand->gen_asm(dst, dest_reg, context); // x
-        dst << indent << "addi " << dest_reg << ", " << dest_reg << ", 1" << std::endl; // ++
+        std::string temp_reg = context.allocate_register(get_type(context));
 
-        int stack_loc = context.variable_map.at(operand->get_id()).stack_location;
-        dst << "sw " << dest_reg << ", " << stack_loc << "(s0)" << std::endl;
+        operand->gen_asm(dst, temp_reg, context); // x
+        dst << indent << "addi " << temp_reg
+            << ", " << temp_reg << ", 1" << std::endl; // ++
+
+        int stack_loc = context.get_stack_location(operand->get_id());
+        dst << indent << "sw " << temp_reg
+            << ", " << stack_loc << "(s0)" << std::endl;
+
+        context.deallocate_register(temp_reg);
     }
 
 private:

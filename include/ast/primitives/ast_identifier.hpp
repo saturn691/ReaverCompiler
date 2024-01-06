@@ -26,6 +26,11 @@ public:
         return id;
     }
 
+    virtual Types get_type(Context &context) const override
+    {
+        return context.get_type(id);
+    }
+
     virtual double evaluate(Context &context) const override
     {
         throw std::runtime_error("Identifier::evaluate() not implemented");
@@ -38,11 +43,32 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         // Find the id on the stack - will throw exception if not found.
-        int stack_loc = context.variable_map.at(id).stack_location;
+        int stack_loc = context.get_stack_location(id);
+        Types type = get_type(context);
 
-        // TODO- deal with other types
-        dst << indent << "lw " << dest_reg << ", "
-            << stack_loc << "(s0)" << std::endl;
+        switch (type)
+        {
+            case Types::INT:
+            case Types::UNSIGNED_INT:
+                dst << indent << "lw " << dest_reg << ", "
+                    << stack_loc << "(s0)" << std::endl;
+                break;
+
+            case Types::FLOAT:
+                dst << indent << "flw " << dest_reg << ", "
+                    << stack_loc << "(s0)" << std::endl;
+                break;
+
+            case Types::DOUBLE:
+                dst << indent << "fld " << dest_reg << ", "
+                    << stack_loc << "(s0)" << std::endl;
+                break;
+
+            // TODO- deal with other types
+            default:
+                throw std::runtime_error("Identifier::gen_asm() not implemented");
+        }
+
     }
 
 private:

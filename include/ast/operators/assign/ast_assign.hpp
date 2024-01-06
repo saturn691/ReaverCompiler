@@ -25,6 +25,11 @@ public:
         return unary_expression->get_id();
     }
 
+    virtual Types get_type(Context &context) const override
+    {
+        return unary_expression->get_type(context);
+    }
+
     virtual void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
@@ -50,19 +55,43 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id = assignment_operator->get_id();
-        int stack_loc = context.variable_map.at(unary_expression->get_id()).stack_location;
+
+        unary_expression->gen_asm(dst, dest_reg, context);
+        int stack_loc = context.get_stack_location(get_id());
+        Types type = get_type(context);
 
         // TODO consider other types
         // Put the assignment expression into a temporary register
-        std::string reg = context.allocate_register(Types::INT);
+        std::string reg = context.allocate_register(type);
         assignment_expression->gen_asm(dst, reg, context);
 
         // TODO implement for all assignment operators
         if (id == "=")
         {
-            // TODO consider other types
-            dst << indent << "sw " << reg << ", "
-                << stack_loc << "(s0)" << std::endl;
+            switch (type)
+            {
+                case Types::INT:
+                case Types::UNSIGNED_INT:
+                    dst << indent << "sw " << reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
+
+                case Types::FLOAT:
+                    dst << indent << "fsw " << reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
+
+                case Types::DOUBLE:
+                    dst << indent << "dsw " << reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
+
+                default:
+                    throw std::runtime_error(
+                        "Assign::gen_asm(): Unsupported type for assignment"
+                    );
+                    break;
+            }
         }
         else
         {

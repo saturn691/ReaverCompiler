@@ -87,9 +87,10 @@ postfix_expression
     ;
 
 argument_expression_list
-    : assignment_expression                                 { $$ = $1; }
+    : assignment_expression
+        { $$ = new FunctionArgumentList($1, NULL); }
     | argument_expression_list ',' assignment_expression
-        { $$ = new FunctionParameterList($1, $3); }
+        { $$ = new FunctionArgumentList($1, $3); }
     ;
 
 unary_expression
@@ -223,7 +224,7 @@ constant_expression
 
 declaration
     : declaration_specifiers ';'                            { $$ = $1; }
-    | declaration_specifiers init_declarator_list ';'       { $$ = new VariableDeclaration($1, $2); }
+    | declaration_specifiers init_declarator_list ';'       { $$ = new Declaration($1, $2); }
     ;
 
 declaration_specifiers
@@ -334,7 +335,9 @@ declarator
     ;
 
 direct_declarator
-    : IDENTIFIER                                            { $$ = new Identifier(*$1); }
+    : IDENTIFIER
+        { $$ = new VariableDeclarator(new Identifier(*$1)); }
+    /* ^ Variable declarations */
     | '(' declarator ')'                                    { $$ = $2; }
     /* Array declarations with size or without size: arr[5] or arr[] */
     | direct_declarator '[' constant_expression ']'

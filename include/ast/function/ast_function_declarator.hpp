@@ -51,19 +51,21 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
+        // Let the compiler know that this function exists
+        context.add_function_declaration(get_id());
+
         // Ok, if you're reading this, please don't question this line
         // This is to prevent declarations from generating assembly
         if (dest_reg == "MAGIC CODE")
         {
             dst << get_id() << ":" << std::endl;
             context.init_stack(dst);
-            std::string input_reg = "a0";
 
             // Put parameters on the stack
             if (identifier_list)
             {
-                // Here we use dest_reg to pass the register of the parameters
-                identifier_list->gen_asm(dst, input_reg, context);
+                // Pass the magic code onwards
+                identifier_list->gen_asm(dst, dest_reg, context);
             }
         }
     }

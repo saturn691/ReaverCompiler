@@ -12,10 +12,16 @@
 #define AST_STACK_ALLOCATE          64
 #define AST_PRINT_INDENT_SPACES     4
 
-struct Variable
+/*
+ *  Identifiers can be used to refer to variables or functions.
+ *  However, we don't really know. A union could have been used, maybe in
+ *  2 pass compiler. Right now, this is kinda a mess.
+*/
+struct FunctionVariable
 {
     int stack_location;
-    int bytes;
+    Types type;
+    std::vector<Types> parameter_types;
 };
 
 
@@ -26,38 +32,89 @@ struct Variable
 class Context
 {
 public:
-    std::unordered_map<std::string, Variable> variable_map;
-
     std::string allocate_register(Types type)
     {
         switch (type)
         {
-            case Types::INT:
-            case Types::UNSIGNED_INT:
-                // Search temporary registers (t0-t2)
-                for (int i = 0; i <= 2; ++i)
+
+            case Types::FLOAT:
+            case Types::DOUBLE:
+                // Search temporary registers (ft0-ft11)
+                for (int i = 0; i <= 11; ++i)
                 {
-                    if (registers[i + 5] == 0)
+                    std::string register_name = "ft" + std::to_string(i);
+                    int reg_index = register_map_f.at(register_name);
+
+                    if (registers_f[reg_index] == 0)
                     {
-                        registers[i + 5] = 1;
-                        return "t" + std::to_string(i);
-                    }
-                }
-                // Search temporary registers (t3-t6)
-                for (int i = 0; i <= 3; ++i)
-                {
-                    if (registers[i + 28] == 0)
-                    {
-                        registers[i + 28] = 1;
-                        return "t" + std::to_string(i + 3);
+                        registers_f[reg_index] = 1;
+                        return register_name;
                     }
                 }
                 break;
 
-            default:
+            case Types::LONG_DOUBLE:
                 throw std::runtime_error(
                     "Context::allocate_register() - unrecognised type"
                 );
+                break;
+
+            default:
+                // Search temporary registers (t0-t6)
+                for (int i = 0; i <= 6; ++i)
+                {
+                    std::string register_name = "t" + std::to_string(i);
+                    int reg_index = register_map.at(register_name);
+
+                    if (registers[reg_index] == 0)
+                    {
+                        registers[reg_index] = 1;
+                        return register_name;
+                    }
+                }
+                break;
+        }
+    }
+
+    std::string allocate_arg_register(Types type)
+    {
+        switch (type)
+        {
+            case Types::FLOAT:
+            case Types::DOUBLE:
+                // Search argument registers (fa0-fa7)
+                for (int i = 0; i <= 7; ++i)
+                {
+                    std::string register_name = "fa" + std::to_string(i);
+                    int reg_index = register_map_f.at(register_name);
+
+                    if (registers_f[reg_index] == 0)
+                    {
+                        registers_f[reg_index] = 1;
+                        return register_name;
+                    }
+                }
+                break;
+
+            case Types::LONG_DOUBLE:
+                throw std::runtime_error(
+                    "Context::allocate_arg_register() - not implemented"
+                );
+
+            default:
+                // Search argument registers (a0-a7)
+                for (int i = 0; i <= 7; ++i)
+                {
+                    std::string register_name = "a" + std::to_string(i);
+                    int reg_index = register_map.at(register_name);
+
+                    if (registers[reg_index] == 0)
+                    {
+                        registers[reg_index] = 1;
+                        return register_name;
+                    }
+                }
+                break;
         }
     }
 
@@ -72,13 +129,112 @@ public:
         }
         else if (it_f != register_map_f.end())
         {
-            registers_f[it->second] = 0;
+            registers_f[it_f->second] = 0;
         }
         else
         {
             throw std::runtime_error(
                 "Context::deallocate_register() - unrecognised register"
             );
+        }
+    }
+
+    void push_registers(std::ostream& dst)
+    {
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
+        dst << "# Pushing registers onto stack (if any)" << std::endl;
+
+        // Search temporary registers (fa0-fa7)
+        for (int i = 0; i <= 11; ++i)
+        {
+            std::string register_name = "ft" + std::to_string(i);
+            int reg_index = register_map_f.at(register_name);
+            if (registers_f[reg_index] == 1)
+            {
+                registers_f[reg_index] = 0;
+                // 32-bit registers
+                int stack_loc = allocate_stack(
+                    Types::DOUBLE,
+                    "!" + register_name
+                );
+                dst << indent << "fsw " << register_name
+                    << ", " << stack_loc << "(s0)" << std::endl;
+            }
+        }
+
+        // Search temporary registers (a0-a7)
+        for (int i = 0; i <= 6; ++i)
+        {
+            std::string register_name = "t" + std::to_string(i);
+            int reg_index = register_map.at(register_name);
+            if (registers[reg_index] == 1)
+            {
+                registers[reg_index] = 0;
+                // 32-bit registers
+                int stack_loc = allocate_stack(
+                    Types::LONG,
+                    "!" + register_name
+                );
+                dst << indent << "sw " << register_name
+                    << ", " << stack_loc << "(s0)" << std::endl;
+            }
+        }
+    }
+
+    void pop_registers(std::ostream& dst)
+    {
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        std::vector<std::string> to_erase;
+        dst << "# Popping registers from stack (if any)" << std::endl;
+
+        for (const auto& pair : identifier_map)
+        {
+            if (pair.first[0] == '!')
+            {
+                std::string dest_reg = pair.first.substr(1);
+                int stack_loc = pair.second.stack_location;
+                Types type = pair.second.type;
+
+                switch (type)
+                {
+                    case Types::DOUBLE:
+                        dst << indent << "flw " << dest_reg << ", "
+                            << stack_loc << "(s0)" << std::endl;
+                        break;
+                    default:
+                        dst << indent << "lw " << dest_reg << ", "
+                            << stack_loc << "(s0)" << std::endl;
+                        break;
+                }
+
+                to_erase.push_back("!" + dest_reg);
+                pop_stack(8);
+            }
+        }
+
+        for (std::string e : to_erase)
+        {
+            identifier_map.erase(e);
+        }
+    }
+
+    void deallocate_arg_registers()
+    {
+        // Search argument registers (fa0-fa7)
+        for (int i = 0; i <= 7; ++i)
+        {
+            std::string register_name = "fa" + std::to_string(i);
+            int reg_index = register_map_f.at(register_name);
+            registers_f[reg_index] = 0;
+        }
+
+        // Search argument registers (a0-a7)
+        for (int i = 0; i <= 7; ++i)
+        {
+            std::string register_name = "a" + std::to_string(i);
+            int reg_index = register_map.at(register_name);
+            registers[reg_index] = 0;
         }
     }
 
@@ -120,7 +276,20 @@ public:
         dst << indent << "addi sp, sp, " << AST_STACK_ALLOCATE << std::endl;
     }
 
-    int allocate_stack(int bytes, std::string id = "")
+    int allocate_stack(Types type, std::string id = "")
+    {
+        unsigned int bytes = type_size_map.at(type);
+        int stack_loc = push_stack(bytes);
+
+        if (!id.empty())
+        {
+            identifier_map[id] = {stack_loc, type};
+        }
+
+        return stack_loc;
+    }
+
+    int push_stack(int bytes)
     {
         if (frame_pointer_offset - bytes < -AST_STACK_ALLOCATE)
         {
@@ -131,12 +300,12 @@ public:
 
         frame_pointer_offset -= bytes;
 
-        if (!id.empty())
-        {
-            variable_map[id] = {frame_pointer_offset, bytes};
-        }
-
         return frame_pointer_offset;
+    }
+
+    void pop_stack(int bytes)
+    {
+        frame_pointer_offset += bytes;
     }
 
     std::string get_unique_label(std::string prefix = "")
@@ -149,7 +318,75 @@ public:
         return tag;
     }
 
+    void add_memory_data(std::string label, int value)
+    {
+        memory_map.insert(std::make_pair(label, value));
+    }
+
+    void gen_memory_asm(std::ostream& dst)
+    {
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
+        dst << ".section .rodata" << std::endl;
+
+        std::string id;
+        int val;
+
+        for (const auto& [id, val] : memory_map)
+        {
+            // This is what GCC does.
+            dst << ".align 2" << std::endl;
+            dst << "." << id << ":" << std::endl;
+
+            // Necessary for floating point representations.
+            dst << indent << ".word " << val << std::endl;
+        }
+    }
+
+    void add_function_declaration(std::string id)
+    {
+        FunctionVariable function;
+        function.stack_location = -1;
+        function.type = current_declaration_type;
+        function.parameter_types.clear();
+
+        identifier_map.insert({id, function});
+        current_id = id;
+    }
+
+    void add_function_declaration_type(Types type, bool is_return_type = false)
+    {
+        identifier_map[current_id].parameter_types.push_back(type);
+    }
+
+    Types get_type(std::string id) const
+    {
+        return identifier_map.at(id).type;
+    }
+
+    int get_stack_location(std::string id) const
+    {
+        return identifier_map.at(id).stack_location;
+    }
+
+    /*
+    When declaring a variable or a function, say int x, y, z;, we need to know
+    the type of x, y, and z. However, because the compiler uses in-order
+    traversal, we traverse [int x, y, z] first then [x] then [y] then [z].
+    There is no way for [x] to get the information down from it's parent, so
+    we define this to pass down this information.
+    */
+    // The type of the current variable/function declaration.
+    Types current_declaration_type;
+    std::string current_id;
+
 private:
+    // Contains the map of identifiers to variable properties (defined above)
+    std::unordered_map<std::string, FunctionVariable> identifier_map;
+
+    // Contains the map of labels to word values
+    std::unordered_map<std::string, int> memory_map;
+
     // Integer registers
     std::array<int, 32> registers = {   // REG      ABI     DESCRIPTION
         1,                              // x0       zero    zero constant
@@ -177,6 +414,11 @@ private:
     // Points to the bottom of the data in the frame
     int frame_pointer_offset = 0;
 
+    unsigned int tag_next_id = 0;
+
+    // Constants --------------------------------------------------------------
+
+    // Register map from name to index
     const std::unordered_map<std::string, int> register_map = {
         {"zero", 0},
         {"ra", 1},
@@ -212,6 +454,7 @@ private:
         {"t6", 31}
     };
 
+    // Floating point register map from name to index
     const std::unordered_map<std::string, int> register_map_f = {
         {"ft0", 0},
         {"ft1", 1},
@@ -247,7 +490,21 @@ private:
         {"ft11", 31}
     };
 
-    unsigned int tag_next_id = 0;
+    // Map from type to size in bytes
+    const std::unordered_map<Types, unsigned int> type_size_map = {
+        {Types::VOID,               0},
+        {Types::UNSIGNED_CHAR,      1},
+        {Types::CHAR,               1},
+        {Types::UNSIGNED_SHORT,     2},
+        {Types::SHORT,              2},
+        {Types::UNSIGNED_INT,       4},
+        {Types::INT,                4},
+        {Types::UNSIGNED_LONG,      8},
+        {Types::LONG,               8},
+        {Types::FLOAT,              4},
+        {Types::DOUBLE,             8},
+        {Types::LONG_DOUBLE,        8}
+    };
 };
 
 

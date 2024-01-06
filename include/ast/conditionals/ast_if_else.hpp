@@ -78,6 +78,8 @@ public:
             dst << indent << "beq " << condition_reg << ", zero, " << end_label << std::endl;
         }
 
+        context.deallocate_register(condition_reg);
+
         then_statement->gen_asm(dst, dest_reg, context);
         dst << indent << "j " << end_label << std::endl;
 

@@ -24,24 +24,22 @@ public:
         throw std::runtime_error("FunctionParameterList::evaluate() not implemented");
     }
 
+    virtual Types get_type(Context &context) const override
+    {
+        return left->get_type(context);
+    }
+
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
+        context.deallocate_arg_registers();
+
         // The function parameter list is held in the LEFT node
         left->gen_asm(dst, dest_reg, context);
-
-        // Cheeky way to get the next register, but works for now
-        int next_reg = std::stoi(dest_reg.substr(1)) + 1;
-        dest_reg = dest_reg[0] + std::to_string(next_reg);
-
         right->gen_asm(dst, dest_reg, context);
     }
-
-private:
-    NodePtr declaration_specifiers;
-    NodePtr declarator;
 };
 
 

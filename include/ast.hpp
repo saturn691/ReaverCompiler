@@ -6,6 +6,8 @@
 #include <ast/ast_node.hpp>
 #include <ast/ast_type.hpp>
 
+#include <ast/function/ast_function_argument_list.hpp>
+#include <ast/function/ast_function_argument.hpp>
 #include <ast/function/ast_function_call.hpp>
 #include <ast/function/ast_function_declarator.hpp>
 #include <ast/function/ast_function_definition.hpp>
@@ -50,7 +52,8 @@
 
 #include <ast/statements/ast_return.hpp>
 
-#include <ast/variable/ast_variable_declaration.hpp>
+#include <ast/variable/ast_declaration.hpp>
+#include <ast/variable/ast_variable_declarator.hpp>
 
 extern const Node *parseAST(std::string filename);
 

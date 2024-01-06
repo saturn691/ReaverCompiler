@@ -34,15 +34,63 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        std::string temp_reg1 = context.allocate_register(Types::INT);
-        std::string temp_reg2 = context.allocate_register(Types::INT);
+        Types type = get_type(context);
 
+        std::string temp_reg1 = context.allocate_register(type);
         get_left()->gen_asm(dst, temp_reg1, context);
+
+        std::string temp_reg2 = context.allocate_register(type);
         get_right()->gen_asm(dst, temp_reg2, context);
 
-        // TODO handle multiple types
-        dst << indent << "mul " << dest_reg
-            << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+        switch (type)
+        {
+            case Types::INT:
+            case Types::UNSIGNED_INT:
+                dst << indent << "mul " << dest_reg
+                    << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+                break;
+
+            case Types::FLOAT:
+                if (dest_reg[0] != 'f')
+                {
+                    // ".s" refers to single precision floating point
+                    // Put into floating point register
+                    // THEN move to dest register
+                    dst << indent << "fmul.s " << temp_reg1
+                        << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+
+                    dst << indent << "fmv.s " << dest_reg
+                        << ", " << temp_reg1 << std::endl;
+                }
+                else
+                {
+                    dst << indent << "fmul.s " << dest_reg
+                        << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+                }
+                break;
+
+
+            case Types::DOUBLE:
+                if (dest_reg[0] != 'f')
+                {
+                    // ".d" refers to double precision floating point
+                    dst << indent << "fmul.d " << temp_reg1
+                        << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+
+                    dst << indent << "fmv.d " << dest_reg
+                        << ", " << temp_reg1 << std::endl;
+                }
+                else
+                {
+                    dst << indent << "fmul.d " << dest_reg
+                        << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
+                }
+                break;
+
+            // TODO handle multiple types
+            default:
+                throw std::runtime_error("Subtract::gen_asm() not implemented");
+        }
 
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);

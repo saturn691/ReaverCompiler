@@ -34,6 +34,13 @@ public:
         throw std::runtime_error("Node::get_id() not implemented");
     }
 
+    // Finds the type in one of the branches.
+    // Supports all types including enums.
+    virtual Types get_type(Context &context) const
+    {
+        throw std::runtime_error("Node::get_type() not implemented");
+    }
+
     virtual double evaluate(Context &context) const
     {
         throw std::runtime_error("Node::evaluate() not implemented");
