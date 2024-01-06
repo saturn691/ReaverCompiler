@@ -55,6 +55,7 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id = assignment_operator->get_id();
+
         unary_expression->gen_asm(dst, dest_reg, context);
         int stack_loc = context.get_stack_location(get_id());
         Types type = get_type(context);
