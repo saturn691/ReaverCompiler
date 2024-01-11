@@ -47,9 +47,9 @@
 %type <node> expression constant_expression
 %type <node> declaration declaration_specifiers
 %type <node> init_declarator_list init_declarator
-%type <node> storage_class_specifier type_specifier
-%type <node> struct_or_union_specifier struct_or_union
-%type <node> struct_declarator_list struct_declarator
+%type <node> storage_class_specifier type_specifier struct_declaration_list
+%type <node> struct_declaration struct_or_union_specifier struct_or_union
+%type <node> specifier_qualifier_list struct_declarator_list struct_declarator
 %type <node> enum_specifier enumerator_list enumerator
 %type <node> type_qualifier declarator direct_declarator pointer
 %type <node> type_qualifier_list parameter_type_list parameter_list
@@ -81,6 +81,7 @@ postfix_expression
     | postfix_expression '(' ')'                            { $$ = new FunctionCall($1, NULL); }
     | postfix_expression '(' argument_expression_list ')'   { $$ = new FunctionCall($1, $3); }
     | postfix_expression '.' IDENTIFIER
+        { $$ = new StructAccess($1, new Identifier(*$3)); }
     | postfix_expression PTR_OP IDENTIFIER
     | postfix_expression INC_OP                             { $$ = new PostIncrement($1); }
     | postfix_expression DEC_OP
@@ -243,7 +244,8 @@ init_declarator_list
 
 init_declarator
     : declarator                                            { $$ = $1; }
-    | declarator '=' initializer                            { $$ = new Assign($1, new AssignOp("="), $3); }
+    | declarator '=' initializer
+        { $$ = new Assign($1, new AssignOp("="), $3); }
     ;
 
 storage_class_specifier
@@ -255,55 +257,66 @@ storage_class_specifier
     ;
 
 type_specifier
-    : VOID                                                  { $$ = new Type(Types::VOID); }
-    | CHAR                                                  { $$ = new Type(Types::CHAR); }
-    | SHORT                                                 { $$ = new Type(Types::SHORT); }
-    | INT                                                   { $$ = new Type(Types::INT); }
-    | LONG                                                  { $$ = new Type(Types::LONG); }
-    | FLOAT                                                 { $$ = new Type(Types::FLOAT); }
-    | DOUBLE                                                { $$ = new Type(Types::DOUBLE); }
+    : VOID                          { $$ = new BasicType(Types::VOID); }
+    | CHAR                          { $$ = new BasicType(Types::CHAR); }
+    | SHORT                         { $$ = new BasicType(Types::SHORT); }
+    | INT                           { $$ = new BasicType(Types::INT); }
+    | LONG                          { $$ = new BasicType(Types::LONG); }
+    | FLOAT                         { $$ = new BasicType(Types::FLOAT); }
+    | DOUBLE                        { $$ = new BasicType(Types::DOUBLE); }
     /* NOTE: This is a temporary solution- ignore compound types. */
-    | SIGNED                                                { $$ = new Type(Types::INT); }
-    | UNSIGNED                                              { $$ = new Type(Types::UNSIGNED_INT); }
-    | struct_or_union_specifier
+    | SIGNED                        { $$ = new BasicType(Types::INT); }
+    | UNSIGNED                      { $$ = new BasicType(Types::UNSIGNED_INT); }
+    | struct_or_union_specifier     { $$ = $1; }
     | enum_specifier
+    /* typedefs */
     | TYPE_NAME
     ;
 
 struct_or_union_specifier
     : struct_or_union IDENTIFIER '{' struct_declaration_list '}'
+        { $$ = new StructDefinition(*$2, $4); }
     | struct_or_union '{' struct_declaration_list '}'
     | struct_or_union IDENTIFIER
+        { $$ = new StructInstance(*$2); }
     ;
 
 struct_or_union
     : STRUCT
-    | UNION
+    | UNION                         /* ignore unions */
     ;
 
 struct_declaration_list
     : struct_declaration
+        { $$ = $1; }
     | struct_declaration_list struct_declaration
+        /* No need for fancy stuff here */
+        { $$ = new BinaryNode($1, $2); }
     ;
 
 struct_declaration
     : specifier_qualifier_list struct_declarator_list ';'
+        { $$ = new StructDeclaration($1, $2); }
     ;
 
 specifier_qualifier_list
     : type_specifier specifier_qualifier_list
     | type_specifier
+        { $$ = $1; }
     | type_qualifier specifier_qualifier_list
     | type_qualifier
     ;
 
 struct_declarator_list
     : struct_declarator
+        { $$ = $1; }
     | struct_declarator_list ',' struct_declarator
+        { $$ = new StructDeclaratorList($1, $3); }
     ;
 
 struct_declarator
     : declarator
+        { $$ = $1; }
     | ':' constant_expression
     | declarator ':' constant_expression
     ;

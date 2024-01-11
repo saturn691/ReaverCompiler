@@ -1,0 +1,47 @@
+#ifndef ast_struct_declaration_hpp
+#define ast_struct_declaration_hpp
+
+#include "../../ast_node.hpp"
+
+
+/*
+ *  Struct declarations (NOT declarator)
+ *  Declarations are HIGHER than declarators in the AST
+ *  (e.g. "int x, y, z;")
+*/
+class StructDeclaration : public Node
+{
+public:
+    StructDeclaration(
+        NodePtr specifier_qualifier_list,
+        NodePtr _struct_declarator_list
+    ) :
+        specifier_qualifier_list(specifier_qualifier_list),
+        struct_declarator_list(_struct_declarator_list)
+    {}
+
+    virtual void print(std::ostream &dst, int indent_level) const override
+    {
+        std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
+        dst << indent;
+        specifier_qualifier_list->print(dst, 0);
+        dst << " ";
+        struct_declarator_list->print(dst, 0);
+        dst << ";" << std::endl;
+    }
+
+    virtual void gen_asm(
+        std::ostream &dst,
+        std::string &dest_reg,
+        Context &context
+    ) const override {
+        throw std::runtime_error("StructDeclaration::gen_asm() not implemented");
+    }
+
+private:
+    NodePtr specifier_qualifier_list;
+    NodePtr struct_declarator_list;
+};
+
+
+#endif  /* ast_struct_declaration_hpp */

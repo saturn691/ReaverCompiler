@@ -1,19 +1,18 @@
-#ifndef ast_type_hpp
-#define ast_type_hpp
+#ifndef ast_basic_type_hpp
+#define ast_basic_type_hpp
 
-#include "ast_node.hpp"
-#include "ast_types.hpp"
-
+#include "ast_type.hpp"
+#include "../ast_types.hpp"
 
 /*
  *  Leaf node for types (e.g. "double" in "double x = 10")
 */
-class Type : public Node
+class BasicType : public Type
 {
 public:
-    Type(Types t) : type(t) {}
+    BasicType(Types t) : type(t) {}
 
-    virtual ~Type()
+    virtual ~BasicType()
     {}
 
     virtual void print(std::ostream &dst, int indent_level) const override
@@ -85,4 +84,4 @@ private:
 };
 
 
-#endif  /* ast_type_hpp */
+#endif  /* ast_basic_type_hpp */

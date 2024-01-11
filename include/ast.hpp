@@ -4,7 +4,6 @@
 #include <ast/ast_binary_node.hpp>
 #include <ast/ast_context.hpp>
 #include <ast/ast_node.hpp>
-#include <ast/ast_type.hpp>
 
 #include <ast/function/ast_function_argument_list.hpp>
 #include <ast/function/ast_function_argument.hpp>
@@ -51,6 +50,15 @@
 #include <ast/primitives/ast_identifier.hpp>
 
 #include <ast/statements/ast_return.hpp>
+
+#include <ast/type/ast_type.hpp>
+#include <ast/type/ast_basic_type.hpp>
+#include <ast/type/struct/ast_struct_access.hpp>
+#include <ast/type/struct/ast_struct_declaration.hpp>
+#include <ast/type/struct/ast_struct_declarator_list.hpp>
+#include <ast/type/struct/ast_struct_definition.hpp>
+#include <ast/type/struct/ast_struct_type.hpp>
+#include <ast/type/struct/ast_struct_instance.hpp>
 
 #include <ast/variable/ast_declaration.hpp>
 #include <ast/variable/ast_variable_declarator.hpp>
