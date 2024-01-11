@@ -50,6 +50,9 @@
 #include <ast/primitives/ast_number.hpp>
 #include <ast/primitives/ast_identifier.hpp>
 
+// Array
+// #include <ast/array/ast_array.hpp>
+
 #include <ast/statements/ast_return.hpp>
 
 #include <ast/variable/ast_declaration.hpp>
