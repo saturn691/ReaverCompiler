@@ -377,10 +377,13 @@ int Context::get_stack_location(std::string id) const
 unsigned int Context::get_size(std::string id) const
 {
     unsigned int total_size = 0;
+    std::string id_dot = id + ".";
 
     for (const auto& [key, value] : identifier_map)
     {
-        if (key.find(id) != std::string::npos)
+        // Either a variable or a struct member
+        // Need to search like this otherwise we get false positives
+        if (key == id || key.substr(0, id_dot.size()) == id_dot)
         {
             total_size += type_size_map.at(value.type);
         }
