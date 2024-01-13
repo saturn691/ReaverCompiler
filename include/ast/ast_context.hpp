@@ -70,6 +70,8 @@ public:
 
     Types get_type(std::string id) const;
 
+    unsigned int get_size(std::string id) const;
+
     int get_stack_location(std::string id) const;
 
     /*

@@ -41,6 +41,12 @@ public:
         throw std::runtime_error("Node::get_type() not implemented");
     }
 
+    // Gets the size of the identifier or type
+    virtual unsigned int get_size(Context &context) const
+    {
+        throw std::runtime_error("Node::get_size() not implemented");
+    }
+
     virtual double evaluate(Context &context) const
     {
         throw std::runtime_error("Node::evaluate() not implemented");

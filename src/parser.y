@@ -397,7 +397,7 @@ identifier_list
     ;
 
 type_name
-    : specifier_qualifier_list
+    : specifier_qualifier_list                              { $$ = $1; }
     | specifier_qualifier_list abstract_declarator
     ;
 

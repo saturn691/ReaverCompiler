@@ -31,6 +31,11 @@ public:
         return context.get_type(id);
     }
 
+    virtual unsigned int get_size(Context &context) const override
+    {
+        return context.get_size(id);
+    }
+
     virtual double evaluate(Context &context) const override
     {
         throw std::runtime_error("Identifier::evaluate() not implemented");

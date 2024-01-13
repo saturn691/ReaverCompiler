@@ -53,6 +53,7 @@ std::string Context::allocate_register(Types type)
     }
 }
 
+
 std::string Context::allocate_arg_register(Types type)
 {
     switch (type)
@@ -95,6 +96,7 @@ std::string Context::allocate_arg_register(Types type)
     }
 }
 
+
 void Context::deallocate_register(std::string register_name)
 {
     auto it = register_map.find(register_name);
@@ -115,6 +117,7 @@ void Context::deallocate_register(std::string register_name)
         );
     }
 }
+
 
 void Context::push_registers(std::ostream& dst)
 {
@@ -159,6 +162,7 @@ void Context::push_registers(std::ostream& dst)
     }
 }
 
+
 void Context::pop_registers(std::ostream& dst)
 {
     std::string indent(AST_PRINT_INDENT_SPACES, ' ');
@@ -196,6 +200,7 @@ void Context::pop_registers(std::ostream& dst)
     }
 }
 
+
 void Context::deallocate_arg_registers()
 {
     // Search argument registers (fa0-fa7)
@@ -214,6 +219,7 @@ void Context::deallocate_arg_registers()
         registers[reg_index] = 0;
     }
 }
+
 
 void Context::init_stack(std::ostream& dst)
 {
@@ -240,6 +246,7 @@ void Context::init_stack(std::ostream& dst)
     frame_pointer_offset = -AST_STACK_ALIGN;
 }
 
+
 void Context::end_stack(std::ostream& dst)
 {
     std::string indent(AST_PRINT_INDENT_SPACES, ' ');
@@ -252,6 +259,7 @@ void Context::end_stack(std::ostream& dst)
     dst << indent << "lw s0, " << s0_location << "(sp)" << std::endl;
     dst << indent << "addi sp, sp, " << AST_STACK_ALLOCATE << std::endl;
 }
+
 
 int Context::allocate_stack(Types type, std::string id)
 {
@@ -272,6 +280,7 @@ int Context::allocate_stack(Types type, std::string id)
     return stack_loc;
 }
 
+
 int Context::push_stack(int bytes)
 {
     if (frame_pointer_offset - bytes < -AST_STACK_ALLOCATE)
@@ -286,10 +295,12 @@ int Context::push_stack(int bytes)
     return frame_pointer_offset;
 }
 
+
 void Context::pop_stack(int bytes)
 {
     frame_pointer_offset += bytes;
 }
+
 
 std::string Context::get_unique_label(std::string prefix)
 {
@@ -301,10 +312,12 @@ std::string Context::get_unique_label(std::string prefix)
     return tag;
 }
 
+
 void Context::add_memory_data(std::string label, int value)
 {
     memory_map.insert(std::make_pair(label, value));
 }
+
 
 void Context::gen_memory_asm(std::ostream& dst)
 {
@@ -326,6 +339,7 @@ void Context::gen_memory_asm(std::ostream& dst)
     }
 }
 
+
 void Context::add_function_declaration(std::string id)
 {
     FunctionVariable function;
@@ -337,17 +351,40 @@ void Context::add_function_declaration(std::string id)
     current_id = id;
 }
 
+
 void Context::add_function_declaration_type(Types type, bool is_return_type)
 {
     identifier_map.at(current_id).parameter_types.push_back(type);
 }
+
 
 Types Context::get_type(std::string id) const
 {
     return identifier_map.at(id).type;
 }
 
+
 int Context::get_stack_location(std::string id) const
 {
     return identifier_map.at(id).stack_location;
+}
+
+
+/**
+ *  Traverses the identifier map and returns the size of the variable or if
+ *  it is a struct, the total size of the members.
+*/
+unsigned int Context::get_size(std::string id) const
+{
+    unsigned int total_size = 0;
+
+    for (const auto& [key, value] : identifier_map)
+    {
+        if (key.find(id) != std::string::npos)
+        {
+            total_size += type_size_map.at(value.type);
+        }
+    }
+
+    return total_size;
 }
