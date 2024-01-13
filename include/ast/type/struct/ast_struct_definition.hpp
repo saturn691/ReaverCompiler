@@ -2,7 +2,7 @@
 #define ast_struct_definition_hpp
 
 #include "../../ast_node.hpp"
-
+#include "ast_struct_type.hpp"
 
 /*
  *  Defines a struct
@@ -33,7 +33,19 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("StructDeclaration::gen_asm() not implemented");
+        // Clear the cache of struct members
+        context.struct_members.clear();
+
+        // Populate context.struct_members
+        context.mode = Context::Mode::STRUCT;
+        struct_declaration_list->gen_asm(dst, dest_reg, context);
+
+        // Create a new struct type and add it to the struct map
+        context.struct_map[identifier] = new StructType(
+            identifier,
+            context.struct_members
+        );
+        context.mode = Context::Mode::GLOBAL;
     }
 
 private:

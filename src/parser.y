@@ -99,8 +99,8 @@ unary_expression
     | INC_OP unary_expression                               { $$ = new PreIncrement($2); }
     | DEC_OP unary_expression
     | unary_operator cast_expression
-    | SIZEOF unary_expression
-    | SIZEOF '(' type_name ')'
+    | SIZEOF unary_expression                               { $$ = new SizeOf($2); }
+    | SIZEOF '(' type_name ')'                              { $$ = new SizeOf($3); }
     ;
 
 unary_operator

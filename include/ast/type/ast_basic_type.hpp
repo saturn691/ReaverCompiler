@@ -66,6 +66,18 @@ public:
         return type;
     }
 
+    virtual Types get_type() const override
+    {
+        return type;
+    }
+
+    virtual void allocate_stack(
+        Context &context,
+        std::string id
+    ) const override {
+        context.allocate_stack(type, id);
+    }
+
     virtual double evaluate(Context &context) const override
     {
         throw std::runtime_error("Type::evaluate() not allowed");
@@ -76,7 +88,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("Type::gen_asm() not allowed");
+        context.current_declaration_type = this;
     }
 
 private:

@@ -7,10 +7,10 @@
 #include <memory>
 #include <vector>
 
-#include "ast_context.hpp"
-
+#include "ast_types.hpp"
 
 class Node;
+class Context;
 
 typedef const Node *NodePtr;
 

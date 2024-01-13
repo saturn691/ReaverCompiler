@@ -43,11 +43,6 @@ public:
         dst << "}";
     }
 
-    virtual Types get_type(Context &context) const override
-    {
-        return declaration_specifier->get_type(context);
-    }
-
     virtual double evaluate(Context &context) const override
     {
         throw std::runtime_error("FunctionDefinition::evaluate() not implemented");
@@ -62,10 +57,10 @@ public:
         // Ok, if you're reading this, please don't question this line
         // This is to prevent declarations from generating assembly
         std::string code = "MAGIC CODE";
-        Types type = get_type(context);
 
         // Let the children nodes know of the return type
-        context.current_declaration_type = type;
+        context.current_declaration_type = (TypePtr)declaration_specifier;
+        Types type = context.current_declaration_type->get_type();
         std::string return_reg = "";
 
         switch (type)

@@ -35,7 +35,8 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("StructDeclaration::gen_asm() not implemented");
+        context.current_sub_declaration_type = (TypePtr)specifier_qualifier_list;
+        struct_declarator_list->gen_asm(dst, dest_reg, context);
     }
 
 private:

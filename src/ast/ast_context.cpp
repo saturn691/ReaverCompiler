@@ -1,6 +1,14 @@
 #include <ast/ast_context.hpp>
 
 
+Context::Context() :
+    // Vector must be initialised to empty vector here
+    struct_members(
+        std::vector<std::pair<std::string, TypePtr>>()
+    )
+{}
+
+
 std::string Context::allocate_register(Types type)
 {
     switch (type)
@@ -254,6 +262,12 @@ int Context::allocate_stack(Types type, std::string id)
     {
         identifier_map[id] = {stack_loc, type};
     }
+    else
+    {
+        throw std::runtime_error(
+            "Context::allocate_stack() - id is empty"
+        );
+    }
 
     return stack_loc;
 }
@@ -316,7 +330,7 @@ void Context::add_function_declaration(std::string id)
 {
     FunctionVariable function;
     function.stack_location = -1;
-    function.type = current_declaration_type;
+    function.type = current_declaration_type->get_type();
     function.parameter_types.clear();
 
     identifier_map.insert({id, function});
@@ -325,7 +339,7 @@ void Context::add_function_declaration(std::string id)
 
 void Context::add_function_declaration_type(Types type, bool is_return_type)
 {
-    identifier_map[current_id].parameter_types.push_back(type);
+    identifier_map.at(current_id).parameter_types.push_back(type);
 }
 
 Types Context::get_type(std::string id) const

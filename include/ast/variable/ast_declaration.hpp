@@ -38,11 +38,6 @@ public:
         dst << ";" << std::endl;
     }
 
-    virtual Types get_type(Context &context) const override
-    {
-        return declaration_specifiers->get_type(context);
-    }
-
     virtual double evaluate(Context &context) const override
     {
         throw std::runtime_error("Return::evaluate() not implemented");
@@ -54,7 +49,10 @@ public:
         Context &context
     ) const override {
         // Pass information about the type, down the AST tree
-        context.current_declaration_type = get_type(context);
+        TypePtr type = static_cast<TypePtr>(declaration_specifiers);
+        context.current_declaration_type = type;
+
+        context.current_declaration_type->gen_asm(dst, dest_reg, context);
 
         init_declarator_list->gen_asm(dst, dest_reg, context);
     }

@@ -15,6 +15,10 @@ class Type : public Node
 {
 public:
     Type() {}
+
+    virtual Types get_type() const = 0;
+
+    virtual void allocate_stack(Context &context, std::string id) const = 0;
 };
 
 

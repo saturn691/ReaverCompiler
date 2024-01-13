@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ast_types.hpp"
+#include "type/ast_type.hpp"
 
 #define AST_STACK_ALIGN             16
 #define AST_STACK_ALLOCATE          64
@@ -33,6 +34,8 @@ struct FunctionVariable
 class Context
 {
 public:
+    Context();
+
     std::string allocate_register(Types type);
 
     std::string allocate_arg_register(Types type);
@@ -77,8 +80,28 @@ public:
     we define this to pass down this information.
     */
     // The type of the current variable/function declaration.
-    Types current_declaration_type;
+    TypePtr current_declaration_type;
     std::string current_id;
+
+    // Used for creation of structs. Keep the current_declaration_type as the
+    // struct type, and the current_sub_declaration_type as the member type.
+    TypePtr current_sub_declaration_type;
+    std::vector<std::pair<std::string, TypePtr>> struct_members;
+
+    // Contains the map of identifiers to struct types
+    std::unordered_map<std::string, TypePtr> struct_map;
+
+    // Where are we right now in the AST?
+    // e.g. declaring int x in a struct is different from declaring int x in a
+    // function.
+    enum class Mode
+    {
+        STRUCT,
+        GLOBAL,
+        LOCAL
+    };
+
+    Mode mode = Mode::GLOBAL;
 
 private:
     // Contains the map of identifiers to variable properties (defined above)

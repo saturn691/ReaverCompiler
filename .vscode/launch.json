@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/float/pow.c",
+                "compiler_tests/struct/struct_two_members.c",
                 "-o",
-                "bin/output/float/pow/pow.s"
+                "bin/output/struct/struct_two_members/struct_two_members.s"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
