@@ -26,6 +26,12 @@ struct FunctionVariable
     std::vector<Types> parameter_types;
 };
 
+struct EnumType
+{
+    std::string name;
+    std::vector<std::pair<std::string, unsigned>> values;
+};
+
 
 /*
  *  Stores the states (e.g. variable lookup tables) and registers under usage.
@@ -74,6 +80,12 @@ public:
 
     int get_stack_location(std::string id) const;
 
+    void add_enum_value(std::string id, int val = -1);
+
+    void add_enum(std::string id);
+
+    int get_enum_value(std::string id) const;
+
     /*
     When declaring a variable or a function, say int x, y, z;, we need to know
     the type of x, y, and z. However, because the compiler uses in-order
@@ -93,6 +105,10 @@ public:
     // Contains the map of identifiers to struct types
     std::unordered_map<std::string, TypePtr> struct_map;
 
+    // Contains the enum classes. Vector to support anonymous enums
+    std::vector<EnumType> enum_map;
+    std::vector<std::pair<std::string, unsigned>> enum_values;
+
     // Where are we right now in the AST?
     // e.g. declaring int x in a struct is different from declaring int x in a
     // function.
@@ -111,6 +127,9 @@ private:
 
     // Contains the map of labels to word values
     std::unordered_map<std::string, int> memory_map;
+
+    // The next value to give an enum class
+    unsigned int enum_next_value = 0;
 
     // Integer registers
     std::array<int, 32> registers = {   // REG      ABI     DESCRIPTION

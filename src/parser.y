@@ -220,7 +220,7 @@ expression
     ;
 
 constant_expression
-    : conditional_expression
+    : conditional_expression                                { $$ = $1; }
     ;
 
 declaration
@@ -268,7 +268,7 @@ type_specifier
     | SIGNED                        { $$ = new BasicType(Types::INT); }
     | UNSIGNED                      { $$ = new BasicType(Types::UNSIGNED_INT); }
     | struct_or_union_specifier     { $$ = $1; }
-    | enum_specifier
+    | enum_specifier                { $$ = $1; }
     /* typedefs */
     | TYPE_NAME
     ;
@@ -323,18 +323,25 @@ struct_declarator
 
 enum_specifier
     : ENUM '{' enumerator_list '}'
+        { $$ = new EnumDefinition($3); }
     | ENUM IDENTIFIER '{' enumerator_list '}'
+        { $$ = new EnumDefinition(*$2, $4); }
     | ENUM IDENTIFIER
+        // Does not exist yet
+        // { $$ = new EnumInstance(*$2); }
     ;
 
 enumerator_list
-    : enumerator
+    : enumerator    { $$ = $1; }
     | enumerator_list ',' enumerator
+        { $$ = new EnumList($1, $3); }
     ;
 
 enumerator
     : IDENTIFIER
+        { $$ = new EnumValue(*$1); }
     | IDENTIFIER '=' constant_expression
+        { $$ = new EnumValue(*$1, $3); }
     ;
 
 type_qualifier

@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/struct/struct_two_members.c",
+                "compiler_tests/misc/enum1.c",
                 "-o",
-                "bin/output/struct/struct_two_members/struct_two_members.s"
+                "bin/output/misc/enum1/enum1.s"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

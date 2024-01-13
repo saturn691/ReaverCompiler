@@ -360,13 +360,77 @@ void Context::add_function_declaration_type(Types type, bool is_return_type)
 
 Types Context::get_type(std::string id) const
 {
-    return identifier_map.at(id).type;
+    // First, try to find the id in the identifier_map
+    auto identifier_it = identifier_map.find(id);
+    if (identifier_it != identifier_map.end()) {
+        return identifier_it->second.type;
+    }
+
+    // If the id is not in the identifier_map, try to find it in the enum_map
+    for (const auto& enum_type : enum_map) {
+        for (const auto& [enum_id, enum_val] : enum_type.values) {
+            if (enum_id == id) {
+                return Types::INT;
+            }
+        }
+    }
+
+    // If the id is not in the identifier_map or the enum_map, throw an exception
+    throw std::runtime_error("Identifier not found: " + id);
 }
 
 
 int Context::get_stack_location(std::string id) const
 {
     return identifier_map.at(id).stack_location;
+}
+
+
+void Context::add_enum_value(std::string id, int val)
+{
+    unsigned int real_val = 0;
+    if (val == -1)
+    {
+        real_val = enum_next_value;
+        enum_next_value++;
+    }
+    else
+    {
+        real_val = val;
+    }
+
+    enum_values.push_back({id, real_val});
+}
+
+
+void Context::add_enum(std::string id)
+{
+    EnumType enum_obj;
+    enum_obj.name = id;
+    enum_obj.values = enum_values;
+
+    enum_map.push_back(enum_obj);
+
+    // Resets the enum values for next time
+    enum_values.clear();
+    enum_next_value = 0;
+}
+
+
+int Context::get_enum_value(std::string id) const
+{
+    for (const auto& enum_type : enum_map)
+    {
+        for (const auto& [enum_id, enum_val] : enum_type.values)
+        {
+            if (enum_id == id)
+            {
+                return enum_val;
+            }
+        }
+    }
+
+    return -1;
 }
 
 

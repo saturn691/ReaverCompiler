@@ -54,6 +54,9 @@
 
 #include <ast/type/ast_type.hpp>
 #include <ast/type/ast_basic_type.hpp>
+#include <ast/type/enum/ast_enum_definition.hpp>
+#include <ast/type/enum/ast_enum_list.hpp>
+#include <ast/type/enum/ast_enum_value.hpp>
 #include <ast/type/struct/ast_struct_access.hpp>
 #include <ast/type/struct/ast_struct_declaration.hpp>
 #include <ast/type/struct/ast_struct_declarator_list.hpp>
