@@ -20,7 +20,8 @@ enum class Types
     LONG,
     FLOAT,
     DOUBLE,
-    LONG_DOUBLE
+    LONG_DOUBLE,
+    STRUCT
 };
 
 #endif  /* ast_types_hpp */

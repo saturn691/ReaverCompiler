@@ -27,6 +27,11 @@ public:
         return operand->get_type(context);
     }
 
+    virtual unsigned int get_size(Context &context) const override
+    {
+        return operand->get_size(context);
+    }
+
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -61,6 +66,11 @@ public:
 
     virtual ~PreIncrement() {
         delete operand;
+    }
+
+    virtual unsigned int get_size(Context &context) const override
+    {
+        return operand->get_size(context);
     }
 
     virtual void print(std::ostream &dst, int indent_level) const override {

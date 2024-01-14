@@ -1,6 +1,8 @@
 CPPFLAGS += -std=c++20 -W -Wall -g -I include
 
 HPPFILES := $(shell find include/ -type f -name "*.hpp")
+CPPFILES := $(shell find src/ -type f -name "*.cpp")
+OFILES := $(CPPFILES:.cpp=.o)
 
 .PHONY: default
 
@@ -12,13 +14,17 @@ src/parser.tab.cpp src/parser.tab.hpp : src/parser.y $(HPPFILES)
 src/lexer.yy.cpp : src/lexer.l src/parser.tab.hpp
 	flex -o src/lexer.yy.cpp src/lexer.l
 
-bin/c_compiler : src/cli.cpp src/compiler.cpp src/parser.tab.o src/lexer.yy.o
+%.o: %.cpp
+	g++ $(CPPFLAGS) -c $< -o $@
+
+bin/c_compiler : $(OFILES) src/parser.tab.o src/lexer.yy.o
 	@mkdir -p bin
 	g++ $(CPPFLAGS) -o bin/c_compiler $^
 
 clean :
 	rm -rf bin/*
 	rm -f src/*.o
+	rm -f src/ast/*.o
 	rm -f src/lexer.yy.cpp
 	rm -f src/parser.tab.cpp
 	rm -f src/parser.tab.hpp

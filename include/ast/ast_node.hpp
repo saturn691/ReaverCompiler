@@ -7,10 +7,10 @@
 #include <memory>
 #include <vector>
 
-#include "ast_context.hpp"
-
+#include "ast_types.hpp"
 
 class Node;
+class Context;
 
 typedef const Node *NodePtr;
 
@@ -39,6 +39,12 @@ public:
     virtual Types get_type(Context &context) const
     {
         throw std::runtime_error("Node::get_type() not implemented");
+    }
+
+    // Gets the size of the identifier or type
+    virtual unsigned int get_size(Context &context) const
+    {
+        throw std::runtime_error("Node::get_size() not implemented");
     }
 
     virtual double evaluate(Context &context) const
