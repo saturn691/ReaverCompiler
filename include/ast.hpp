@@ -19,6 +19,7 @@
 // Ops
 #include <ast/operators/ast_operator.hpp>
 #include <ast/operators/ast_add.hpp>
+#include <ast/operators/ast_shift.hpp>
 #include <ast/operators/ast_subtract.hpp>
 #include <ast/operators/ast_multiply.hpp>
 #include <ast/operators/ast_divide.hpp>
@@ -33,9 +34,11 @@
 #include <ast/operators/ast_greater_than.hpp> // Greater than, ">"
 #include <ast/operators/ast_logical_and.hpp> // Logical AND, "&&"
 #include <ast/operators/ast_logical_or.hpp> // Logical OR, "||"
+#include <ast/operators/ast_unary_expression.hpp>
 
 // Unary ops
 #include <ast/operators/ast_increment.hpp>
+#include <ast/operators/ast_decrement.hpp>
 
 // Conditionals
 #include <ast/conditionals/ast_if_else.hpp>

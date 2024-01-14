@@ -1,6 +1,21 @@
 #include <ast/ast_context.hpp>
 
 
+const std::unordered_map<Types, unsigned int> Context::type_size_map = {
+        {Types::VOID,               0},
+        {Types::UNSIGNED_CHAR,      1},
+        {Types::CHAR,               1},
+        {Types::UNSIGNED_SHORT,     2},
+        {Types::SHORT,              2},
+        {Types::UNSIGNED_INT,       4},
+        {Types::INT,                4},
+        {Types::UNSIGNED_LONG,      8},
+        {Types::LONG,               8},
+        {Types::FLOAT,              4},
+        {Types::DOUBLE,             8},
+        {Types::LONG_DOUBLE,        8}
+    };
+
 Context::Context() :
     // Vector must be initialised to empty vector here
     struct_members(
@@ -189,6 +204,7 @@ void Context::pop_registers(std::ostream& dst)
                     break;
             }
 
+            registers[register_map.at(dest_reg)] = 1;
             to_erase.push_back("!" + dest_reg);
             pop_stack(8);
         }

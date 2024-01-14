@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/misc/enum1.c",
+                "compiler_tests/programs/multiply.c",
                 "-o",
-                "bin/output/misc/enum1/enum1.s"
+                "bin/output/programs/multiply/multiply.s"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

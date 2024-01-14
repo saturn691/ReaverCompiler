@@ -32,6 +32,11 @@ public:
         return identifier->get_id();
     }
 
+    virtual Types get_type(Context &context) const override
+    {
+        return identifier->get_type(context);
+    }
+
     virtual double evaluate(Context &context) const override
     {
         throw std::runtime_error("VariableDeclarator::evaluate() not implemented");

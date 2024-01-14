@@ -134,6 +134,11 @@ public:
     std::pair<std::stringstream, std::stringstream> switch_cases;
     std::pair<std::stringstream, std::stringstream> switch_default;
 
+    // Static Constants --------------------------------------------------------
+
+    // Map from type to size in bytes
+    static const std::unordered_map<Types, unsigned int> type_size_map;
+
 private:
     // Contains the map of identifiers to variable properties (defined above)
     std::unordered_map<std::string, FunctionVariable> identifier_map;
@@ -245,22 +250,6 @@ private:
         {"ft9", 29},
         {"ft10", 30},
         {"ft11", 31}
-    };
-
-    // Map from type to size in bytes
-    const std::unordered_map<Types, unsigned int> type_size_map = {
-        {Types::VOID,               0},
-        {Types::UNSIGNED_CHAR,      1},
-        {Types::CHAR,               1},
-        {Types::UNSIGNED_SHORT,     2},
-        {Types::SHORT,              2},
-        {Types::UNSIGNED_INT,       4},
-        {Types::INT,                4},
-        {Types::UNSIGNED_LONG,      8},
-        {Types::LONG,               8},
-        {Types::FLOAT,              4},
-        {Types::DOUBLE,             8},
-        {Types::LONG_DOUBLE,        8}
     };
 };
 

@@ -35,10 +35,10 @@
 
 
 %type <number> CONSTANT
-%type <string> IDENTIFIER STRING_LITERAL CHAR_LITERAL
+%type <string> IDENTIFIER STRING_LITERAL CHAR_LITERAL unary_operator
 
 %type <node> primary_expression postfix_expression argument_expression_list
-%type <node> unary_expression unary_operator cast_expression
+%type <node> unary_expression cast_expression
 %type <node> multiplicative_expression additive_expression shift_expression
 %type <node> relational_expression equality_expression and_expression
 %type <node> exclusive_or_expression inclusive_or_expression
@@ -84,7 +84,7 @@ postfix_expression
         { $$ = new StructAccess($1, new Identifier(*$3)); }
     | postfix_expression PTR_OP IDENTIFIER
     | postfix_expression INC_OP                             { $$ = new PostIncrement($1); }
-    | postfix_expression DEC_OP
+    | postfix_expression DEC_OP                             { $$ = new PostDecrement($1); }
     ;
 
 argument_expression_list
@@ -95,21 +95,21 @@ argument_expression_list
     ;
 
 unary_expression
-    : postfix_expression                                    { $$ = $1; }
-    | INC_OP unary_expression                               { $$ = new PreIncrement($2); }
+    : postfix_expression                    { $$ = $1; }
+    | INC_OP unary_expression               { $$ = new PreIncrement($2); }
     | DEC_OP unary_expression
-    | unary_operator cast_expression
-    | SIZEOF unary_expression                               { $$ = new SizeOf($2); }
-    | SIZEOF '(' type_name ')'                              { $$ = new SizeOf($3); }
+    | unary_operator cast_expression        { $$ = new UnaryExpression(*$1, $2); }
+    | SIZEOF unary_expression               { $$ = new SizeOf($2); }
+    | SIZEOF '(' type_name ')'              { $$ = new SizeOf($3); }
     ;
 
 unary_operator
     : '&'
     | '*'
-    | '+'
-    | '-'
-    | '~'
-    | '!'
+    | '+'                                   { $$ = new std::string("+"); }
+    | '-'                                   { $$ = new std::string("-"); }
+    | '~'                                   { $$ = new std::string("~"); }
+    | '!'                                   { $$ = new std::string("!"); }
     ;
 
 cast_expression
@@ -137,7 +137,9 @@ additive_expression
 shift_expression
     : additive_expression                                   { $$ = $1; }
     | shift_expression LEFT_OP additive_expression
+        { $$ = new LeftShift($1, $3); }
     | shift_expression RIGHT_OP additive_expression
+        { $$ = new RightShift($1, $3); }
     ;
 
 relational_expression
