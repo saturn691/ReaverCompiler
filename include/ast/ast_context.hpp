@@ -9,6 +9,7 @@
 #include <stack>
 #include <sstream>
 
+
 #include "ast_types.hpp"
 #include "type/ast_type.hpp"
 
@@ -118,6 +119,7 @@ public:
     {
         STRUCT,
         SWITCH,
+
         GLOBAL,
         LOCAL
     };

@@ -205,6 +205,7 @@ void Context::pop_registers(std::ostream& dst)
             }
 
             registers[register_map.at(dest_reg)] = 1;
+          
             to_erase.push_back("!" + dest_reg);
             pop_stack(8);
         }
