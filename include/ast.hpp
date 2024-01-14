@@ -49,8 +49,11 @@
 #include <ast/primitives/ast_number.hpp>
 #include <ast/primitives/ast_identifier.hpp>
 
+#include <ast/statements/ast_break.hpp>
+#include <ast/statements/ast_case.hpp>
 #include <ast/statements/ast_return.hpp>
 #include <ast/statements/ast_sizeof.hpp>
+#include <ast/statements/ast_switch.hpp>
 
 #include <ast/type/ast_type.hpp>
 #include <ast/type/ast_basic_type.hpp>

@@ -6,6 +6,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <stack>
+#include <sstream>
 
 #include "ast_types.hpp"
 #include "type/ast_type.hpp"
@@ -115,11 +117,22 @@ public:
     enum class Mode
     {
         STRUCT,
+        SWITCH,
         GLOBAL,
         LOCAL
     };
 
     Mode mode = Mode::GLOBAL;
+
+    // Used for breaking out of switch-case statements
+    std::stack<std::string> end_label_stack;
+
+    // Used for switch-case statements
+    std::string switch_reg;
+
+    // Holds the conditions and statements for switch-case statements
+    std::pair<std::stringstream, std::stringstream> switch_cases;
+    std::pair<std::stringstream, std::stringstream> switch_default;
 
 private:
     // Contains the map of identifiers to variable properties (defined above)

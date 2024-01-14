@@ -225,7 +225,8 @@ constant_expression
 
 declaration
     : declaration_specifiers ';'                            { $$ = $1; }
-    | declaration_specifiers init_declarator_list ';'       { $$ = new Declaration($1, $2); }
+    | declaration_specifiers init_declarator_list ';'
+        { $$ = new Declaration($1, $2); }
     ;
 
 declaration_specifiers
@@ -233,7 +234,8 @@ declaration_specifiers
     | storage_class_specifier declaration_specifiers
     | type_specifier                                        { $$ = $1; }
     | type_specifier declaration_specifiers
-    | type_qualifier                                        { $$ = $1; }
+    /* ignore qualifiers */
+    | type_qualifier
     | type_qualifier declaration_specifiers
     ;
 
@@ -249,7 +251,7 @@ init_declarator
     ;
 
 storage_class_specifier
-    : TYPEDEF
+    : TYPEDEF                       /* Only this will be considered */
     | EXTERN
     | STATIC
     | AUTO
@@ -344,6 +346,7 @@ enumerator
         { $$ = new EnumValue(*$1, $3); }
     ;
 
+// Not considered in this implementation.
 type_qualifier
     : CONST
     | VOLATILE
@@ -438,18 +441,18 @@ initializer_list
     ;
 
 statement
-    : labeled_statement                                     { $$ = $1; }
-    | compound_statement                                    { $$ = $1; }
-    | expression_statement                                  { $$ = $1; }
-    | selection_statement                                   { $$ = $1; }
-    | iteration_statement                                   { $$ = $1; }
-    | jump_statement                                        { $$ = $1; }
+    : labeled_statement                         { $$ = $1; }
+    | compound_statement                        { $$ = $1; }
+    | expression_statement                      { $$ = $1; }
+    | selection_statement                       { $$ = $1; }
+    | iteration_statement                       { $$ = $1; }
+    | jump_statement                            { $$ = $1; }
     ;
 
 labeled_statement
-    : IDENTIFIER ':' statement
-    | CASE constant_expression ':' statement
-    | DEFAULT ':' statement
+    : IDENTIFIER ':' statement                  /* for goto */
+    | CASE constant_expression ':' statement    { $$ = new Case($2, $4); }
+    | DEFAULT ':' statement                     { $$ = new DefaultCase($3); }
     ;
 
 compound_statement
@@ -477,7 +480,7 @@ expression_statement
 selection_statement
     : IF '(' expression ')' statement                       { $$ = new IfElse($3, $5); }
     | IF '(' expression ')' statement ELSE statement        { $$ = new IfElse($3, $5, $7); }
-    | SWITCH '(' expression ')' statement
+    | SWITCH '(' expression ')' statement                   { $$ = new Switch($3, $5); }
     ;
 
 iteration_statement
@@ -493,9 +496,9 @@ iteration_statement
 jump_statement
     : GOTO IDENTIFIER ';'
     | CONTINUE ';'
-    | BREAK ';'
-    | RETURN ';'                                            { $$ = new Return(new Number(0)); }
-    | RETURN expression ';'                                 { $$ = new Return($2); }
+    | BREAK ';'                             { $$ = new Break(); }
+    | RETURN ';'                            { $$ = new Return(new Number(0)); }
+    | RETURN expression ';'                 { $$ = new Return($2); }
     ;
 
 translation_unit
