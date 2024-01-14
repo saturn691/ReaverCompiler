@@ -1,19 +1,18 @@
-#ifndef ast_type_hpp
-#define ast_type_hpp
+#ifndef ast_basic_type_hpp
+#define ast_basic_type_hpp
 
-#include "ast_node.hpp"
-#include "ast_types.hpp"
-
+#include "ast_type.hpp"
+#include "../ast_types.hpp"
 
 /*
  *  Leaf node for types (e.g. "double" in "double x = 10")
 */
-class Type : public Node
+class BasicType : public Type
 {
 public:
-    Type(Types t) : type(t) {}
+    BasicType(Types t) : type(t) {}
 
-    virtual ~Type()
+    virtual ~BasicType()
     {}
 
     virtual void print(std::ostream &dst, int indent_level) const override
@@ -67,6 +66,18 @@ public:
         return type;
     }
 
+    virtual Types get_type() const override
+    {
+        return type;
+    }
+
+    virtual void allocate_stack(
+        Context &context,
+        std::string id
+    ) const override {
+        context.allocate_stack(type, id);
+    }
+
     virtual double evaluate(Context &context) const override
     {
         throw std::runtime_error("Type::evaluate() not allowed");
@@ -77,7 +88,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("Type::gen_asm() not allowed");
+        context.current_declaration_type = this;
     }
 
 private:
@@ -85,4 +96,4 @@ private:
 };
 
 
-#endif  /* ast_type_hpp */
+#endif  /* ast_basic_type_hpp */
