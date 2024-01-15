@@ -71,6 +71,11 @@ public:
         return type;
     }
 
+    virtual unsigned int get_size(Context &context) const
+    {
+        return Context::type_size_map.at(type);
+    }
+
     virtual void allocate_stack(
         Context &context,
         std::string id
