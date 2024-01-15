@@ -77,7 +77,7 @@ primary_expression
 
 postfix_expression
     : primary_expression                                    { $$ = $1; }
-    | postfix_expression '[' expression ']'
+    | postfix_expression '[' expression ']'                 { $$ = new ArrayAccess($1, $3); } // fuck
     | postfix_expression '(' ')'                            { $$ = new FunctionCall($1, NULL); }
     | postfix_expression '(' argument_expression_list ')'   { $$ = new FunctionCall($1, $3); }
     | postfix_expression '.' IDENTIFIER
@@ -353,8 +353,10 @@ direct_declarator
     /* ^ Variable declarations */
     | '(' declarator ')'                                    { $$ = $2; }
     /* Array declarations with size or without size: arr[5] or arr[] */
-    | direct_declarator '[' constant_expression ']'
+    | direct_declarator '[' constant_expression ']' // fuck
+        { $$ = new ArrayDeclarator($1, $3);}
     | direct_declarator '[' ']'
+        { $$ = new ArrayDeclarator($1, NULL); }
     /* Function declarators like so: f(int x) or f(int), f(x), f() */
     | direct_declarator '(' parameter_type_list ')'         { $$ = new FunctionDeclarator($1, $3); }
     | direct_declarator '(' identifier_list ')'             /* for old K&R functions */

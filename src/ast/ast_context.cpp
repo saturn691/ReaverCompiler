@@ -280,6 +280,25 @@ int Context::allocate_stack(Types type, std::string id)
     return stack_loc;
 }
 
+int Context::allocate_array_stack(Types type, int size, std::string id)
+{
+    unsigned int bytes = type_size_map.at(type)*size;
+    int stack_loc = push_stack(bytes);
+
+    if (!id.empty())
+    {
+        identifier_map[id] = {stack_loc, type};
+    }
+    else
+    {
+        throw std::runtime_error(
+            "Context::allocate_array_stack() - id is empty"
+        );
+    }
+
+    return stack_loc;
+}
+
 
 int Context::push_stack(int bytes)
 {

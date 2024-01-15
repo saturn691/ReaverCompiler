@@ -50,7 +50,8 @@
 #include <ast/primitives/ast_identifier.hpp>
 
 // Array
-// #include <ast/array/ast_array.hpp>
+#include <ast/array/ast_array_declarator.hpp>
+#include <ast/array/ast_array_access.hpp>
 
 #include <ast/statements/ast_return.hpp>
 #include <ast/statements/ast_sizeof.hpp>
