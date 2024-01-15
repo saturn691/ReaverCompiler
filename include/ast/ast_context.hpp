@@ -6,6 +6,9 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <stack>
+#include <sstream>
+
 
 #include "ast_types.hpp"
 #include "type/ast_type.hpp"
@@ -24,6 +27,12 @@ struct FunctionVariable
     int stack_location;
     Types type;
     std::vector<Types> parameter_types;
+};
+
+struct EnumType
+{
+    std::string name;
+    std::vector<std::pair<std::string, unsigned>> values;
 };
 
 
@@ -76,6 +85,12 @@ public:
 
     int get_stack_location(std::string id) const;
 
+    void add_enum_value(std::string id, int val = -1);
+
+    void add_enum(std::string id);
+
+    int get_enum_value(std::string id) const;
+
     /*
     When declaring a variable or a function, say int x, y, z;, we need to know
     the type of x, y, and z. However, because the compiler uses in-order
@@ -95,17 +110,38 @@ public:
     // Contains the map of identifiers to struct types
     std::unordered_map<std::string, TypePtr> struct_map;
 
+    // Contains the enum classes. Vector to support anonymous enums
+    std::vector<EnumType> enum_map;
+    std::vector<std::pair<std::string, unsigned>> enum_values;
+
     // Where are we right now in the AST?
     // e.g. declaring int x in a struct is different from declaring int x in a
     // function.
     enum class Mode
     {
         STRUCT,
+        SWITCH,
+
         GLOBAL,
         LOCAL
     };
 
     Mode mode = Mode::GLOBAL;
+
+    // Used for breaking out of switch-case statements
+    std::stack<std::string> end_label_stack;
+
+    // Used for switch-case statements
+    std::string switch_reg;
+
+    // Holds the conditions and statements for switch-case statements
+    std::pair<std::stringstream, std::stringstream> switch_cases;
+    std::pair<std::stringstream, std::stringstream> switch_default;
+
+    // Static Constants --------------------------------------------------------
+
+    // Map from type to size in bytes
+    static const std::unordered_map<Types, unsigned int> type_size_map;
 
 private:
     // Contains the map of identifiers to variable properties (defined above)
@@ -113,6 +149,9 @@ private:
 
     // Contains the map of labels to word values
     std::unordered_map<std::string, int> memory_map;
+
+    // The next value to give an enum class
+    unsigned int enum_next_value = 0;
 
     // Integer registers
     std::array<int, 32> registers = {   // REG      ABI     DESCRIPTION
@@ -215,22 +254,6 @@ private:
         {"ft9", 29},
         {"ft10", 30},
         {"ft11", 31}
-    };
-
-    // Map from type to size in bytes
-    const std::unordered_map<Types, unsigned int> type_size_map = {
-        {Types::VOID,               0},
-        {Types::UNSIGNED_CHAR,      1},
-        {Types::CHAR,               1},
-        {Types::UNSIGNED_SHORT,     2},
-        {Types::SHORT,              2},
-        {Types::UNSIGNED_INT,       4},
-        {Types::INT,                4},
-        {Types::UNSIGNED_LONG,      8},
-        {Types::LONG,               8},
-        {Types::FLOAT,              4},
-        {Types::DOUBLE,             8},
-        {Types::LONG_DOUBLE,        8}
     };
 };
 

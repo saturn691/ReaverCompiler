@@ -35,10 +35,10 @@
 
 
 %type <number> CONSTANT
-%type <string> IDENTIFIER STRING_LITERAL CHAR_LITERAL
+%type <string> IDENTIFIER STRING_LITERAL CHAR_LITERAL unary_operator
 
 %type <node> primary_expression postfix_expression argument_expression_list
-%type <node> unary_expression unary_operator cast_expression
+%type <node> unary_expression cast_expression
 %type <node> multiplicative_expression additive_expression shift_expression
 %type <node> relational_expression equality_expression and_expression
 %type <node> exclusive_or_expression inclusive_or_expression
@@ -84,7 +84,7 @@ postfix_expression
         { $$ = new StructAccess($1, new Identifier(*$3)); }
     | postfix_expression PTR_OP IDENTIFIER
     | postfix_expression INC_OP                             { $$ = new PostIncrement($1); }
-    | postfix_expression DEC_OP
+    | postfix_expression DEC_OP                             { $$ = new PostDecrement($1); }
     ;
 
 argument_expression_list
@@ -95,21 +95,21 @@ argument_expression_list
     ;
 
 unary_expression
-    : postfix_expression                                    { $$ = $1; }
-    | INC_OP unary_expression                               { $$ = new PreIncrement($2); }
+    : postfix_expression                    { $$ = $1; }
+    | INC_OP unary_expression               { $$ = new PreIncrement($2); }
     | DEC_OP unary_expression
-    | unary_operator cast_expression
-    | SIZEOF unary_expression                               { $$ = new SizeOf($2); }
-    | SIZEOF '(' type_name ')'                              { $$ = new SizeOf($3); }
+    | unary_operator cast_expression        { $$ = new UnaryExpression(*$1, $2); }
+    | SIZEOF unary_expression               { $$ = new SizeOf($2); }
+    | SIZEOF '(' type_name ')'              { $$ = new SizeOf($3); }
     ;
 
 unary_operator
     : '&'
     | '*'
-    | '+'
-    | '-'
-    | '~'
-    | '!'
+    | '+'                                   { $$ = new std::string("+"); }
+    | '-'                                   { $$ = new std::string("-"); }
+    | '~'                                   { $$ = new std::string("~"); }
+    | '!'                                   { $$ = new std::string("!"); }
     ;
 
 cast_expression
@@ -137,7 +137,9 @@ additive_expression
 shift_expression
     : additive_expression                                   { $$ = $1; }
     | shift_expression LEFT_OP additive_expression
+        { $$ = new LeftShift($1, $3); }
     | shift_expression RIGHT_OP additive_expression
+        { $$ = new RightShift($1, $3); }
     ;
 
 relational_expression
@@ -220,12 +222,13 @@ expression
     ;
 
 constant_expression
-    : conditional_expression
+    : conditional_expression                                { $$ = $1; }
     ;
 
 declaration
     : declaration_specifiers ';'                            { $$ = $1; }
-    | declaration_specifiers init_declarator_list ';'       { $$ = new Declaration($1, $2); }
+    | declaration_specifiers init_declarator_list ';'
+        { $$ = new Declaration($1, $2); }
     ;
 
 declaration_specifiers
@@ -233,7 +236,8 @@ declaration_specifiers
     | storage_class_specifier declaration_specifiers
     | type_specifier                                        { $$ = $1; }
     | type_specifier declaration_specifiers
-    | type_qualifier                                        { $$ = $1; }
+    /* ignore qualifiers */
+    | type_qualifier
     | type_qualifier declaration_specifiers
     ;
 
@@ -249,7 +253,7 @@ init_declarator
     ;
 
 storage_class_specifier
-    : TYPEDEF
+    : TYPEDEF                       /* Only this will be considered */
     | EXTERN
     | STATIC
     | AUTO
@@ -268,7 +272,7 @@ type_specifier
     | SIGNED                        { $$ = new BasicType(Types::INT); }
     | UNSIGNED                      { $$ = new BasicType(Types::UNSIGNED_INT); }
     | struct_or_union_specifier     { $$ = $1; }
-    | enum_specifier
+    | enum_specifier                { $$ = $1; }
     /* typedefs */
     | TYPE_NAME
     ;
@@ -323,20 +327,28 @@ struct_declarator
 
 enum_specifier
     : ENUM '{' enumerator_list '}'
+        { $$ = new EnumDefinition($3); }
     | ENUM IDENTIFIER '{' enumerator_list '}'
+        { $$ = new EnumDefinition(*$2, $4); }
     | ENUM IDENTIFIER
+        // Does not exist yet
+        // { $$ = new EnumInstance(*$2); }
     ;
 
 enumerator_list
-    : enumerator
+    : enumerator    { $$ = $1; }
     | enumerator_list ',' enumerator
+        { $$ = new EnumList($1, $3); }
     ;
 
 enumerator
     : IDENTIFIER
+        { $$ = new EnumValue(*$1); }
     | IDENTIFIER '=' constant_expression
+        { $$ = new EnumValue(*$1, $3); }
     ;
 
+// Not considered in this implementation.
 type_qualifier
     : CONST
     | VOLATILE
@@ -433,18 +445,18 @@ initializer_list
     ;
 
 statement
-    : labeled_statement                                     { $$ = $1; }
-    | compound_statement                                    { $$ = $1; }
-    | expression_statement                                  { $$ = $1; }
-    | selection_statement                                   { $$ = $1; }
-    | iteration_statement                                   { $$ = $1; }
-    | jump_statement                                        { $$ = $1; }
+    : labeled_statement                         { $$ = $1; }
+    | compound_statement                        { $$ = $1; }
+    | expression_statement                      { $$ = $1; }
+    | selection_statement                       { $$ = $1; }
+    | iteration_statement                       { $$ = $1; }
+    | jump_statement                            { $$ = $1; }
     ;
 
 labeled_statement
-    : IDENTIFIER ':' statement
-    | CASE constant_expression ':' statement
-    | DEFAULT ':' statement
+    : IDENTIFIER ':' statement                  /* for goto */
+    | CASE constant_expression ':' statement    { $$ = new Case($2, $4); }
+    | DEFAULT ':' statement                     { $$ = new DefaultCase($3); }
     ;
 
 compound_statement
@@ -472,7 +484,7 @@ expression_statement
 selection_statement
     : IF '(' expression ')' statement                       { $$ = new IfElse($3, $5); }
     | IF '(' expression ')' statement ELSE statement        { $$ = new IfElse($3, $5, $7); }
-    | SWITCH '(' expression ')' statement
+    | SWITCH '(' expression ')' statement                   { $$ = new Switch($3, $5); }
     ;
 
 iteration_statement
@@ -488,9 +500,9 @@ iteration_statement
 jump_statement
     : GOTO IDENTIFIER ';'
     | CONTINUE ';'
-    | BREAK ';'
-    | RETURN ';'                                            { $$ = new Return(new Number(0)); }
-    | RETURN expression ';'                                 { $$ = new Return($2); }
+    | BREAK ';'                             { $$ = new Break(); }
+    | RETURN ';'                            { $$ = new Return(new Number(0)); }
+    | RETURN expression ';'                 { $$ = new Return($2); }
     ;
 
 translation_unit

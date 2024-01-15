@@ -47,9 +47,20 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        Types type = get_type(context);
+
+        // Check if it's the variable is an enum
+        int enum_value = context.get_enum_value(id);
+        if (enum_value != -1)
+        {
+            dst << indent << "li " << dest_reg << ", "
+                << enum_value << std::endl;
+
+            return;
+        }
+
         // Find the id on the stack - will throw exception if not found.
         int stack_loc = context.get_stack_location(id);
-        Types type = get_type(context);
 
         switch (type)
         {
@@ -73,7 +84,6 @@ public:
             default:
                 throw std::runtime_error("Identifier::gen_asm() not implemented");
         }
-
     }
 
 private:
