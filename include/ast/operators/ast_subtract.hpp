@@ -26,7 +26,9 @@ public:
 
     virtual double evaluate(Context &context) const override
     {
-        throw std::runtime_error("Sub::evaluate() not implemented");
+        double left_val = get_left()->evaluate(context);
+        double right_val = get_right()->evaluate(context);
+        return left_val - right_val;
     }
 
     virtual void gen_asm(

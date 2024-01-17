@@ -4,6 +4,8 @@
 #include "../ast_node.hpp"
 #include "../ast_context.hpp"
 
+#include <cmath>
+
 /*
  *  Node for array access (e.g. "arr[5];")
 */
@@ -35,10 +37,14 @@ public:
         dst << "]";
     }
 
+    virtual std::string get_id() const override
+    {
+        return array->get_id();
+    }
+
     virtual Types get_type(Context &context) const override
     {
-        throw std::runtime_error("ArratAccess:get_type() not implemented");
-        // return Types::Unknown;
+        return array->get_type(context);
     }
 
     virtual double evaluate(Context &context) const override
@@ -54,21 +60,35 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         Types type = array->get_type(context);
+        std::string reg = context.allocate_register(type);
         std::string id = array->get_id();
-        std::string arr_reg = context.allocate_register(type);
 
-        int idx = index->evaluate(context);
-        int offset = context.get_size(id)*idx;
-        int stack_loc = context.get_stack_location(id) + offset;
+        index->gen_asm(dst, reg, context);
 
-        // For debugging
-        // dst << "index: " << idx << std::endl;
-        // dst <<  "offset: " << offset << std::endl;
-        // dst << "stack_loc: " << stack_loc << std::endl;
+        int size = context.get_size(id);
+        int log_size = log2(size);
+        int base_pointer = context.get_stack_location(id);
 
-        array->gen_asm(dst, arr_reg, context);
+        dst << indent << "slli " << reg << ", " << reg
+            << ", " << log_size << std::endl;
 
-        context.deallocate_register(arr_reg);
+        dst << indent << "addi " << reg << ", " << reg
+            << ", " << base_pointer << std::endl;
+
+        // dst << "fuck";
+        // dst << indent << "lw " << dest_reg << ", 0(" << reg << ")" << std::endl;
+
+        // std::string rhs_reg = context.allocate_register(type);
+        // int idx = context.get_stack_location(index->get_id());
+
+        // index->gen_asm(dst, rhs_reg, context);
+        // dst << indent << "sw " << rhs_reg << ", 0(" << reg << ")" << std::endl;
+
+        // context.deallocate_register(rhs_reg);
+
+        // context.deallocate_register(reg); // <-- I don't know how to prevent deallocation
+
+        // Context::register_map[dest_reg] = idx; // <-- idk
     }
 
 private:

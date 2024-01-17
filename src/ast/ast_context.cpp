@@ -1,6 +1,5 @@
 #include <ast/ast_context.hpp>
 
-
 const std::unordered_map<Types, unsigned int> Context::type_size_map = {
         {Types::VOID,               0},
         {Types::UNSIGNED_CHAR,      1},
@@ -420,7 +419,6 @@ int Context::get_stack_location(std::string id) const
 {
     return identifier_map.at(id).stack_location;
 }
-
 
 void Context::add_enum_value(std::string id, int val)
 {
