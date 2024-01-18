@@ -315,7 +315,6 @@ int Context::allocate_array_stack(Types type, int size, std::string id)
     return stack_loc;
 }
 
-
 int Context::push_stack(int bytes)
 {
     if (frame_pointer_offset - bytes < -AST_STACK_ALLOCATE)

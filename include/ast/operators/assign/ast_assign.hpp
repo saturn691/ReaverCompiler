@@ -132,7 +132,6 @@ public:
                 );
                 break;
         }
-
         context.deallocate_register(reg);
     }
 
