@@ -49,8 +49,13 @@ public:
 
     virtual double evaluate(Context &context) const override
     {
-        // TODO: Implement evaluation for array access
         throw std::runtime_error("ArrayAccess::evaluate() not implemented");
+    }
+
+    std::string get_index_register() const
+    {
+        std::cout << "In get_index_register, index_register: " << index_register << std::endl;
+        return index_register;
     }
 
     virtual void gen_asm(
@@ -64,6 +69,7 @@ public:
         std::string id = array->get_id();
 
         index->gen_asm(dst, reg, context);
+        index_register = reg;
 
         int size = context.get_size(id);
         int log_size = log2(size);
@@ -75,8 +81,11 @@ public:
         dst << indent << "addi " << reg << ", " << reg
             << ", " << base_pointer << std::endl;
 
+        dst << indent << "add " << reg << ", " << reg
+            << ", s0" << std::endl;
+
         // dst << "fuck";
-        // dst << indent << "lw " << dest_reg << ", 0(" << reg << ")" << std::endl;
+        dst << indent << "lw " << dest_reg << ", 0(" << reg << ")" << std::endl;
 
         // std::string rhs_reg = context.allocate_register(type);
         // int idx = context.get_stack_location(index->get_id());
@@ -95,6 +104,7 @@ private:
     // postfix_expression '[' expression ']'
     NodePtr array;
     NodePtr index;
+    mutable std::string index_register;
 };
 
 #endif // ast_array_access_hpp

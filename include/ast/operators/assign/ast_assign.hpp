@@ -68,13 +68,16 @@ public:
         assignment_expression->gen_asm(dst, reg, context);
 
         const ArrayAccess* array_access = dynamic_cast<const ArrayAccess*>(unary_expression);
+        std::string arr_reg;
+
         if (array_access)
         {
+            arr_reg = array_access->get_index_register();
             switch (type)
             {
                 case Types::INT:
                 case Types::UNSIGNED_INT:
-                    dst << indent << "sw " << reg << ", 0(t1)" << std::endl; // hardcoded t1
+                    dst << indent << "sw " << reg << ", 0(" << arr_reg << ")" << std::endl; // hardcoded t1
                     break;
 
                 // case Types::FLOAT:
