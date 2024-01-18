@@ -97,7 +97,7 @@ public:
             }
 
             context.deallocate_register(reg);
-            return;
+            return; // return early
         }
 
         // TODO implement for all assignment operators
@@ -131,7 +131,7 @@ public:
                     "Assign::gen_asm(): Unsupported type for assignment"
                 );
                 break;
-            }
+        }
 
         context.deallocate_register(reg);
     }
