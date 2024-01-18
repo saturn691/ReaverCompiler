@@ -63,6 +63,8 @@ public:
 
     int allocate_stack(Types type, std::string id = "");
 
+    int allocate_array_stack(Types type, int size, std::string id = "");
+
     int push_stack(int bytes);
 
     void pop_stack(int bytes);

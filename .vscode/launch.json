@@ -11,6 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
+                "compiler_tests/array/index_expression.c",
+                "-o",
+                "bin/output/array/index_expression/index_expression.s",
                 "compiler_tests/programs/multiply.c",
                 "-o",
                 "bin/output/programs/multiply/multiply.s"

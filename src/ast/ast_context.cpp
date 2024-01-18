@@ -1,6 +1,5 @@
 #include <ast/ast_context.hpp>
 
-
 const std::unordered_map<Types, unsigned int> Context::type_size_map = {
         {Types::VOID,               0},
         {Types::UNSIGNED_CHAR,      1},
@@ -205,7 +204,7 @@ void Context::pop_registers(std::ostream& dst)
             }
 
             registers[register_map.at(dest_reg)] = 1;
-          
+
             to_erase.push_back("!" + dest_reg);
             pop_stack(8);
         }
@@ -297,6 +296,24 @@ int Context::allocate_stack(Types type, std::string id)
     return stack_loc;
 }
 
+int Context::allocate_array_stack(Types type, int size, std::string id)
+{
+    unsigned int bytes = type_size_map.at(type)*size;
+    int stack_loc = push_stack(bytes);
+
+    if (!id.empty())
+    {
+        identifier_map[id] = {stack_loc, type};
+    }
+    else
+    {
+        throw std::runtime_error(
+            "Context::allocate_array_stack() - id is empty"
+        );
+    }
+
+    return stack_loc;
+}
 
 int Context::push_stack(int bytes)
 {
@@ -401,7 +418,6 @@ int Context::get_stack_location(std::string id) const
 {
     return identifier_map.at(id).stack_location;
 }
-
 
 void Context::add_enum_value(std::string id, int val)
 {
