@@ -54,7 +54,6 @@ public:
 
     std::string get_index_register() const
     {
-        std::cout << "In get_index_register, index_register: " << index_register << std::endl;
         return index_register;
     }
 
@@ -84,20 +83,7 @@ public:
         dst << indent << "add " << reg << ", " << reg
             << ", s0" << std::endl;
 
-        // dst << "fuck";
         dst << indent << "lw " << dest_reg << ", 0(" << reg << ")" << std::endl;
-
-        // std::string rhs_reg = context.allocate_register(type);
-        // int idx = context.get_stack_location(index->get_id());
-
-        // index->gen_asm(dst, rhs_reg, context);
-        // dst << indent << "sw " << rhs_reg << ", 0(" << reg << ")" << std::endl;
-
-        // context.deallocate_register(rhs_reg);
-
-        // context.deallocate_register(reg); // <-- I don't know how to prevent deallocation
-
-        // Context::register_map[dest_reg] = idx; // <-- idk
     }
 
 private:

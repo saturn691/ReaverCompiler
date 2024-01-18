@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/array/index_variable.c",
+                "compiler_tests/array/index_expression.c",
                 "-o",
-                "bin/output/array/index_variable/index_variable.s",
+                "bin/output/array/index_expression/index_expression.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

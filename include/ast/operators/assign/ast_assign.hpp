@@ -77,17 +77,16 @@ public:
             {
                 case Types::INT:
                 case Types::UNSIGNED_INT:
-                    dst << indent << "sw " << reg << ", 0(" << arr_reg << ")" << std::endl; // hardcoded t1
+                    dst << indent << "sw " << reg << ", 0(" << arr_reg << ")" << std::endl;
+                    context.deallocate_register(arr_reg);
                     break;
 
                 // case Types::FLOAT:
-                //     dst << indent << "fsw " << reg << ", "
-                //         << base_pointer << "(" << index_reg << ")" << std::endl;
+                //     dst << indent << "fsw " << reg << ", 0(" << arr_reg << ")" << std::endl;
                 //     break;
 
                 // case Types::DOUBLE:
-                //     dst << indent << "dsw " << reg << ", "
-                //         << base_pointer << "(" << index_reg << ")" << std::endl;
+                //     dst << indent << "dsw " << reg << ", 0(" << arr_reg << ")" << std::endl;
                 //     break;
 
                 default:
