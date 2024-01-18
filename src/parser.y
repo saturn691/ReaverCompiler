@@ -355,7 +355,7 @@ type_qualifier
     ;
 
 declarator
-    : pointer direct_declarator
+    : pointer direct_declarator                             { $$ = new PointerDeclarator($1, $2);}
     | direct_declarator                                     { $$ = $1; }
     ;
 
@@ -376,10 +376,10 @@ direct_declarator
     ;
 
 pointer
-    : '*'
-    | '*' type_qualifier_list
-    | '*' pointer
-    | '*' type_qualifier_list pointer
+    : '*'                                                   { $$ = new PointerAccess();}
+    | '*' type_qualifier_list                               { $$ = new PointerAccess($2);}
+    | '*' pointer                                           { $$ = new PointerAccess($2);}
+    | '*' type_qualifier_list pointer                       { $$ = new PointerAccess($2, $3);}
     ;
 
 type_qualifier_list
@@ -416,9 +416,9 @@ type_name
     ;
 
 abstract_declarator
-    : pointer
-    | direct_abstract_declarator
-    | pointer direct_abstract_declarator
+    : pointer                                               { $$ = $1; }
+    | direct_abstract_declarator                            { $$ = $1; }
+    | pointer direct_abstract_declarator                    { $$ = new PointerDeclarator($1, $2); }
     ;
 
 direct_abstract_declarator
