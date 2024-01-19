@@ -13,13 +13,16 @@ class PointerAccess : public Node
 {
 public:
     PointerAccess(
+        NodePtr _type_qualifier_list,
         NodePtr _pointer
     ) :
+        type_qualifier_list(_type_qualifier_list),
         pointer(_pointer)
     {}
 
     virtual ~PointerAccess()
     {
+        delete type_qualifier_list;
         delete pointer;
     }
 
@@ -29,7 +32,14 @@ public:
 
         dst << indent;
         dst << "*";
-        pointer->print(dst, 0);
+        if (type_qualifier_list != NULL)
+        {
+            type_qualifier_list->print(dst, 0);
+        }
+        if (pointer != NULL)
+        {
+            pointer->print(dst, 0);
+        }
     }
 
     virtual std::string get_id() const override
@@ -53,18 +63,10 @@ public:
         Context &context
     ) const override {
         throw std::runtime_error("PointerAccess::gen_asm() not implemented");
-        // std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        // Types type = pointer->get_type(context);
-        // std::string reg = context.allocate_register(type);
-        // std::string id = pointer->get_id();
-
-        // pointer->gen_asm(dst, reg, context);
-
-        // dst << indent << "lw " << dest_reg << ", 0(" << reg << ")" << std::endl;
     }
 
 private:
-    // '*' postfix_expression
+    NodePtr type_qualifier_list;
     NodePtr pointer;
 };
 

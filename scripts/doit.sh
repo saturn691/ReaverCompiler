@@ -4,6 +4,5 @@
 ## Note : I'm lazy
 
 make
-scripts/test.py compiler_tests/
-# scripts/test.py compiler_tests/array/ -v
-# scripts/test.py compiler_tests/custom/ -v
+# scripts/test.py compiler_tests/
+scripts/test.py compiler_tests/pointer -v

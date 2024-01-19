@@ -11,12 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/array/index_expression.c",
+                "compiler_tests/pointer/addressof.c",
                 "-o",
-                "bin/output/array/index_expression/index_expression.s",
-                "compiler_tests/programs/multiply.c",
-                "-o",
-                "bin/output/programs/multiply/multiply.s"
+                "bin/output/pointer/addressof/addressof.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
