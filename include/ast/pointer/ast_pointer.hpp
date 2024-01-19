@@ -43,7 +43,6 @@ public:
     virtual Types get_type(Context &context) const override
     {
         throw std::runtime_error("Pointer::get_type() not implemented");
-        // return pointer->get_type(context);
     }
 
     virtual double evaluate(Context &context) const override

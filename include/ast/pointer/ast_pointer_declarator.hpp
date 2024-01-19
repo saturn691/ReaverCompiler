@@ -4,7 +4,7 @@
 #include "../ast_node.hpp"
 
 /*
- *  Node for pointer declaration (e.g. "int* x;")
+ *  Node for pointer declaration (e.g. "*x;")
 */
 class PointerDeclarator : public Node
 {
@@ -61,7 +61,6 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        // dst << "fuck";
         direct_declarator->gen_asm(dst, dest_reg, context);
     }
 

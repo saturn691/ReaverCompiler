@@ -7,7 +7,7 @@
 
 /*
  *  Node for unary expressions
- *  (e.g. "+x", "-x", "~x", "!x")
+ *  (e.g. "+x", "-x", "~x", "!x", "&x")
 */
 class UnaryExpression : public Node
 {
@@ -64,6 +64,10 @@ public:
             std::string id = cast_expression->get_id();
             int address = context.get_stack_location(id);
             dst << indent << "addi " << dest_reg << ", s0, " << address << std::endl;
+        }
+        else if (unary_operator == "*") // for pointers -> dereference
+        {
+            dst << indent << "lw " << dest_reg << ", 0(" << dest_reg << ")" << std::endl;
         }
     }
 
