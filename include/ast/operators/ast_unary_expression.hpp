@@ -59,6 +59,12 @@ public:
         {
             dst << indent << "seqz " << dest_reg << ", " << dest_reg << std::endl;
         }
+        else if (unary_operator == "&") // for pointers -> address of
+        {
+            std::string id = cast_expression->get_id();
+            int address = context.get_stack_location(id);
+            dst << indent << "addi " << dest_reg << ", s0, " << address << std::endl;
+        }
     }
 
 private:

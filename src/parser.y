@@ -355,7 +355,7 @@ type_qualifier
     ;
 
 declarator
-    : pointer direct_declarator                             { $$ = new PointerDeclarator($1, $2, NULL);}
+    : pointer direct_declarator                             { $$ = new PointerDeclarator($1, $2);}
     | direct_declarator                                     { $$ = $1; }
     ;
 
@@ -376,15 +376,16 @@ direct_declarator
     ;
 
 pointer
-    : '*'                                                   { $$ = new PointerAccess(NULL, NULL);}
-    | '*' type_qualifier_list                               { $$ = new PointerAccess(NULL, $2);}
-    | '*' pointer                                           { $$ = new PointerAccess($2, NULL);}
-    | '*' type_qualifier_list pointer                       { $$ = new PointerAccess($2, $3);}
+    : '*'                                                   { $$ = new Pointer(NULL); }
+    | '*' type_qualifier_list
+    | '*' pointer                                           { $$ = new Pointer($2); }
+    | '*' type_qualifier_list pointer
     ;
 
+// Not considered in this implementation
 type_qualifier_list
-    : type_qualifier                                        { $$ = $1; }
-    | type_qualifier_list type_qualifier                    { $$ = new BinaryNode($1, $2); } // Might fail
+    : type_qualifier
+    | type_qualifier_list type_qualifier
     ;
 
 
@@ -416,9 +417,9 @@ type_name
     ;
 
 abstract_declarator
-    : pointer                                               { $$ = $1; }
-    | direct_abstract_declarator                            { $$ = $1; }
-    | pointer direct_abstract_declarator                    { $$ = new PointerDeclarator($1, NULL, $2); }
+    : pointer                                               // { $$ = $1; }
+    | direct_abstract_declarator                            // { $$ = $1; }
+    | pointer direct_abstract_declarator                    // { $$ = new PointerDeclarator($1, NULL, $2); }
     ;
 
 direct_abstract_declarator

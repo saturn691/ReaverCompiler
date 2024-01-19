@@ -5,6 +5,7 @@
 #include "../../ast_context.hpp"
 #include "../ast_add.hpp"
 #include "./../../array/ast_array_access.hpp"
+#include "../ast_unary_expression.hpp"
 
 /*
  *  Node for assignment (e.g. "x = 5;")
@@ -80,14 +81,6 @@ public:
                     dst << indent << "sw " << reg << ", 0(" << arr_reg << ")" << std::endl;
                     context.deallocate_register(arr_reg);
                     break;
-
-                // case Types::FLOAT:
-                //     dst << indent << "fsw " << reg << ", 0(" << arr_reg << ")" << std::endl;
-                //     break;
-
-                // case Types::DOUBLE:
-                //     dst << indent << "dsw " << reg << ", 0(" << arr_reg << ")" << std::endl;
-                //     break;
 
                 default:
                     throw std::runtime_error(

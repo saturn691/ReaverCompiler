@@ -11,20 +11,33 @@ class PointerDeclarator : public Node
 public:
     PointerDeclarator(
         NodePtr _pointer,
-        NodePtr _direct_declarator,
-        NodePtr _direct_abstract_declarator
+        NodePtr _direct_declarator
+        // NodePtr _direct_abstract_declarator
 
     ) :
         pointer(_pointer),
-        direct_declarator(_direct_declarator),
-        direct_abstract_declarator(_direct_abstract_declarator)
+        direct_declarator(_direct_declarator)
     {}
 
     virtual ~PointerDeclarator()
     {
         delete pointer;
         delete direct_declarator;
-        delete direct_abstract_declarator;
+    }
+
+    virtual std::string get_id() const override
+    {
+        return direct_declarator->get_id();
+    }
+
+    virtual Types get_type(Context &context) const override
+    {
+        return direct_declarator->get_type(context);
+    }
+
+    virtual double evaluate(Context &context) const override
+    {
+        throw std::runtime_error("PointerDeclarator::evaluate() not implemented");
     }
 
     virtual void print(std::ostream &dst, int indent_level) const override
@@ -34,17 +47,12 @@ public:
         dst << indent;
         if (pointer != NULL)
         {
-            pointer->print(dst, 0); // *
+            pointer->print(dst, 0);
         }
         if (direct_declarator != NULL)
         {
-            direct_declarator->print(dst, 0); // x
+            direct_declarator->print(dst, 0);
         }
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("PointerDeclarator::evaluate() not implemented");
     }
 
     virtual void gen_asm(
@@ -52,14 +60,14 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        throw std::runtime_error("PointerDeclarator::gen_asm() not implemented");
-
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        // dst << "fuck";
+        direct_declarator->gen_asm(dst, dest_reg, context);
     }
 
 private:
-    NodePtr pointer; // *
-    NodePtr direct_declarator; // something like void foo(int *)
-    NodePtr direct_abstract_declarator; // something like void foo(int *x)
+    NodePtr pointer;
+    NodePtr direct_declarator;
 };
 
 #endif // ast_pointer_declarator_hpp

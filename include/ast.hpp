@@ -57,7 +57,7 @@
 #include <ast/array/ast_array_access.hpp>
 
 // Pointers
-#include <ast/pointer/ast_pointer_access.hpp>
+#include <ast/pointer/ast_pointer.hpp>
 #include <ast/pointer/ast_pointer_declarator.hpp>
 
 #include <ast/statements/ast_break.hpp>
