@@ -123,7 +123,9 @@ public:
         SWITCH,
 
         GLOBAL,
-        LOCAL
+        LOCAL,
+
+        ASSIGN
     };
 
     Mode mode = Mode::GLOBAL;

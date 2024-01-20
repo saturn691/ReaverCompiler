@@ -59,6 +59,8 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id = assignment_operator->get_id();
 
+        context.mode = Context::Mode::ASSIGN; // Change mode to assign
+
         unary_expression->gen_asm(dst, dest_reg, context);
         int stack_loc = context.get_stack_location(get_id());
         Types type = get_type(context);
@@ -88,9 +90,35 @@ public:
                     );
                     break;
             }
-
+            context.mode = Context::Mode::GLOBAL; // Change mode back to default
             context.deallocate_register(reg);
             return; // return early
+        }
+
+        // Pointer dereference
+        const UnaryExpression* unary_expr = dynamic_cast<const UnaryExpression*>(unary_expression);
+        if (unary_expr)
+        {
+            std::string unary_op = unary_expr->get_unary_operator();
+            if (unary_op == "*")
+            {
+                switch (type)
+                {
+                    case Types::INT:
+                    case Types::UNSIGNED_INT:
+                        dst << indent << "sw " << reg << ", 0(" << dest_reg << ")" << std::endl;
+                        break;
+
+                    default:
+                        throw std::runtime_error(
+                            "Assign::gen_asm(): Unsupported type for assignment"
+                        );
+                        break;
+                }
+
+                context.deallocate_register(reg);
+                return; // return early
+            }
         }
 
         // TODO implement for all assignment operators
@@ -125,6 +153,7 @@ public:
                 );
                 break;
         }
+        context.mode = Context::Mode::GLOBAL; // Change mode back to default
         context.deallocate_register(reg);
     }
 

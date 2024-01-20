@@ -38,6 +38,16 @@ public:
         return cast_expression->get_type(context);
     }
 
+    virtual std::string get_id() const override
+    {
+        return cast_expression->get_id();
+    }
+
+    std::string get_unary_operator() const
+    {
+        return unary_operator;
+    }
+
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -65,7 +75,7 @@ public:
             int address = context.get_stack_location(id);
             dst << indent << "addi " << dest_reg << ", s0, " << address << std::endl;
         }
-        else if (unary_operator == "*") // for pointers -> dereference
+        else if (unary_operator == "*" && context.mode != Context::Mode::ASSIGN) // for pointers -> dereference
         {
             dst << indent << "lw " << dest_reg << ", 0(" << dest_reg << ")" << std::endl;
         }

@@ -1,4 +1,4 @@
-	.file	"dereference.c"
+	.file	"arithmetic.c"
 	.option nopic
 	.attribute arch, "rv32i2p0_m2p0_f2p0_d2p0"
 	.attribute unaligned_access, 0
@@ -11,10 +11,10 @@ f:
 	addi	sp,sp,-32
 	sw	s0,28(sp)
 	addi	s0,sp,32
-	addi	a5,s0,-24
+	sw	a0,-20(s0)
+	lw	a5,-20(s0)
+	addi	a5,a5,4
 	sw	a5,-20(s0)
-	li	a5,13
-	sw	a5,-24(s0)
 	lw	a5,-20(s0)
 	lw	a5,0(a5)
 	mv	a0,a5

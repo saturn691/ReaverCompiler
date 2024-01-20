@@ -6,3 +6,4 @@
 make
 # scripts/test.py compiler_tests/
 scripts/test.py compiler_tests/pointer -v
+scripts/test.py compiler_tests/pointer
