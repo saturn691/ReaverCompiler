@@ -27,6 +27,7 @@ struct FunctionVariable
     int stack_location;
     Types type;
     std::vector<Types> parameter_types;
+    bool is_pointer = false;
 };
 
 struct EnumType
@@ -77,7 +78,11 @@ public:
 
     void add_function_declaration(std::string id);
 
-    void add_function_declaration_type(Types type, bool is_return_type = false);
+    void add_function_declaration_type(Types type);
+
+    void set_is_pointer(bool is_pointer, std::string id);
+
+    bool get_is_pointer(std::string id) const;
 
     Types get_type(std::string id) const;
 
@@ -139,6 +144,9 @@ public:
     // Holds the conditions and statements for switch-case statements
     std::pair<std::stringstream, std::stringstream> switch_cases;
     std::pair<std::stringstream, std::stringstream> switch_default;
+
+    // Multiplier for pointers
+    unsigned int pointer_multiplier = 1;
 
     // Static Constants --------------------------------------------------------
 

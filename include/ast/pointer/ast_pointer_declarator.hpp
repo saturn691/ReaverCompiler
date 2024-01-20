@@ -62,6 +62,7 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         direct_declarator->gen_asm(dst, dest_reg, context);
+        context.set_is_pointer(true, get_id());
     }
 
 private:

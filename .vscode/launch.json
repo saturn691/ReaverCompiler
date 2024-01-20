@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/pointer/assign.c",
+                "compiler_tests/pointer/addressof.c",
                 "-o",
-                "bin/output/pointer/assign/assign.s",
+                "bin/output/pointer/addressof/addressof.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

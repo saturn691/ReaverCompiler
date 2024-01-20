@@ -65,9 +65,14 @@ public:
         int stack_loc = context.get_stack_location(get_id());
         Types type = get_type(context);
 
-        // TODO consider other types
         // Put the assignment expression into a temporary register
         std::string reg = context.allocate_register(type);
+
+        unsigned int multiplier = Context::type_size_map.at(type);
+        if (context.get_is_pointer(get_id()))
+        {
+            context.pointer_multiplier = multiplier;
+        }
         assignment_expression->gen_asm(dst, reg, context);
 
         const ArrayAccess* array_access = dynamic_cast<const ArrayAccess*>(unary_expression);
@@ -155,6 +160,7 @@ public:
         }
         context.mode = Context::Mode::GLOBAL; // Change mode back to default
         context.deallocate_register(reg);
+        context.pointer_multiplier = 1;
     }
 
 private:
