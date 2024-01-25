@@ -61,7 +61,15 @@ public:
         }
         else
         {
-            int val = value * context.pointer_multiplier;
+            int val;
+            if (context.multiply_pointer)
+            {
+                val = value * context.pointer_multiplier ;
+            }
+            else
+            {
+                val = value;
+            }
             dst << indent << "li " << dest_reg << ", " << val << std::endl;
         }
     }

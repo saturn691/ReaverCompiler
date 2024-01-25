@@ -73,6 +73,10 @@ public:
         {
             context.pointer_multiplier = multiplier;
         }
+        else
+        {
+            context.pointer_multiplier = 1;
+        }
         assignment_expression->gen_asm(dst, reg, context);
 
         const ArrayAccess* array_access = dynamic_cast<const ArrayAccess*>(unary_expression);

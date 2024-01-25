@@ -130,7 +130,8 @@ public:
         GLOBAL,
         LOCAL,
 
-        ASSIGN
+        ASSIGN,                     // Used for pointers
+        FUNCTION_DEFINITION         // Duh
     };
 
     Mode mode = Mode::GLOBAL;
@@ -145,8 +146,11 @@ public:
     std::pair<std::stringstream, std::stringstream> switch_cases;
     std::pair<std::stringstream, std::stringstream> switch_default;
 
-    // Multiplier for pointers
+    // Multiplier for pointers (only applies to + and - AND is a number)
     unsigned int pointer_multiplier = 1;
+
+    // Boolean for pointer multiplier
+    bool multiply_pointer = false;
 
     // Static Constants --------------------------------------------------------
 
