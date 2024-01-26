@@ -39,17 +39,6 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
 
-        /*
-        GCC compiles the following
-
-        ; float acc=1.0f;
-            fsw	fa0,-36(s0)
-            sw	a0,-40(s0)
-            lui	a5,%hi(.LC0)
-
-        Therefore we need to allocate a temporary register to hold the upper
-        immediate. We're not going to create a label for cleanliness.
-        */
         if (dest_reg[0] == 'f')
         {
             float float_value = (float)value;
@@ -72,7 +61,16 @@ public:
         }
         else
         {
-            dst << indent << "li " << dest_reg << ", " << value << std::endl;
+            int val;
+            if (context.multiply_pointer)
+            {
+                val = value * context.pointer_multiplier ;
+            }
+            else
+            {
+                val = value;
+            }
+            dst << indent << "li " << dest_reg << ", " << val << std::endl;
         }
     }
 

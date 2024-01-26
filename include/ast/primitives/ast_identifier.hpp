@@ -62,27 +62,59 @@ public:
         // Find the id on the stack - will throw exception if not found.
         int stack_loc = context.get_stack_location(id);
 
-        switch (type)
+        // Mode 1: LOAD
+        if (context.mode != Context::Mode::FUNCTION_DEFINITION)
         {
-            case Types::INT:
-            case Types::UNSIGNED_INT:
-                dst << indent << "lw " << dest_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
+            switch (type)
+            {
+                case Types::INT:
+                case Types::UNSIGNED_INT:
+                    dst << indent << "lw " << dest_reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
 
-            case Types::FLOAT:
-                dst << indent << "flw " << dest_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
+                case Types::FLOAT:
+                    dst << indent << "flw " << dest_reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
 
-            case Types::DOUBLE:
-                dst << indent << "fld " << dest_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
+                case Types::DOUBLE:
+                    dst << indent << "fld " << dest_reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
 
-            // TODO- deal with other types
-            default:
-                throw std::runtime_error("Identifier::gen_asm() not implemented");
+                // TODO- deal with other types
+                default:
+                    throw std::runtime_error("Identifier::gen_asm() not implemented");
+            }
+        }
+        // Mode 2: STORE
+        else
+        {
+            switch (type)
+            {
+                case Types::INT:
+                case Types::UNSIGNED_INT:
+                    dst << indent << "sw " << dest_reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
+
+                case Types::FLOAT:
+                    dst << indent << "fsw " << dest_reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
+
+                case Types::DOUBLE:
+                    // Not in RISC-V cheatsheet but in specification
+                    dst << indent << "fsd " << dest_reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
+
+                default:
+                    throw std::runtime_error(
+                        "FunctionParameter::gen_asm() not implemented"
+                    );
+            }
         }
     }
 

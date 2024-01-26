@@ -386,11 +386,20 @@ void Context::add_function_declaration(std::string id)
 }
 
 
-void Context::add_function_declaration_type(Types type, bool is_return_type)
+void Context::add_function_declaration_type(Types type)
 {
     identifier_map.at(current_id).parameter_types.push_back(type);
 }
 
+void Context::set_is_pointer(bool is_pointer, std::string id)
+{
+    identifier_map.at(id).is_pointer = is_pointer;
+}
+
+bool Context::get_is_pointer(std::string id) const
+{
+    return identifier_map.at(id).is_pointer;
+}
 
 Types Context::get_type(std::string id) const
 {

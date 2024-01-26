@@ -74,6 +74,20 @@ public:
         int log_size = log2(size);
         int base_pointer = context.get_stack_location(id);
 
+        /*
+            If the array is accessed through pointer element access operator "[]", we need to dereference it
+            otherwise, we can just access the array directly
+        */
+        if (context.get_is_pointer(id))
+        {
+            int stack_loc = context.get_stack_location(id);
+            dst << indent << "lw " << reg << ", " << stack_loc << "(s0)" << std::endl;
+            dst << indent << "lw " << reg << ", " << size << "(" << reg << ")" << std::endl;
+            dst << indent << "mv " << dest_reg << ", " << reg << std::endl;
+            context.deallocate_register(reg);
+        }
+        else
+        {
         dst << indent << "slli " << reg << ", " << reg
             << ", " << log_size << std::endl;
 
@@ -84,6 +98,7 @@ public:
             << ", s0" << std::endl;
 
         dst << indent << "lw " << dest_reg << ", 0(" << reg << ")" << std::endl;
+        }
     }
 
 private:

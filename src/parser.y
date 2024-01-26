@@ -104,8 +104,8 @@ unary_expression
     ;
 
 unary_operator
-    : '&'
-    | '*'
+    : '&'                                   { $$ = new std::string("&"); }
+    | '*'                                   { $$ = new std::string("*"); }
     | '+'                                   { $$ = new std::string("+"); }
     | '-'                                   { $$ = new std::string("-"); }
     | '~'                                   { $$ = new std::string("~"); }
@@ -355,7 +355,7 @@ type_qualifier
     ;
 
 declarator
-    : pointer direct_declarator
+    : pointer direct_declarator                             { $$ = new PointerDeclarator($1, $2);}
     | direct_declarator                                     { $$ = $1; }
     ;
 
@@ -376,12 +376,13 @@ direct_declarator
     ;
 
 pointer
-    : '*'
+    : '*'                                                   { $$ = new Pointer(NULL); }
     | '*' type_qualifier_list
-    | '*' pointer
+    | '*' pointer                                           { $$ = new Pointer($2); }
     | '*' type_qualifier_list pointer
     ;
 
+// Not considered in this implementation
 type_qualifier_list
     : type_qualifier
     | type_qualifier_list type_qualifier
@@ -416,9 +417,9 @@ type_name
     ;
 
 abstract_declarator
-    : pointer
-    | direct_abstract_declarator
-    | pointer direct_abstract_declarator
+    : pointer                                               // { $$ = $1; }
+    | direct_abstract_declarator                            // { $$ = $1; }
+    | pointer direct_abstract_declarator                    // { $$ = new PointerDeclarator($1, NULL, $2); }
     ;
 
 direct_abstract_declarator

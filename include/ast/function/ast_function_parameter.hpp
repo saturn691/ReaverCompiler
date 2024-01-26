@@ -59,34 +59,13 @@ public:
 
         if (dest_reg == "MAGIC CODE")
         {
+            context.mode = Context::Mode::FUNCTION_DEFINITION;
             std::string indent(AST_PRINT_INDENT_SPACES, ' ');
             std::string arg_reg = context.allocate_arg_register(type);
             int stack_loc = context.allocate_stack(type, id);
 
-            switch (type)
-            {
-                case Types::INT:
-                case Types::UNSIGNED_INT:
-                    dst << indent << "sw " << arg_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                case Types::FLOAT:
-                    dst << indent << "fsw " << arg_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                case Types::DOUBLE:
-                    // Not in RISC-V cheatsheet but in specification
-                    dst << indent << "fsd " << arg_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                default:
-                    throw std::runtime_error(
-                        "FunctionParameter::gen_asm() not implemented"
-                    );
-            }
+            declarator->gen_asm(dst, arg_reg, context);
+            context.mode = Context::Mode::GLOBAL;
         }
     }
 

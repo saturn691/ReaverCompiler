@@ -37,6 +37,8 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         Types type = get_type(context);
 
+        context.multiply_pointer = true;
+
         std::string temp_reg1 = context.allocate_register(type);
         get_left()->gen_asm(dst, temp_reg1, context);
 
@@ -94,6 +96,7 @@ public:
 
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
+        context.multiply_pointer = false;
     }
 };
 

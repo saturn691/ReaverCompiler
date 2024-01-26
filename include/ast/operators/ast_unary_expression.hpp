@@ -7,7 +7,7 @@
 
 /*
  *  Node for unary expressions
- *  (e.g. "+x", "-x", "~x", "!x")
+ *  (e.g. "+x", "-x", "~x", "!x", "&x")
 */
 class UnaryExpression : public Node
 {
@@ -38,6 +38,16 @@ public:
         return cast_expression->get_type(context);
     }
 
+    virtual std::string get_id() const override
+    {
+        return cast_expression->get_id();
+    }
+
+    std::string get_unary_operator() const
+    {
+        return unary_operator;
+    }
+
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -58,6 +68,16 @@ public:
         else if (unary_operator == "!")
         {
             dst << indent << "seqz " << dest_reg << ", " << dest_reg << std::endl;
+        }
+        else if (unary_operator == "&") // for pointers -> address of
+        {
+            std::string id = cast_expression->get_id();
+            int address = context.get_stack_location(id);
+            dst << indent << "addi " << dest_reg << ", s0, " << address << std::endl;
+        }
+        else if (unary_operator == "*" && context.mode != Context::Mode::ASSIGN) // for pointers -> dereference
+        {
+            dst << indent << "lw " << dest_reg << ", 0(" << dest_reg << ")" << std::endl;
         }
     }
 

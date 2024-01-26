@@ -5,6 +5,7 @@
 #include "../../ast_context.hpp"
 #include "../ast_add.hpp"
 #include "./../../array/ast_array_access.hpp"
+#include "../ast_unary_expression.hpp"
 
 /*
  *  Node for assignment (e.g. "x = 5;")
@@ -58,13 +59,24 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id = assignment_operator->get_id();
 
+        context.mode = Context::Mode::ASSIGN; // Change mode to assign
+
         unary_expression->gen_asm(dst, dest_reg, context);
         int stack_loc = context.get_stack_location(get_id());
         Types type = get_type(context);
 
-        // TODO consider other types
         // Put the assignment expression into a temporary register
         std::string reg = context.allocate_register(type);
+
+        unsigned int multiplier = Context::type_size_map.at(type);
+        if (context.get_is_pointer(get_id()))
+        {
+            context.pointer_multiplier = multiplier;
+        }
+        else
+        {
+            context.pointer_multiplier = 1;
+        }
         assignment_expression->gen_asm(dst, reg, context);
 
         const ArrayAccess* array_access = dynamic_cast<const ArrayAccess*>(unary_expression);
@@ -81,23 +93,51 @@ public:
                     context.deallocate_register(arr_reg);
                     break;
 
-                // case Types::FLOAT:
-                //     dst << indent << "fsw " << reg << ", 0(" << arr_reg << ")" << std::endl;
-                //     break;
-
-                // case Types::DOUBLE:
-                //     dst << indent << "dsw " << reg << ", 0(" << arr_reg << ")" << std::endl;
-                //     break;
-
                 default:
                     throw std::runtime_error(
                         "Assign::gen_asm(): Unsupported type for assignment"
                     );
                     break;
             }
-
+            context.mode = Context::Mode::GLOBAL; // Change mode back to default
             context.deallocate_register(reg);
             return; // return early
+        }
+
+        // Pointer dereference
+        /*
+            For situations like:
+                int x = 5;
+                int *y = &x;
+                *y = 10;
+            where the assignment is a pointer dereference, we need to dereference the pointer.
+            Similar to pointer element access in array access, we need to dereference the pointer before we can assign to it.
+            As such, we need to check if the unary expression is a pointer dereference.
+            Since this cannot be done in the pointer hpp files, it has to be done here to allign with the node calls of the AST.
+        */
+        const UnaryExpression* unary_expr = dynamic_cast<const UnaryExpression*>(unary_expression);
+        if (unary_expr)
+        {
+            std::string unary_op = unary_expr->get_unary_operator();
+            if (unary_op == "*")
+            {
+                switch (type)
+                {
+                    case Types::INT:
+                    case Types::UNSIGNED_INT:
+                        dst << indent << "sw " << reg << ", 0(" << dest_reg << ")" << std::endl;
+                        break;
+
+                    default:
+                        throw std::runtime_error(
+                            "Assign::gen_asm(): Unsupported type for assignment"
+                        );
+                        break;
+                }
+
+                context.deallocate_register(reg);
+                return; // return early
+            }
         }
 
         // TODO implement for all assignment operators
@@ -132,7 +172,9 @@ public:
                 );
                 break;
         }
+        context.mode = Context::Mode::GLOBAL; // Change mode back to default
         context.deallocate_register(reg);
+        context.pointer_multiplier = 1;
     }
 
 private:

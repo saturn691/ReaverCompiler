@@ -47,9 +47,13 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
+        if (context.mode == Context::Mode::FUNCTION_DEFINITION)
+        {
+            identifier->gen_asm(dst, dest_reg, context);
+        }
         // int x has a different meaning in a function or a struct
         // definition
-        if (context.mode != Context::Mode::STRUCT)
+        else if (context.mode != Context::Mode::STRUCT)
         {
             // Reserve space on the stack
             context.current_declaration_type->allocate_stack(

@@ -10,9 +10,7 @@
  *
  *  Can be used for both variables and function declarations
  *  (e.g. "int f(int x)").
- *
- *  Currently cannot support multiple types, (e.g. "float x");
-*/
+ */
 class Declaration : public Node
 {
 public:
