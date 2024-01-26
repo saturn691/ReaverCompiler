@@ -90,8 +90,6 @@ public:
                 << ", " << log_size << std::endl;
             dst << indent << "add " << reg << ", " << reg
                 << ", " << addr_reg << std::endl;
-            dst << indent << "lw " << dest_reg
-                << ", 0(" << reg << ")" << std::endl;
 
             context.deallocate_register(addr_reg);
         }
@@ -103,9 +101,12 @@ public:
                 << ", " << base_pointer << std::endl;
             dst << indent << "add " << reg << ", " << reg
                 << ", s0" << std::endl;
-            dst << indent << "lw " << dest_reg
-                << ", 0(" << reg << ")" << std::endl;
         }
+
+        // Load the value from the array
+        std::string load = Context::get_load_instruction(type);
+        dst << indent << load << " " << dest_reg
+            << ", 0(" << reg << ")" << std::endl;
 
         context.deallocate_register(reg);
     }

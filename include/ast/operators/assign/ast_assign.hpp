@@ -150,30 +150,9 @@ public:
                 ).gen_asm(dst, reg, context);
             }
 
-            switch (type)
-            {
-                case Types::INT:
-                case Types::UNSIGNED_INT:
-                    dst << indent << "sw " << reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                case Types::FLOAT:
-                    dst << indent << "fsw " << reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                case Types::DOUBLE:
-                    dst << indent << "dsw " << reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                default:
-                    throw std::runtime_error(
-                        "Assign::gen_asm(): Unsupported type for assignment"
-                    );
-                    break;
-            }
+            std::string store = Context::get_store_instruction(type);
+            dst << indent << store << " " << reg << ", "
+                << stack_loc << "(s0)" << std::endl;
         }
 
         context.mode = Context::Mode::GLOBAL; // Change mode back to default

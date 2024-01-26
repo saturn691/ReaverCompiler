@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/strings/escaped.c",
+                "compiler_tests/strings/search.c",
                 "-o",
-                "bin/output/strings/escaped/escaped.s",
+                "bin/output/strings/search/search.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

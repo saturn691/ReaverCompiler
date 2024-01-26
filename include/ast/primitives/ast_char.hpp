@@ -33,7 +33,7 @@ public:
 
     virtual Types get_type(Context &context) const override
     {
-        return Types::CHAR;
+        return Types::UNSIGNED_CHAR;
     }
 
     virtual double evaluate(Context &context) const override

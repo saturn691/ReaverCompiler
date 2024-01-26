@@ -53,6 +53,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id = declarator->get_id();
         // Ok, if you're reading this, please don't question this line
         // This is to prevent declarations from generating assembly
@@ -85,7 +86,11 @@ public:
         declarator->gen_asm(dst, code, context);
         // context.init_stack is called in the declarator
         compound_statement->gen_asm(dst, return_reg, context);
-        // context.end_stack is called before return
+
+        // Return nodes jump here
+        dst << "end:" << std::endl;
+        context.end_stack(dst);
+        dst << indent << "ret" << std::endl;
 
         // Footer section
         std::cout << std::endl;

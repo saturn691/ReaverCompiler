@@ -64,11 +64,9 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
 
         // tell identifier to reserve 4 bytes and ALWAYS 4 bytes
-        context.current_declaration_type = new BasicType(Types::INT);
+        context.is_pointer = true;
         direct_declarator->gen_asm(dst, dest_reg, context);
-        context.set_is_pointer(true, get_id());
-
-        delete context.current_declaration_type;
+        context.is_pointer = false;
     }
 
 private:

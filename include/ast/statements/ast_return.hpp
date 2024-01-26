@@ -42,8 +42,7 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
 
         return_node->gen_asm(dst, dest_reg, context);
-        context.end_stack(dst);
-        dst << indent << "ret" << std::endl;
+        dst << indent << "j end" << std::endl;
     }
 
 private:

@@ -98,6 +98,10 @@ public:
 
     int get_enum_value(std::string id) const;
 
+    static std::string get_load_instruction(Types type);
+
+    static std::string get_store_instruction(Types type);
+
     /*
     When declaring a variable or a function, say int x, y, z;, we need to know
     the type of x, y, and z. However, because the compiler uses in-order
@@ -107,6 +111,7 @@ public:
     */
     // The type of the current variable/function declaration.
     TypePtr current_declaration_type;
+    bool is_pointer = false;
     std::string current_id;
 
     // Used for creation of structs. Keep the current_declaration_type as the

@@ -65,56 +65,24 @@ public:
         // Mode 1: LOAD
         if (context.mode != Context::Mode::FUNCTION_DEFINITION)
         {
-            switch (type)
+            if (context.is_pointer || context.get_is_pointer(id))
             {
-                case Types::INT:
-                case Types::UNSIGNED_INT:
-                    dst << indent << "lw " << dest_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                case Types::FLOAT:
-                    dst << indent << "flw " << dest_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                case Types::DOUBLE:
-                    dst << indent << "fld " << dest_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                // TODO- deal with other types
-                default:
-                    throw std::runtime_error("Identifier::gen_asm() not implemented");
+                type = Types::INT;
             }
+            std::string load = Context::get_load_instruction(type);
+            dst << indent << load << " " << dest_reg << ", "
+                << stack_loc << "(s0)" << std::endl;
         }
         // Mode 2: STORE
         else
         {
-            switch (type)
+            if (context.is_pointer)
             {
-                case Types::INT:
-                case Types::UNSIGNED_INT:
-                    dst << indent << "sw " << dest_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                case Types::FLOAT:
-                    dst << indent << "fsw " << dest_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                case Types::DOUBLE:
-                    // Not in RISC-V cheatsheet but in specification
-                    dst << indent << "fsd " << dest_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
-                    break;
-
-                default:
-                    throw std::runtime_error(
-                        "FunctionParameter::gen_asm() not implemented"
-                    );
+                type = Types::INT;
             }
+            std::string store = Context::get_store_instruction(type);
+            dst << indent << store << " " << dest_reg << ", "
+                << stack_loc << "(s0)" << std::endl;
         }
     }
 

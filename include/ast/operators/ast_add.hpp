@@ -47,6 +47,8 @@ public:
 
         switch (type)
         {
+            case Types::UNSIGNED_CHAR:
+            case Types::CHAR:
             case Types::INT:
             case Types::UNSIGNED_INT:
                 dst << indent << "add " << dest_reg
