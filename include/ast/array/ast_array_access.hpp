@@ -75,30 +75,41 @@ public:
         int base_pointer = context.get_stack_location(id);
 
         /*
-            If the array is accessed through pointer element access operator "[]", we need to dereference it
-            otherwise, we can just access the array directly
+            If the array is accessed through pointer element access operator
+            "[]", we need to dereference it otherwise, we can just access the
+            array directly
         */
         if (context.get_is_pointer(id))
         {
-            int stack_loc = context.get_stack_location(id);
-            dst << indent << "lw " << reg << ", " << stack_loc << "(s0)" << std::endl;
-            dst << indent << "lw " << reg << ", " << size << "(" << reg << ")" << std::endl;
-            dst << indent << "mv " << dest_reg << ", " << reg << std::endl;
-            context.deallocate_register(reg);
+            std::string addr_reg = context.allocate_register(Types::INT);
+
+            // Dereference the pointer to get the base address
+            dst << indent << "lw " << addr_reg << ", "
+                << base_pointer << "(s0)" << std::endl;
+            dst << indent << "slli " << reg << ", " << reg
+                << ", " << log_size << std::endl;
+            dst << indent << "add " << reg << ", " << reg
+                << ", " << addr_reg << std::endl;
+
+            context.deallocate_register(addr_reg);
         }
         else
         {
-        dst << indent << "slli " << reg << ", " << reg
-            << ", " << log_size << std::endl;
-
-        dst << indent << "addi " << reg << ", " << reg
-            << ", " << base_pointer << std::endl;
-
-        dst << indent << "add " << reg << ", " << reg
-            << ", s0" << std::endl;
-
-        dst << indent << "lw " << dest_reg << ", 0(" << reg << ")" << std::endl;
+            dst << indent << "slli " << reg << ", " << reg
+                << ", " << log_size << std::endl;
+            dst << indent << "addi " << reg << ", " << reg
+                << ", " << base_pointer << std::endl;
+            dst << indent << "add " << reg << ", " << reg
+                << ", s0" << std::endl;
         }
+
+        // Load the value from the array
+        std::string load = Context::get_load_instruction(type);
+        dst << indent << load << " " << dest_reg
+            << ", 0(" << reg << ")" << std::endl;
+
+        // intentionally do not deallocate the register
+        // will be deallocated in assign
     }
 
 private:

@@ -55,6 +55,10 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
 
+        if (unary_operator == "*")
+        {
+            context.is_pointer = true;
+        }
         cast_expression->gen_asm(dst, dest_reg, context);
 
         if (unary_operator == "-")
@@ -77,8 +81,12 @@ public:
         }
         else if (unary_operator == "*" && context.mode != Context::Mode::ASSIGN) // for pointers -> dereference
         {
-            dst << indent << "lw " << dest_reg << ", 0(" << dest_reg << ")" << std::endl;
+            std::string load = Context::get_load_instruction(get_type(context));
+            dst << indent << load << " " << dest_reg
+                << ", 0(" << dest_reg << ")" << std::endl;
         }
+
+        context.is_pointer = false;
     }
 
 private:

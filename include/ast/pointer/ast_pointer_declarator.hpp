@@ -2,6 +2,8 @@
 #define ast_pointer_declarator_hpp
 
 #include "../ast_node.hpp"
+#include "../type/ast_basic_type.hpp"
+
 
 /*
  *  Node for pointer declaration (e.g. "*x;")
@@ -30,7 +32,8 @@ public:
 
     virtual Types get_type(Context &context) const override
     {
-        return direct_declarator->get_type(context);
+        // A pointer is always 4 bytes
+        return Types::INT;
     }
 
     virtual double evaluate(Context &context) const override
@@ -59,9 +62,11 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        // TODO We need to tell identifier to reserve 4 bytes and ALWAYS 4 bytes
+
+        // tell identifier to reserve 4 bytes and ALWAYS 4 bytes
+        context.is_pointer = true;
         direct_declarator->gen_asm(dst, dest_reg, context);
-        context.set_is_pointer(true, get_id());
+        context.is_pointer = false;
     }
 
 private:

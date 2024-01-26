@@ -52,35 +52,6 @@ public:
         int arr_size = array_size->evaluate(context);
         std::string id = direct_declarator->get_id();
         int stack_loc = context.allocate_array_stack(type, arr_size, id);
-
-        std::string arr_reg = context.allocate_register(type);
-
-        switch (type)
-        {
-            case Types::INT:
-            case Types::UNSIGNED_INT:
-                dst << indent << "sw " << arr_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
-
-            case Types::FLOAT:
-                dst << indent << "fsw " << arr_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
-
-            case Types::DOUBLE:
-                dst << indent << "dsw " << arr_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
-
-            default:
-                throw std::runtime_error(
-                    "ArrayDeclarator::gen_asm(): Unsupported type for assignment"
-                );
-                break;
-        }
-
-        context.deallocate_register(arr_reg);
     }
 
 private:

@@ -279,12 +279,22 @@ void Context::end_stack(std::ostream& dst)
 
 int Context::allocate_stack(Types type, std::string id)
 {
-    unsigned int bytes = type_size_map.at(type);
+    unsigned int bytes;
+    if (is_pointer)
+    {
+        bytes = 4;
+    }
+    else
+    {
+        bytes = type_size_map.at(type);
+    }
+
     int stack_loc = push_stack(bytes);
 
     if (!id.empty())
     {
         identifier_map[id] = {stack_loc, type};
+        identifier_map[id].is_pointer = is_pointer;
     }
     else
     {
@@ -304,6 +314,7 @@ int Context::allocate_array_stack(Types type, int size, std::string id)
     if (!id.empty())
     {
         identifier_map[id] = {stack_loc, type};
+        identifier_map[id].is_pointer = is_pointer;
     }
     else
     {
@@ -353,6 +364,12 @@ void Context::add_memory_data(std::string label, int value)
 }
 
 
+void Context::add_string_data(std::string label, std::string value)
+{
+    string_map.insert(std::make_pair(label, value));
+}
+
+
 void Context::gen_memory_asm(std::ostream& dst)
 {
     std::string indent(AST_PRINT_INDENT_SPACES, ' ');
@@ -371,6 +388,16 @@ void Context::gen_memory_asm(std::ostream& dst)
         // Necessary for floating point representations.
         dst << indent << ".word " << val << std::endl;
     }
+
+    for (const auto& [id, val] : string_map)
+    {
+        // This is what GCC does.
+        dst << ".align 2" << std::endl;
+        dst << "." << id << ":" << std::endl;
+
+        // Necessary for floating point representations.
+        dst << indent << ".string " << val << std::endl;
+    }
 }
 
 
@@ -380,6 +407,7 @@ void Context::add_function_declaration(std::string id)
     function.stack_location = -1;
     function.type = current_declaration_type->get_type();
     function.parameter_types.clear();
+    function.is_pointer = is_pointer;
 
     identifier_map.insert({id, function});
     current_id = id;
@@ -391,21 +419,25 @@ void Context::add_function_declaration_type(Types type)
     identifier_map.at(current_id).parameter_types.push_back(type);
 }
 
-void Context::set_is_pointer(bool is_pointer, std::string id)
-{
-    identifier_map.at(id).is_pointer = is_pointer;
-}
 
 bool Context::get_is_pointer(std::string id) const
 {
     return identifier_map.at(id).is_pointer;
 }
 
+
+void Context::set_is_pointer(std::string id, bool is_pointer)
+{
+    identifier_map.at(id).is_pointer = is_pointer;
+}
+
+
 Types Context::get_type(std::string id) const
 {
     // First, try to find the id in the identifier_map
     auto identifier_it = identifier_map.find(id);
-    if (identifier_it != identifier_map.end()) {
+    if (identifier_it != identifier_map.end())
+    {
         return identifier_it->second.type;
     }
 
@@ -496,4 +528,84 @@ unsigned int Context::get_size(std::string id) const
     }
 
     return total_size;
+}
+
+
+std::string Context::get_load_instruction(Types type)
+{
+    std::string instruction;
+
+    switch (type)
+    {
+        case Types::UNSIGNED_CHAR:
+            instruction = "lbu";
+            break;
+        case Types::CHAR:
+            instruction = "lb";
+            break;
+        case Types::UNSIGNED_SHORT:
+            instruction = "lhu";
+            break;
+        case Types::SHORT:
+            instruction = "lh";
+            break;
+        case Types::UNSIGNED_INT:
+        case Types::INT:
+        case Types::UNSIGNED_LONG:
+        case Types::LONG:
+            instruction = "lw";
+            break;
+        case Types::FLOAT:
+            instruction = "flw";
+            break;
+        case Types::DOUBLE:
+        case Types::LONG_DOUBLE:
+            instruction = "fld";
+            break;
+        default:
+            throw std::runtime_error(
+                "Context::get_load_instruction() - unrecognised type"
+            );
+            break;
+    }
+
+    return instruction;
+}
+
+
+std::string Context::get_store_instruction(Types type)
+{
+    std::string instruction;
+
+    switch (type)
+    {
+        case Types::UNSIGNED_CHAR:
+        case Types::CHAR:
+            instruction = "sb";
+            break;
+        case Types::UNSIGNED_SHORT:
+        case Types::SHORT:
+            instruction = "sh";
+            break;
+        case Types::UNSIGNED_INT:
+        case Types::INT:
+        case Types::UNSIGNED_LONG:
+        case Types::LONG:
+            instruction = "sw";
+            break;
+        case Types::FLOAT:
+            instruction = "fsw";
+            break;
+        case Types::DOUBLE:
+        case Types::LONG_DOUBLE:
+            instruction = "fsd";
+            break;
+        default:
+            throw std::runtime_error(
+                "Context::get_store_instruction() - unrecognised type"
+            );
+            break;
+    }
+
+    return instruction;
 }

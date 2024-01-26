@@ -74,13 +74,15 @@ public:
 
     void add_memory_data(std::string label, int value);
 
+    void add_string_data(std::string label, std::string value);
+
     void gen_memory_asm(std::ostream& dst);
 
     void add_function_declaration(std::string id);
 
     void add_function_declaration_type(Types type);
 
-    void set_is_pointer(bool is_pointer, std::string id);
+    void set_is_pointer(std::string id, bool is_pointer);
 
     bool get_is_pointer(std::string id) const;
 
@@ -96,6 +98,10 @@ public:
 
     int get_enum_value(std::string id) const;
 
+    static std::string get_load_instruction(Types type);
+
+    static std::string get_store_instruction(Types type);
+
     /*
     When declaring a variable or a function, say int x, y, z;, we need to know
     the type of x, y, and z. However, because the compiler uses in-order
@@ -105,6 +111,7 @@ public:
     */
     // The type of the current variable/function declaration.
     TypePtr current_declaration_type;
+    bool is_pointer = false;
     std::string current_id;
 
     // Used for creation of structs. Keep the current_declaration_type as the
@@ -163,6 +170,9 @@ private:
 
     // Contains the map of labels to word values
     std::unordered_map<std::string, int> memory_map;
+
+    // Contains the map of labels to string values
+    std::unordered_map<std::string, std::string> string_map;
 
     // The next value to give an enum class
     unsigned int enum_next_value = 0;
