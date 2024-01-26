@@ -16,12 +16,16 @@ g:
 	addi	sp,sp,-32
 	sw	s0,28(sp)
 	addi	s0,sp,32
+
+	// Loads mem["\\"] into a5 (-20 from s0)
 	lui	a5,%hi(.LC0)
 	addi	a5,a5,%lo(.LC0)
 	sw	a5,-20(s0)
-	lw	a5,-20(s0)
-	lbu	a5,0(a5)
+
+	lw	a5,-20(s0) // mem["\\"]
+	lbu	a5,0(a5)   // dereferences "\"
 	mv	a0,a5
+
 	lw	s0,28(sp)
 	addi	sp,sp,32
 	jr	ra

@@ -6,7 +6,7 @@
 
 
 /*
- *  Leaf node for string literals (e.g. "10" in "int x = 10;")
+ *  Leaf node for string literals (e.g. "hello")
 */
 class String : public Node
 {
@@ -25,7 +25,7 @@ public:
 
     virtual Types get_type(Context &context) const override
     {
-        // This is a string literal, it is an array of chars
+        // This is a pointer to a char array
         return Types::INT;
     }
 
@@ -39,7 +39,23 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        // TODO: make it work for strings larger than 8 chars
+        /*
+            In C, strings are arrays of chars. GCC stores the string literal
+            in memory and then loads the address of the base.
+
+            e.g.
+            lui	    a5,%hi(.LC0)
+	        addi	a5,a5,%lo(.LC0)
+            lbu	    a5,0(a5)
+
+            MEMORY ADDRESS | MEMORY LABEL | VALUE
+            -------------------------------------
+            0x1000         | .LC0         | 'H'
+            0x1001         | .LC0 + 1     | 'e'
+            0x1002         | .LC0 + 2     | 'l'
+            0x1003         | .LC0 + 3     | 'l'
+            0x1004         | .LC0 + 4     | 'o'
+        */
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string label = context.get_unique_label("string");
         context.add_string_data(label, string);

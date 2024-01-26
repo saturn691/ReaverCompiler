@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/pointer/arithmetic.c",
+                "compiler_tests/strings/escaped.c",
                 "-o",
-                "bin/output/pointer/arithmetic/arithmetic.s",
+                "bin/output/strings/escaped/escaped.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

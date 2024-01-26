@@ -79,7 +79,10 @@ public:
         }
         assignment_expression->gen_asm(dst, reg, context);
 
-        const ArrayAccess* array_access = dynamic_cast<const ArrayAccess*>(unary_expression);
+        const ArrayAccess* array_access;
+        array_access = dynamic_cast<const ArrayAccess*>(unary_expression);
+        const UnaryExpression* unary_expr;
+        unary_expr = dynamic_cast<const UnaryExpression*>(unary_expression);
         std::string arr_reg;
 
         if (array_access)
@@ -89,7 +92,8 @@ public:
             {
                 case Types::INT:
                 case Types::UNSIGNED_INT:
-                    dst << indent << "sw " << reg << ", 0(" << arr_reg << ")" << std::endl;
+                    dst << indent << "sw " << reg
+                        << ", 0(" << arr_reg << ")" << std::endl;
                     context.deallocate_register(arr_reg);
                     break;
 
@@ -99,24 +103,22 @@ public:
                     );
                     break;
             }
-            context.mode = Context::Mode::GLOBAL; // Change mode back to default
-            context.deallocate_register(reg);
-            return; // return early
         }
-
         // Pointer dereference
         /*
             For situations like:
                 int x = 5;
                 int *y = &x;
                 *y = 10;
-            where the assignment is a pointer dereference, we need to dereference the pointer.
-            Similar to pointer element access in array access, we need to dereference the pointer before we can assign to it.
-            As such, we need to check if the unary expression is a pointer dereference.
-            Since this cannot be done in the pointer hpp files, it has to be done here to allign with the node calls of the AST.
+            where the assignment is a pointer dereference, we need to
+            dereference the pointer. Similar to pointer element access in
+            array access, we need to dereference the pointer before we can
+            assign to it. As such, we need to check if the unary expression is
+            a pointer dereference. Since this cannot be done in the pointer hpp
+            files, it has to be done here to align with the node calls of the
+            AST.
         */
-        const UnaryExpression* unary_expr = dynamic_cast<const UnaryExpression*>(unary_expression);
-        if (unary_expr)
+        else if (unary_expr)
         {
             std::string unary_op = unary_expr->get_unary_operator();
             if (unary_op == "*")
@@ -125,7 +127,8 @@ public:
                 {
                     case Types::INT:
                     case Types::UNSIGNED_INT:
-                        dst << indent << "sw " << reg << ", 0(" << dest_reg << ")" << std::endl;
+                        dst << indent << "sw " << reg << ", 0("
+                            << dest_reg << ")" << std::endl;
                         break;
 
                     default:
@@ -134,44 +137,43 @@ public:
                         );
                         break;
                 }
-
-                context.deallocate_register(reg);
-                return; // return early
             }
         }
-
-        // TODO implement for all assignment operators
-        if (id == "+=")
+        else
         {
-            Add(
-                unary_expression,
-                assignment_expression
-            ).gen_asm(dst, reg, context);
-        }
+            // TODO implement for all assignment operators
+            if (id == "+=")
+            {
+                Add(
+                    unary_expression,
+                    assignment_expression
+                ).gen_asm(dst, reg, context);
+            }
 
-        switch (type)
-        {
-            case Types::INT:
-            case Types::UNSIGNED_INT:
-                dst << indent << "sw " << reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
+            switch (type)
+            {
+                case Types::INT:
+                case Types::UNSIGNED_INT:
+                    dst << indent << "sw " << reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
 
-            case Types::FLOAT:
-                dst << indent << "fsw " << reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
+                case Types::FLOAT:
+                    dst << indent << "fsw " << reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
 
-            case Types::DOUBLE:
-                dst << indent << "dsw " << reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
+                case Types::DOUBLE:
+                    dst << indent << "dsw " << reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                    break;
 
-            default:
-                throw std::runtime_error(
-                    "Assign::gen_asm(): Unsupported type for assignment"
-                );
-                break;
+                default:
+                    throw std::runtime_error(
+                        "Assign::gen_asm(): Unsupported type for assignment"
+                    );
+                    break;
+            }
         }
 
         context.mode = Context::Mode::GLOBAL; // Change mode back to default

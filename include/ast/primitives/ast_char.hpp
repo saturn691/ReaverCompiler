@@ -6,7 +6,7 @@
 
 
 /*
- *  Leaf node for string literals (e.g. "10" in "int x = 10;")
+ *  Leaf node for char literals (e.g. 'a')
 */
 class Char : public Node
 {

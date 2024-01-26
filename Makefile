@@ -21,6 +21,9 @@ bin/c_compiler : $(OFILES) src/parser.tab.o src/lexer.yy.o
 	@mkdir -p bin
 	g++ $(CPPFLAGS) -o bin/c_compiler $^
 
+# Add dependency of object files on source files
+$(OFILES): $(CPPFILES) $(HPPFILES)
+
 clean :
 	rm -rf bin/*
 	rm -f src/*.o
