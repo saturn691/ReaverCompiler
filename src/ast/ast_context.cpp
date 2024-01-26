@@ -353,6 +353,12 @@ void Context::add_memory_data(std::string label, int value)
 }
 
 
+void Context::add_string_data(std::string label, std::string value)
+{
+    string_map.insert(std::make_pair(label, value));
+}
+
+
 void Context::gen_memory_asm(std::ostream& dst)
 {
     std::string indent(AST_PRINT_INDENT_SPACES, ' ');
@@ -370,6 +376,16 @@ void Context::gen_memory_asm(std::ostream& dst)
 
         // Necessary for floating point representations.
         dst << indent << ".word " << val << std::endl;
+    }
+
+    for (const auto& [id, val] : string_map)
+    {
+        // This is what GCC does.
+        dst << ".align 2" << std::endl;
+        dst << "." << id << ":" << std::endl;
+
+        // Necessary for floating point representations.
+        dst << indent << ".string " << val << std::endl;
     }
 }
 

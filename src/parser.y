@@ -71,7 +71,8 @@ root
 primary_expression
     : IDENTIFIER                                            { $$ = new Identifier(*$1); }
     | CONSTANT                                              { $$ = new Number($1); }
-    | STRING_LITERAL
+    | STRING_LITERAL                                        { $$ = new String(*$1); }
+    | CHAR_LITERAL                                          { $$ = new Char(*$1); }
     | '(' expression ')'                                    { $$ = $2; }
     ;
 

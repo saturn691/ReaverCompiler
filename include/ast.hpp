@@ -51,6 +51,8 @@
 // Primitives
 #include <ast/primitives/ast_number.hpp>
 #include <ast/primitives/ast_identifier.hpp>
+#include <ast/primitives/ast_string.hpp>
+#include <ast/primitives/ast_char.hpp>
 
 // Array
 #include <ast/array/ast_array_declarator.hpp>

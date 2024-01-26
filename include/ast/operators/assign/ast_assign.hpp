@@ -59,7 +59,7 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id = assignment_operator->get_id();
 
-        context.mode = Context::Mode::ASSIGN; // Change mode to assign
+        context.mode = Context::Mode::ASSIGN;
 
         unary_expression->gen_asm(dst, dest_reg, context);
         int stack_loc = context.get_stack_location(get_id());
@@ -148,6 +148,7 @@ public:
                 assignment_expression
             ).gen_asm(dst, reg, context);
         }
+
         switch (type)
         {
             case Types::INT:
@@ -172,6 +173,7 @@ public:
                 );
                 break;
         }
+
         context.mode = Context::Mode::GLOBAL; // Change mode back to default
         context.deallocate_register(reg);
         context.pointer_multiplier = 1;

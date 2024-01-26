@@ -74,6 +74,8 @@ public:
 
     void add_memory_data(std::string label, int value);
 
+    void add_string_data(std::string label, std::string value);
+
     void gen_memory_asm(std::ostream& dst);
 
     void add_function_declaration(std::string id);
@@ -163,6 +165,9 @@ private:
 
     // Contains the map of labels to word values
     std::unordered_map<std::string, int> memory_map;
+
+    // Contains the map of labels to string values
+    std::unordered_map<std::string, std::string> string_map;
 
     // The next value to give an enum class
     unsigned int enum_next_value = 0;
