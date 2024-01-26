@@ -105,6 +105,16 @@ public:
         }
 
         // Pointer dereference
+        /*
+            For situations like:
+                int x = 5;
+                int *y = &x;
+                *y = 10;
+            where the assignment is a pointer dereference, we need to dereference the pointer.
+            Similar to pointer element access in array access, we need to dereference the pointer before we can assign to it.
+            As such, we need to check if the unary expression is a pointer dereference.
+            Since this cannot be done in the pointer hpp files, it has to be done here to allign with the node calls of the AST.
+        */
         const UnaryExpression* unary_expr = dynamic_cast<const UnaryExpression*>(unary_expression);
         if (unary_expr)
         {

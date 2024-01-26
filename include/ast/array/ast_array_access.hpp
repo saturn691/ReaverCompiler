@@ -74,6 +74,10 @@ public:
         int log_size = log2(size);
         int base_pointer = context.get_stack_location(id);
 
+        /*
+            If the array is accessed through pointer element access operator "[]", we need to dereference it
+            otherwise, we can just access the array directly
+        */
         if (context.get_is_pointer(id))
         {
             int stack_loc = context.get_stack_location(id);

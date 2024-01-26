@@ -12,8 +12,6 @@ public:
     PointerDeclarator(
         NodePtr _pointer,
         NodePtr _direct_declarator
-        // NodePtr _direct_abstract_declarator
-
     ) :
         pointer(_pointer),
         direct_declarator(_direct_declarator)
