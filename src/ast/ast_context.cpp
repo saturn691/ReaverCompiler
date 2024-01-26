@@ -425,6 +425,13 @@ bool Context::get_is_pointer(std::string id) const
     return identifier_map.at(id).is_pointer;
 }
 
+
+void Context::set_is_pointer(std::string id, bool is_pointer)
+{
+    identifier_map.at(id).is_pointer = is_pointer;
+}
+
+
 Types Context::get_type(std::string id) const
 {
     // First, try to find the id in the identifier_map
@@ -537,25 +544,23 @@ std::string Context::get_load_instruction(Types type)
             instruction = "lb";
             break;
         case Types::UNSIGNED_SHORT:
+            instruction = "lhu";
+            break;
         case Types::SHORT:
             instruction = "lh";
             break;
         case Types::UNSIGNED_INT:
         case Types::INT:
-            instruction = "lw";
-            break;
         case Types::UNSIGNED_LONG:
         case Types::LONG:
-            instruction = "ld";
+            instruction = "lw";
             break;
         case Types::FLOAT:
             instruction = "flw";
             break;
         case Types::DOUBLE:
-            instruction = "flw";
-            break;
         case Types::LONG_DOUBLE:
-            instruction = "flw";
+            instruction = "fld";
             break;
         default:
             throw std::runtime_error(
@@ -584,20 +589,16 @@ std::string Context::get_store_instruction(Types type)
             break;
         case Types::UNSIGNED_INT:
         case Types::INT:
-            instruction = "sw";
-            break;
         case Types::UNSIGNED_LONG:
         case Types::LONG:
-            instruction = "sd";
+            instruction = "sw";
             break;
         case Types::FLOAT:
             instruction = "fsw";
             break;
         case Types::DOUBLE:
-            instruction = "dsw";
-            break;
         case Types::LONG_DOUBLE:
-            instruction = "dsw";
+            instruction = "fsd";
             break;
         default:
             throw std::runtime_error(

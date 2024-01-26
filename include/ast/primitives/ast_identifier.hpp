@@ -79,6 +79,7 @@ public:
             if (context.is_pointer)
             {
                 type = Types::INT;
+                context.set_is_pointer(id, true);
             }
             std::string store = Context::get_store_instruction(type);
             dst << indent << store << " " << dest_reg << ", "

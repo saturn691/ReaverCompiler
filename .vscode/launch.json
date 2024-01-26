@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/strings/search.c",
+                "compiler_tests/pointer/arithmetic.c",
                 "-o",
-                "bin/output/strings/search/search.s",
+                "bin/output/pointer/arithmetic/arithmetic.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

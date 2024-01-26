@@ -64,6 +64,9 @@ public:
         Types type = context.current_declaration_type->get_type();
         std::string return_reg = "";
 
+        std::string end_label = id + "_end";
+        context.end_label_stack.push(end_label);
+
         switch (type)
         {
             case Types::FLOAT:
@@ -88,7 +91,7 @@ public:
         compound_statement->gen_asm(dst, return_reg, context);
 
         // Return nodes jump here
-        dst << "end:" << std::endl;
+        dst << end_label << ":" << std::endl;
         context.end_stack(dst);
         dst << indent << "ret" << std::endl;
 

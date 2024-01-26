@@ -108,7 +108,8 @@ public:
         dst << indent << load << " " << dest_reg
             << ", 0(" << reg << ")" << std::endl;
 
-        context.deallocate_register(reg);
+        // intentionally do not deallocate the register
+        // will be deallocated in assign
     }
 
 private:

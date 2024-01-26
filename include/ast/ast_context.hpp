@@ -82,7 +82,7 @@ public:
 
     void add_function_declaration_type(Types type);
 
-    void set_is_pointer(bool is_pointer, std::string id);
+    void set_is_pointer(std::string id, bool is_pointer);
 
     bool get_is_pointer(std::string id) const;
 
