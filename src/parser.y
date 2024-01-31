@@ -476,12 +476,11 @@ labeled_statement
     | DEFAULT ':' statement                     { $$ = new DefaultCase($3); }
     ;
 
-// fuck
 compound_statement
     : '{' '}'                                               { $$ = NULL; }
-    | '{' statement_list '}'                                { $$ = $2; }
-    | '{' declaration_list '}'                              { $$ = $2; }
-    | '{' declaration_list statement_list '}'               { $$ = new BinaryNode($2, $3); }
+    | '{' statement_list '}'                                { $$ = new ScopeManager($2, NULL); }
+    | '{' declaration_list '}'                              { $$ = new ScopeManager(NULL, $2); }
+    | '{' declaration_list statement_list '}'               { $$ = new ScopeManager($2, $3); }
     ;
 
 declaration_list

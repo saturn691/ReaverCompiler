@@ -4,7 +4,4 @@
 ## Note : I'm lazy
 
 make
-# scripts/test.py compiler_tests/
-scripts/test.py compiler_tests/local_var -v
-# scripts/test.py compiler_tests/misc -v
-# scripts/test.py compiler_tests/pointer
+scripts/test.py compiler_tests/

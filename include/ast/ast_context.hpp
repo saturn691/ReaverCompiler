@@ -175,8 +175,6 @@ public:
     std::stack<id_map_t> map_stack;
 
 private:
-    // Contains the map of identifiers to variable properties (defined above)
-    id_map_t identifier_map;
 
     // Contains the map of labels to word values
     std::unordered_map<std::string, int> memory_map;

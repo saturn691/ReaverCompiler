@@ -36,9 +36,15 @@ public:
 
         dst << indent;
         dst << "{" << std::endl;
-        statement_list->print(dst, indent_level);
+        if (statement_list != NULL)
+        {
+            statement_list->print(dst, indent_level);
+        }
         dst << std::endl;
-        declaration_list->print(dst, indent_level);
+        if (declaration_list != NULL)
+        {
+            declaration_list->print(dst, indent_level);
+        }
         dst << "}" << std::endl;
     }
 
@@ -58,7 +64,19 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        throw std::runtime_error("ScopeManager::gen_asm() not implemented");
+
+        context.push_identifier_map();
+
+        if (statement_list != NULL)
+        {
+            statement_list->gen_asm(dst, dest_reg, context);
+        }
+        if (declaration_list != NULL)
+        {
+            declaration_list->gen_asm(dst, dest_reg, context);
+        }
+
+        context.pop_identifier_map();
 
     }
 

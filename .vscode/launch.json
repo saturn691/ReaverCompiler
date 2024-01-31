@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/misc/typedef1.c",
+                "compiler_tests/local_var/scoped_var.c",
                 "-o",
-                "bin/output/misc/typedef1/typedef1.s",
+                "bin/output/local_var/scoped_var/scoped_var.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
