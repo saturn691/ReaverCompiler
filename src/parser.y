@@ -11,6 +11,7 @@
 
   // Declare functions provided by Flex,
   // so that Bison generated code can call them.
+  void update_type_map(std::string id, Types type);
   int yylex(void);
   void yyerror(const char *);
 }
@@ -228,8 +229,22 @@ constant_expression
 
 declaration
     : declaration_specifiers ';'                            { $$ = $1; }
+    | type_define
+        { $$ = new EmptyNode(); }
     | declaration_specifiers init_declarator_list ';'
         { $$ = new Declaration($1, $2); }
+    ;
+
+/*
+    Parser "hack" in BIG quotation marks. By putting the typedefs before
+    the Declaration, it will not create a declaration if it has detected
+    it is a typedef.
+*/
+type_define
+    : TYPEDEF type_specifier IDENTIFIER ';'
+        { update_type_map(*$3, ((TypePtr)$2)->get_type()); }
+    | TYPEDEF type_specifier '*' IDENTIFIER ';'
+        { update_type_map(*$4, ((TypePtr)$2)->get_type()); }
     ;
 
 declaration_specifiers
