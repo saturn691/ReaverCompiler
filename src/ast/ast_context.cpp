@@ -15,12 +15,20 @@ const std::unordered_map<Types, unsigned int> Context::type_size_map = {
         {Types::LONG_DOUBLE,        8}
     };
 
+
+
 Context::Context() :
     // Vector must be initialised to empty vector here
     struct_members(
         std::vector<std::pair<std::string, TypePtr>>()
+    ),
+    // Initialise the identifier map stack
+    map_stack(
+        std::stack<id_map_t>()
     )
-{}
+{
+    map_stack.push(id_map_t());
+}
 
 
 std::string Context::allocate_register(Types type)
@@ -183,7 +191,7 @@ void Context::pop_registers(std::ostream& dst)
     std::vector<std::string> to_erase;
     dst << "# Popping registers from stack (if any)" << std::endl;
 
-    for (const auto& pair : identifier_map)
+    for (const auto& pair : map_stack.top())
     {
         if (pair.first[0] == '!')
         {
@@ -212,7 +220,7 @@ void Context::pop_registers(std::ostream& dst)
 
     for (std::string e : to_erase)
     {
-        identifier_map.erase(e);
+        map_stack.top().erase(e);
     }
 }
 
@@ -293,8 +301,8 @@ int Context::allocate_stack(Types type, std::string id)
 
     if (!id.empty())
     {
-        identifier_map[id] = {stack_loc, type};
-        identifier_map[id].is_pointer = is_pointer;
+        map_stack.top()[id] = {stack_loc, type};
+        map_stack.top()[id].is_pointer = is_pointer;
     }
     else
     {
@@ -313,8 +321,8 @@ int Context::allocate_array_stack(Types type, int size, std::string id)
 
     if (!id.empty())
     {
-        identifier_map[id] = {stack_loc, type};
-        identifier_map[id].is_pointer = is_pointer;
+        map_stack.top()[id] = {stack_loc, type};
+        map_stack.top()[id].is_pointer = is_pointer;
     }
     else
     {
@@ -324,6 +332,18 @@ int Context::allocate_array_stack(Types type, int size, std::string id)
     }
 
     return stack_loc;
+}
+
+int Context::push_identifier_map()
+{
+    map_stack.push(map_stack.top());
+    return map_stack.size() - 1;
+}
+
+int Context::pop_identifier_map()
+{
+    map_stack.pop();
+    return map_stack.size() - 1;
 }
 
 int Context::push_stack(int bytes)
@@ -409,34 +429,34 @@ void Context::add_function_declaration(std::string id)
     function.parameter_types.clear();
     function.is_pointer = is_pointer;
 
-    identifier_map.insert({id, function});
+    map_stack.top().insert({id, function});
     current_id = id;
 }
 
 
 void Context::add_function_declaration_type(Types type)
 {
-    identifier_map.at(current_id).parameter_types.push_back(type);
+    map_stack.top().at(current_id).parameter_types.push_back(type);
 }
 
 
 bool Context::get_is_pointer(std::string id) const
 {
-    return identifier_map.at(id).is_pointer;
+    return map_stack.top().at(id).is_pointer;
 }
 
 
 void Context::set_is_pointer(std::string id, bool is_pointer)
 {
-    identifier_map.at(id).is_pointer = is_pointer;
+    map_stack.top().at(id).is_pointer = is_pointer;
 }
 
 
 Types Context::get_type(std::string id) const
 {
     // First, try to find the id in the identifier_map
-    auto identifier_it = identifier_map.find(id);
-    if (identifier_it != identifier_map.end())
+    auto identifier_it = map_stack.top().find(id);
+    if (identifier_it != map_stack.top().end())
     {
         return identifier_it->second.type;
     }
@@ -457,7 +477,7 @@ Types Context::get_type(std::string id) const
 
 int Context::get_stack_location(std::string id) const
 {
-    return identifier_map.at(id).stack_location;
+    return map_stack.top().at(id).stack_location;
 }
 
 void Context::add_enum_value(std::string id, int val)
@@ -517,7 +537,7 @@ unsigned int Context::get_size(std::string id) const
     unsigned int total_size = 0;
     std::string id_dot = id + ".";
 
-    for (const auto& [key, value] : identifier_map)
+    for (const auto& [key, value] : map_stack.top())
     {
         // Either a variable or a struct member
         // Need to search like this otherwise we get false positives

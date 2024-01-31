@@ -5,5 +5,3 @@
 
 make
 scripts/test.py compiler_tests/
-# scripts/test.py compiler_tests/misc -v
-# scripts/test.py compiler_tests/pointer
