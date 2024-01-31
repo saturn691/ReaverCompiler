@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/pointer/arithmetic.c",
+                "compiler_tests/misc/typedef1.c",
                 "-o",
-                "bin/output/pointer/arithmetic/arithmetic.s",
+                "bin/output/misc/typedef1/typedef1.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
