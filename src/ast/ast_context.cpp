@@ -326,6 +326,18 @@ int Context::allocate_array_stack(Types type, int size, std::string id)
     return stack_loc;
 }
 
+int Context::push_identifier_map()
+{
+    map_stack.push(identifier_map);
+    return map_stack.size() - 1;
+}
+
+int Context::pop_identifier_map()
+{
+    map_stack.pop();
+    return map_stack.size() - 1;
+}
+
 int Context::push_stack(int bytes)
 {
     if (frame_pointer_offset - bytes < -AST_STACK_ALLOCATE)

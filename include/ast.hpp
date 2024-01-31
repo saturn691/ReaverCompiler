@@ -63,6 +63,8 @@
 #include <ast/pointer/ast_pointer.hpp>
 #include <ast/pointer/ast_pointer_declarator.hpp>
 
+#include <ast/scopes/ast_scope_manager.hpp>
+
 #include <ast/statements/ast_break.hpp>
 #include <ast/statements/ast_case.hpp>
 #include <ast/statements/ast_return.hpp>

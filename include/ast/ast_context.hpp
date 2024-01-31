@@ -17,6 +17,7 @@
 #define AST_STACK_ALLOCATE          64
 #define AST_PRINT_INDENT_SPACES     4
 
+
 /*
  *  Identifiers can be used to refer to variables or functions.
  *  However, we don't really know. A union could have been used, maybe in
@@ -29,6 +30,8 @@ struct FunctionVariable
     std::vector<Types> parameter_types;
     bool is_pointer = false;
 };
+
+typedef std::unordered_map<std::string, FunctionVariable> id_map_t;
 
 struct EnumType
 {
@@ -65,6 +68,10 @@ public:
     int allocate_stack(Types type, std::string id = "");
 
     int allocate_array_stack(Types type, int size, std::string id = "");
+
+    int push_identifier_map();
+
+    int pop_identifier_map();
 
     int push_stack(int bytes);
 
@@ -164,9 +171,12 @@ public:
     // Map from type to size in bytes
     static const std::unordered_map<Types, unsigned int> type_size_map;
 
+    // Stack of maps
+    std::stack<id_map_t> map_stack;
+
 private:
     // Contains the map of identifiers to variable properties (defined above)
-    std::unordered_map<std::string, FunctionVariable> identifier_map;
+    id_map_t identifier_map;
 
     // Contains the map of labels to word values
     std::unordered_map<std::string, int> memory_map;

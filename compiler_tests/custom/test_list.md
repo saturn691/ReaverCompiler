@@ -2,3 +2,5 @@
 
 - Array: For declarations that are not int, e.g. char arr[5]
 - Array: For declaration without array size, e.g. int arr[]
+- Rigorous testing for pointers
+- Test for double function segfaults

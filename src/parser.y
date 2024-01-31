@@ -476,6 +476,7 @@ labeled_statement
     | DEFAULT ':' statement                     { $$ = new DefaultCase($3); }
     ;
 
+// fuck
 compound_statement
     : '{' '}'                                               { $$ = NULL; }
     | '{' statement_list '}'                                { $$ = $2; }
