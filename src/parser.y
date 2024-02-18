@@ -86,7 +86,7 @@ postfix_expression
         { $$ = new StructAccess($1, new Identifier(*$3)); }
     | postfix_expression PTR_OP IDENTIFIER
     | postfix_expression INC_OP                             { $$ = new PostIncrement($1); }
-    | postfix_expression DEC_OP                             { $$ = new PostDecrement($1); }
+    | postfix_expression DEC_OP                             { $$ = new PostIncrement($1, true); }
     ;
 
 argument_expression_list
@@ -158,8 +158,9 @@ relational_expression
 equality_expression
     : relational_expression                                 { $$ = $1; }
     | equality_expression EQ_OP relational_expression
-        { $$ = new Equal($1, $3); }
+        { $$ = new Equal($1, $3, false); }
     | equality_expression NE_OP relational_expression
+        { $$ = new Equal($1, $3, true); }
     ;
 
 and_expression

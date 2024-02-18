@@ -39,7 +39,6 @@
 
 // Unary ops
 #include <ast/operators/ast_increment.hpp>
-#include <ast/operators/ast_decrement.hpp>
 
 // Conditionals
 #include <ast/conditionals/ast_if_else.hpp>
