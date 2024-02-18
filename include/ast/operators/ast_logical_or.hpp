@@ -49,31 +49,76 @@ public:
             .L5:
                 mv	a0,a5
 
-        This is quite inefficient, but let's look at the -O1 optimization:
-        ; x || y (a4 || a5)
-            or	    a0,a0,a1
-	        snez	a0,a0
-
-        As you can see, there is no need to branch anymore, as the result is
-        just 1 when (a0 | a1 != 0).
-
-        There may be a need to test for the signed case, but this works for now.
+        This is quite inefficient, but it's a good starting point.
+        The -O1 optimization was explored, but it is not very flexible for
+        floating point numbers.
         */
 
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        std::string temp_reg1 = context.allocate_register(Types::INT);
-        std::string temp_reg2 = context.allocate_register(Types::INT);
+        Types type = get_type(context);
 
-        get_left()->gen_asm(dst, temp_reg1, context);
-        get_right()->gen_asm(dst, temp_reg2, context);
+        std::string temp_reg = context.allocate_register(Types::INT);
+        std::string float_temp_reg = context.allocate_register(Types::FLOAT);
+        std::string float_zero_reg = context.allocate_register(Types::FLOAT);
 
-        // TODO handle multiple types
-        dst << indent << "or " << dest_reg
-            << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
-        dst << indent << "snez " << dest_reg << ", " << dest_reg << std::endl;
+        std::string label1 = context.get_unique_label("LOGICAL_OR");
+        std::string label2 = context.get_unique_label("LOGICAL_OR");
+        std::string label_end = context.get_unique_label("LOGICAL_OR");
 
-        context.deallocate_register(temp_reg1);
-        context.deallocate_register(temp_reg2);
+        switch (type)
+        {
+            case Types::FLOAT:
+            case Types::DOUBLE:
+            case Types::LONG_DOUBLE:
+                get_left()->gen_asm(dst, float_temp_reg, context);
+                dst << indent << "fmv.w.x " << float_zero_reg
+                    << ", zero" << std::endl;
+                dst << indent << "feq.s " << temp_reg
+                    << ", " << float_temp_reg
+                    << ", " << float_zero_reg << std::endl;
+                dst << indent << "beq " << temp_reg
+                    << ", zero, " << label1 << std::endl;
+                break;
+
+            default:
+            get_left()->gen_asm(dst, temp_reg, context);
+                dst << indent << "bne " << temp_reg
+                    << ", zero, " << label1 << std::endl;
+        }
+
+        switch (type)
+        {
+            case Types::FLOAT:
+            case Types::DOUBLE:
+            case Types::LONG_DOUBLE:
+                get_right()->gen_asm(dst, float_temp_reg, context);
+                dst << indent << "feq.s " << temp_reg
+                    << ", " << float_temp_reg
+                    << ", " << float_zero_reg << std::endl;
+                dst << indent << "bne " << temp_reg
+                    << ", zero, " << label2 << std::endl;
+                break;
+
+            default:
+                get_right()->gen_asm(dst, temp_reg, context);
+                dst << indent << "beq " << temp_reg
+                    << ", zero, " << label2 << std::endl;
+        }
+
+        dst << label1 << ":" << std::endl;
+        dst << indent << "li " << temp_reg << ", 1" << std::endl;
+        dst << indent << "j " << label_end << std::endl;
+
+        dst << label2 << ":" << std::endl;
+        dst << indent << "li " << temp_reg << ", 0" << std::endl;
+
+        dst << label_end << ":" << std::endl;
+        dst << indent << "mv " << dest_reg << ", "
+            << temp_reg << std::endl;
+
+        context.deallocate_register(temp_reg);
+        context.deallocate_register(float_temp_reg);
+        context.deallocate_register(float_zero_reg);
     }
 };
 
