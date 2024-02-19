@@ -149,10 +149,11 @@ relational_expression
     | relational_expression '<' shift_expression
         { $$ = new LessThan($1, $3);}
     | relational_expression '>' shift_expression
-        { $$ = new GreaterThan($1, $3);}
+        { $$ = new LessThan($1, $3, true);}
     | relational_expression LE_OP shift_expression
         { $$ = new LessThanEqual($1, $3);}
     | relational_expression GE_OP shift_expression
+        { $$ = new LessThanEqual($1, $3, true); }
     ;
 
 equality_expression

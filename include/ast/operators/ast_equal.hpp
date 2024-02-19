@@ -10,7 +10,7 @@
 class Equal : public Operator
 {
 public:
-    Equal(NodePtr _left, NodePtr _right, bool _invert) :
+    Equal(NodePtr _left, NodePtr _right, bool _invert = false) :
         Operator(_left, _right),
         invert(_invert)
     {}
@@ -21,7 +21,14 @@ public:
 
         dst << indent;
         get_left()->print(dst, indent_level);
-        dst << " == ";
+        if (invert)
+        {
+            dst << " != ";
+        }
+        else
+        {
+            dst << " == ";
+        }
         get_right()->print(dst, indent_level);
         dst << std::endl;
     }

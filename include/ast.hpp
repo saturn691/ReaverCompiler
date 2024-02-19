@@ -32,7 +32,6 @@
 #include <ast/operators/ast_equal.hpp> // Equal, "=="
 #include <ast/operators/ast_less_than_equal.hpp> // Less than or equal to, "<="
 #include <ast/operators/ast_less_than.hpp> // Less than, "<"
-#include <ast/operators/ast_greater_than.hpp> // Greater than, ">"
 #include <ast/operators/ast_logical_and.hpp> // Logical AND, "&&"
 #include <ast/operators/ast_logical_or.hpp> // Logical OR, "||"
 #include <ast/operators/ast_unary_expression.hpp>
