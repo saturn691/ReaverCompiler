@@ -9,10 +9,12 @@ class PostIncrement : public Node {
 public:
     PostIncrement(
         NodePtr _operand,
-        bool _invert = false
+        bool _invert = false,
+        bool _pre = false
     ) :
         operand(_operand),
-        invert(_invert)
+        invert(_invert),
+        pre(_pre)
     {}
 
     virtual ~PostIncrement() {
@@ -21,8 +23,18 @@ public:
 
     virtual void print(std::ostream &dst, int indent_level) const override {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
-        operand->print(dst, indent_level);
-        dst << "++" << std::endl;
+        std::string op = (invert ? "--" : "++");
+
+        if (pre)
+        {
+            dst << indent << op;
+            operand->print(dst, 0);
+        }
+        else
+        {
+            operand->print(dst, indent_level);
+            dst << op;
+        }
     }
 
     virtual Types get_type(Context &context) const override
@@ -40,19 +52,30 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
+        /*
+            Essentially:
+
+            1. Evaluate operand
+            2. Increment operand
+            3. Store incremented value (to memory)
+            4. Dest reg = original value (if post-increment)
+
+            Code may be a bit unreadable but just follow this in order.
+        */
+
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         Types type = get_type(context);
         std::string temp_reg = context.allocate_register(type);
 
         operand->gen_asm(dst, temp_reg, context); // x
 
-        /*
-            Essentially:
-
-            1. Evaluate operand
-            2. Increment operand
-            3. Store incremented value
-        */
+        // We need to store the original value if this is a post-increment
+        if (!pre)
+        {
+            std::string move_ins = move_ins_map.at(type);
+            dst << indent << move_ins << " " << dest_reg
+                << ", " << temp_reg << std::endl;
+        }
 
         std::string store = context.get_store_instruction(type);
         std::string add = (type == Types::FLOAT) ? "fadd.s" : "fadd.d";
@@ -82,48 +105,37 @@ public:
         dst << indent << store << " " << temp_reg
             << ", " << stack_loc << "(s0)" << std::endl;
 
+        // Pre-increment means we store the incremented value
+        if (pre)
+        {
+            std::string move_ins = move_ins_map.at(type);
+            dst << indent << move_ins << " " << dest_reg
+                << ", " << temp_reg << std::endl;
+        }
+
         context.deallocate_register(temp_reg);
     }
 
 private:
     NodePtr operand;  // The operand to be incremented
     bool invert;  // Switch between increment and decrement
+    bool pre;  // Whether this is a pre-increment or post-increment
+
+    const std::unordered_map<Types, std::string> move_ins_map = {
+        {Types::UNSIGNED_CHAR, "mv"},
+        {Types::CHAR, "mv"},
+        {Types::UNSIGNED_SHORT, "mv"},
+        {Types::SHORT, "mv"},
+        {Types::UNSIGNED_INT, "mv"},
+        {Types::INT, "mv"},
+        {Types::UNSIGNED_LONG, "mv"},
+        {Types::LONG, "mv"},
+        {Types::FLOAT, "fmv.s"},
+        {Types::DOUBLE, "fmv.d"},
+        {Types::LONG_DOUBLE, "fmv.d"}
+    };
+
 };
 
-// Node for pre-increment (e.g., ++i)
-class PreIncrement : public Node {
-public:
-    PreIncrement(
-        NodePtr _operand
-    ) :
-        operand(_operand)
-    {}
-
-    virtual ~PreIncrement() {
-        delete operand;
-    }
-
-    virtual unsigned int get_size(Context &context) const override
-    {
-        return operand->get_size(context);
-    }
-
-    virtual void print(std::ostream &dst, int indent_level) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
-        dst << "++" << std::endl;
-        operand->print(dst, indent_level);
-    }
-
-    virtual void gen_asm(
-        std::ostream &dst,
-        std::string &dest_reg,
-        Context &context
-    ) const override {
-        throw std::runtime_error("PreIncrement::gen_asm() not implemented");
-    }
-
-private:
-    NodePtr operand;  // The operand to be incremented
-};
 
 #endif // AST_INCREMENT_HPP

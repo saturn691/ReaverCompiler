@@ -98,8 +98,8 @@ argument_expression_list
 
 unary_expression
     : postfix_expression                    { $$ = $1; }
-    | INC_OP unary_expression               { $$ = new PreIncrement($2); }
-    | DEC_OP unary_expression
+    | INC_OP unary_expression               { $$ = new PostIncrement($2, false, true); }
+    | DEC_OP unary_expression               { $$ = new PostIncrement($2, true, true);}
     | unary_operator cast_expression        { $$ = new UnaryExpression(*$1, $2); }
     | SIZEOF unary_expression               { $$ = new SizeOf($2); }
     | SIZEOF '(' type_name ')'              { $$ = new SizeOf($3); }
