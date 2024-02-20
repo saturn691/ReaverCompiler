@@ -145,7 +145,8 @@ public:
         LOCAL,
 
         ASSIGN,                     // Used for pointers
-        FUNCTION_DEFINITION         // Duh
+        FUNCTION_DEFINITION,        // Duh
+        RETURN                      // Duh as well
     };
 
     Mode mode = Mode::GLOBAL;

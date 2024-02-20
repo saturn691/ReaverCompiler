@@ -58,7 +58,7 @@ public:
             1. Evaluate operand
             2. Increment operand
             3. Store incremented value (to memory)
-            4. Dest reg = original value (if post-increment)
+            4. Dest reg = original value (if post-increment) for returns
 
             Code may be a bit unreadable but just follow this in order.
         */
@@ -70,7 +70,7 @@ public:
         operand->gen_asm(dst, temp_reg, context); // x
 
         // We need to store the original value if this is a post-increment
-        if (!pre)
+        if (!pre && context.mode == Context::Mode::RETURN)
         {
             std::string move_ins = move_ins_map.at(type);
             dst << indent << move_ins << " " << dest_reg
@@ -106,7 +106,7 @@ public:
             << ", " << stack_loc << "(s0)" << std::endl;
 
         // Pre-increment means we store the incremented value
-        if (pre)
+        if (pre && context.mode == Context::Mode::RETURN)
         {
             std::string move_ins = move_ins_map.at(type);
             dst << indent << move_ins << " " << dest_reg
