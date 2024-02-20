@@ -56,18 +56,56 @@ public:
         */
 
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        Types type = get_type(context);
+
         std::string temp_reg = context.allocate_register(Types::INT);
+        std::string float_temp_reg = context.allocate_register(Types::FLOAT);
+        std::string float_zero_reg = context.allocate_register(Types::FLOAT);
+
         std::string label1 = context.get_unique_label("LOGICAL_AND");
         std::string label2 = context.get_unique_label("LOGICAL_AND");
 
-        // TODO handle multiple types
-        get_left()->gen_asm(dst, temp_reg, context);
-        dst << indent << "beq " << temp_reg
-            << ", zero, " << label1 << std::endl;
+        switch (type)
+        {
+            case Types::FLOAT:
+            case Types::DOUBLE:
+            case Types::LONG_DOUBLE:
+                get_left()->gen_asm(dst, float_temp_reg, context);
+                // Set up the zero register for floating point numbers.
+                dst << indent << "fmv.w.x " << float_zero_reg
+                    << ", zero" << std::endl;
 
-        get_right()->gen_asm(dst, temp_reg, context);
-        dst << indent << "beq " << temp_reg
-            << ", zero, " << label1 << std::endl;
+                dst << indent << "feq.s " << temp_reg
+                    << ", " << float_zero_reg
+                    << ", " << float_temp_reg << std::endl;
+                dst << indent << "bne " << temp_reg
+                    << ", zero, " << label1 << std::endl;
+                break;
+
+            default:
+                get_left()->gen_asm(dst, temp_reg, context);
+                dst << indent << "beq " << temp_reg
+                    << ", zero, " << label1 << std::endl;
+        }
+
+        switch (type)
+        {
+            case Types::FLOAT:
+            case Types::DOUBLE:
+            case Types::LONG_DOUBLE:
+                get_right()->gen_asm(dst, float_temp_reg, context);
+                dst << indent << "feq.s " << temp_reg
+                    << ", " << float_zero_reg
+                    << ", " << float_temp_reg << std::endl;
+                dst << indent << "bne " << temp_reg
+                    << ", zero, " << label1 << std::endl;
+                break;
+
+            default:
+                get_right()->gen_asm(dst, temp_reg, context);
+                dst << indent << "beq " << temp_reg
+                    << ", zero, " << label1 << std::endl;
+        }
 
         // Put the result into the destination register - see note above.
         dst << indent << "li " << dest_reg << ", 1" << std::endl;

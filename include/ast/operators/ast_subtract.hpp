@@ -46,42 +46,26 @@ public:
         std::string temp_reg2 = context.allocate_register(type);
         get_right()->gen_asm(dst, temp_reg2, context);
 
-        switch (type)
-        {
-            case Types::INT:
-            case Types::UNSIGNED_INT:
-                dst << indent << "sub " << dest_reg
-                    << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
-                break;
-
-            case Types::FLOAT:
-                if (dest_reg[0] != 'f')
-                {
-                    // ".s" refers to single precision floating point
-                    // Put into floating point register
-                    // THEN move to dest register
-                    dst << indent << "fsub.s " << temp_reg1
-                        << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
-
-                    dst << indent << "fmv.s " << dest_reg
-                        << ", " << temp_reg1 << std::endl;
-                }
-                else
-                {
-                    dst << indent << "fsub.s " << dest_reg
-                        << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
-                }
-                break;
-
-            // TODO handle multiple types
-            default:
-                throw std::runtime_error("Subtract::gen_asm() not implemented");
-        }
+        gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map);
 
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
         context.multiply_pointer = false;
     }
+private:
+    const std::unordered_map<Types, std::string> ins_map = {
+        {Types::UNSIGNED_CHAR, "sub"},
+        {Types::CHAR, "sub"},
+        {Types::UNSIGNED_SHORT, "sub"},
+        {Types::SHORT, "sub"},
+        {Types::INT, "sub"},
+        {Types::UNSIGNED_INT, "sub"},
+        {Types::LONG, "sub"},
+        {Types::UNSIGNED_LONG, "sub"},
+        {Types::FLOAT, "fsub.s"},
+        {Types::DOUBLE, "fsub.d"},
+        {Types::LONG_DOUBLE, "fsub.d"}
+    };
 };
 
 

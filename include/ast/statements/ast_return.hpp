@@ -41,7 +41,10 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
 
+        context.mode = Context::Mode::RETURN;
         return_node->gen_asm(dst, dest_reg, context);
+        context.mode = Context::Mode::GLOBAL;
+
         dst << indent << "j " << context.current_id << "_end" << std::endl;
     }
 

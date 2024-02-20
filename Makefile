@@ -1,4 +1,4 @@
-CPPFLAGS += -std=c++20 -W -Wall -g -I include
+CPPFLAGS += -std=c++20 -W -Wall -Wextra -Wno-unused-parameter -g -I include
 
 HPPFILES := $(shell find include/ -type f -name "*.hpp")
 CPPFILES := $(shell find src/ -type f -name "*.cpp")

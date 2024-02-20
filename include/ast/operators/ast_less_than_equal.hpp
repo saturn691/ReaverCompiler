@@ -10,7 +10,10 @@
 class LessThanEqual : public Operator
 {
 public:
-    using Operator::Operator;
+    LessThanEqual(NodePtr _left, NodePtr _right, bool _invert = false) :
+        Operator(_left, _right),
+        invert(_invert)
+    {}
 
     virtual void print(std::ostream &dst, int indent_level) const override
     {
@@ -18,7 +21,14 @@ public:
 
         dst << indent;
         get_left()->print(dst, indent_level);
-        dst << " <= ";
+        if (invert)
+        {
+            dst << " > ";
+        }
+        else
+        {
+            dst << " < ";
+        }
         get_right()->print(dst, indent_level);
         dst << std::endl;
     }
@@ -34,23 +44,59 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        std::string temp_reg1 = context.allocate_register(Types::INT);
-        std::string temp_reg2 = context.allocate_register(Types::INT);
+        Types type = get_type(context);
+
+        std::string temp_reg1 = context.allocate_register(type);
+        std::string temp_reg2 = context.allocate_register(type);
 
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);
 
         /* See note in ast_equal.hpp for information about 'andi' */
+        if (invert)
+        {
+            gen_ins(dst, type, temp_reg2, temp_reg1, dest_reg, ins_map, true);
+        }
+        else
+        {
+            gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map, true);
+        }
 
-        // TODO handle multiple types
-        dst << indent << "sgt " << dest_reg
-            << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
-        dst << indent << "xori " << dest_reg
-            << ", " << dest_reg << ", 1" << std::endl;
+        // Invert the result
+        switch (type)
+        {
+            case Types::FLOAT:
+            case Types::DOUBLE:
+            case Types::LONG_DOUBLE:
+                dst << indent << "snez " << dest_reg
+                    << ", " << dest_reg << std::endl;
+                break;
+
+            default:
+                dst << indent << "xori " << dest_reg
+                    << ", " << dest_reg << ", 1" << std::endl;
+        }
 
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
     }
+
+private:
+    bool invert;
+    const std::unordered_map<Types, std::string> ins_map = {
+        {Types::UNSIGNED_CHAR, "sgt"},
+        {Types::CHAR, "sgt"},
+        {Types::UNSIGNED_SHORT, "sgt"},
+        {Types::SHORT, "sgt"},
+        {Types::INT, "sgt"},
+        {Types::UNSIGNED_INT, "sgt"},
+        {Types::LONG, "sgt"},
+        {Types::UNSIGNED_LONG, "sgt"},
+        {Types::FLOAT, "fle.s"},
+        {Types::DOUBLE, "fle.d"},
+        {Types::LONG_DOUBLE, "fle.d"}
+    };
+
 };
 
 

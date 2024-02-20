@@ -37,6 +37,8 @@ public:
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);
 
+        /* Note that shifts are undefined for floating point types in C. */
+
         dst << indent << "sll " << dest_reg
             << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
 
@@ -77,6 +79,8 @@ public:
 
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);
+
+        /* Note that shifts are undefined for floating point types in C. */
 
         dst << indent << "srl " << dest_reg
             << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
