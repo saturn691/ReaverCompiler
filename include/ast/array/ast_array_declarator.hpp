@@ -30,13 +30,21 @@ public:
         dst << indent;
         direct_declarator->print(dst, 0); // x
         dst << "[";
-        array_size->print(dst, 0); // 8
+        if (array_size != NULL)
+        {
+            array_size->print(dst, 0); // 8
+        }
         dst << "]";
     }
 
     virtual double evaluate(Context &context) const override
     {
         throw std::runtime_error("ArrayDeclarator::evaluate() not implemented");
+    }
+
+    virtual std::string get_id() const override
+    {
+        return direct_declarator->get_id();
     }
 
     virtual void gen_asm(
@@ -49,9 +57,22 @@ public:
         direct_declarator->gen_asm(dst, dest_reg, context);
 
         Types type = direct_declarator->get_type(context);
-        int arr_size = array_size->evaluate(context);
-        std::string id = direct_declarator->get_id();
-        int stack_loc = context.allocate_array_stack(type, arr_size, id);
+        int arr_size;
+        if (context.mode == Context::Mode::FUNCTION_DEFINITION)
+        {
+            // Interpret this as a pointer
+            arr_size = 1;
+        }
+        else
+        {
+            arr_size = array_size->evaluate(context);
+
+            // I moved this inside the else statement due to duplicated stack
+            // allocation, but I'm not sure if this is correct
+
+            std::string id = direct_declarator->get_id();
+            int stack_loc = context.allocate_array_stack(type, arr_size, id);
+        }
     }
 
 private:

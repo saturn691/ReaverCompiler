@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/local_var/scoped_var.c",
+                "compiler_tests/custom/505-sum_one_array.c",
                 "-o",
-                "bin/output/local_var/scoped_var/scoped_var.s",
+                "bin/output/custom/505-sum_one_array/505-sum_one_array.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
