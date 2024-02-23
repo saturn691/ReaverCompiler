@@ -54,7 +54,23 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
 
-        direct_declarator->gen_asm(dst, dest_reg, context);
+        /*
+            If we are defining function parameters, e.g. f(int x[]), we
+            need to interpret this as a pointer instead of an array.
+
+            i.e., `int x[]` is equivalent to `int *x` in function parameters
+        */
+
+        if (context.mode == Context::Mode::FUNCTION_DEFINITION)
+        {
+            context.is_pointer = true;
+            direct_declarator->gen_asm(dst, dest_reg, context);
+            context.is_pointer = false;
+        }
+        else
+        {
+            direct_declarator->gen_asm(dst, dest_reg, context);
+        }
 
         Types type = direct_declarator->get_type(context);
         int arr_size;
