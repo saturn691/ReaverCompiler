@@ -76,8 +76,9 @@ public:
 
         /*
             If the array is accessed through pointer element access operator
-            "[]", we need to dereference it otherwise, we can just access the
-            array directly
+            "[]", we need to dereference it;
+
+            Otherwise, we can just access the array directly
         */
         if (context.get_is_pointer(id))
         {

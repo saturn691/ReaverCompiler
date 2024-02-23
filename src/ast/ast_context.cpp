@@ -71,8 +71,27 @@ std::string Context::allocate_register(Types type)
                     return register_name;
                 }
             }
+
+            // Search temporary registers (a1-a7)
+            // NOTE: THIS IS A TEMPORARY FIX FOR UNOPTIMISED REGISTER USAGE
+            for (int i = 1; i <= 7; ++i)
+            {
+                std::string register_name = "a" + std::to_string(i);
+                int reg_index = register_map.at(register_name);
+
+                if (registers[reg_index] == 0)
+                {
+                    registers[reg_index] = 1;
+                    return register_name;
+                }
+            }
+
             break;
     }
+
+    throw std::runtime_error(
+        "Context::allocate_register() - no free registers"
+    );
 }
 
 
