@@ -7,7 +7,7 @@
 /*
  *  Base class for all operators (e.g. + - * / << >> & |)
 */
-class Operator : public Expression, public BinaryNode
+class Operator : public Expression
 {
 public:
     Operator(Expression* _left, Expression* _right) :
@@ -15,7 +15,7 @@ public:
         right(_right)
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         throw std::runtime_error("Operator::print() not implemented");
     }
@@ -29,6 +29,16 @@ public:
     Types get_type() const override
     {
         return std::max(left->get_type(), right->get_type());
+    }
+
+    Expression* get_left() const
+    {
+        return left;
+    }
+
+    Expression* get_right() const
+    {
+        return right;
     }
 
     void gen_ins(

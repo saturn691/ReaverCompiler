@@ -12,7 +12,7 @@ class BitwiseOr : public Operator
 public:
     using Operator::Operator;
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES* indent_level), ' ');
 
@@ -23,7 +23,7 @@ public:
         dst << std::endl;
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

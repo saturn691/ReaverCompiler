@@ -1,7 +1,7 @@
 #ifndef ast_function_parameter_list_hpp
 #define ast_function_parameter_list_hpp
 
-#include "../ast_binary_node.hpp"
+#include "../ast_node.hpp"
 
 
 /*
@@ -21,7 +21,7 @@ public:
         }
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

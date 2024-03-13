@@ -15,7 +15,7 @@ public:
     virtual ~BasicType()
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         switch (type)
         {
@@ -61,7 +61,7 @@ public:
         }
     }
 
-    virtual Types get_type() const override
+    Types get_type() const override
     {
         return type;
     }
@@ -71,14 +71,14 @@ public:
         return Context::type_size_map.at(type);
     }
 
-    virtual void allocate_stack(
+    void allocate_stack(
         Context &context,
         std::string id
     ) const override {
         context.allocate_stack(type, id);
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

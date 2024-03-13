@@ -18,7 +18,7 @@ public:
         nodes({_node})
     {}
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

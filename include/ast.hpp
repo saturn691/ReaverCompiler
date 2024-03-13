@@ -1,7 +1,6 @@
 #ifndef ast_hpp
 #define ast_hpp
 
-#include <ast/ast_binary_node.hpp>
 #include <ast/ast_context.hpp>
 #include <ast/ast_empty_node.hpp>
 #include <ast/ast_node.hpp>

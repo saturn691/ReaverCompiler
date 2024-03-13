@@ -27,7 +27,7 @@ public:
         enumerator_list(_enumerator_list)
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         dst << "enum " << identifier << std::endl;
         dst << "{";
@@ -38,7 +38,7 @@ public:
         dst << std::endl;
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

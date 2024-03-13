@@ -15,7 +15,7 @@ class Declaration : public Node
 {
 public:
     Declaration(
-        Node* _declaration_specifiers,
+        Type* _declaration_specifiers,
         Node* _init_declarator_list
     ) :
         declaration_specifiers(_declaration_specifiers),
@@ -25,7 +25,7 @@ public:
     virtual ~Declaration()
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
 
@@ -36,22 +36,26 @@ public:
         dst << ";" << std::endl;
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
         // Pass information about the type, down the AST tree
-        TypePtr type = static_cast<TypePtr>(declaration_specifiers);
-        context.current_declaration_type = type;
+        context.current_declaration_type = declaration_specifiers;
 
         context.current_declaration_type->gen_asm(dst, dest_reg, context);
 
+        Context::Mode old_mode = context.mode;
+        context.mode = Context::Mode::DECLARATION;
+
+        // Will be an identifier list
         init_declarator_list->gen_asm(dst, dest_reg, context);
+        context.mode = old_mode;
     }
 
 private:
-    Node* declaration_specifiers;
+    Type* declaration_specifiers;
     Node* init_declarator_list;
 };
 

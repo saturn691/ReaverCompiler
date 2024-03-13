@@ -145,6 +145,7 @@ public:
         LOCAL,
 
         ASSIGN,                     // Used for pointers
+        DECLARATION,                // Used for declarations
         FUNCTION_DEFINITION,        // Duh
         RETURN                      // Duh as well
     };

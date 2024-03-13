@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/local_var/scoped_var.c",
+                "compiler_tests/local_var/single_var.c",
                 "-o",
-                "bin/output/local_var/scoped_var/scoped_var.s",
+                "bin/debug.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

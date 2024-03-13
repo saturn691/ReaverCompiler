@@ -60,23 +60,24 @@
 %type <node> init_declarator_list init_declarator
 /* %type <node> storage_class_specifier type_qualifier */
 
-%type <node> struct_declaration_list
 %type <node> struct_declaration struct_or_union_specifier
 /* %type <node> struct_or_union */
-%type <node> struct_declarator_list struct_declarator
-%type <node> enum_specifier enumerator_list enumerator
+%type <node> struct_declarator
+%type <node> enum_specifier enumerator
 %type <node> pointer
 %type <node> type_qualifier_list
-%type <node> parameter_declaration identifier_list type_name
+%type <node> parameter_declaration type_name
 /* %type <node> abstract_declarator direct_abstract_declarator */
 %type <node> initializer_list
 %type <node> statement labeled_statement compound_statement
 %type <node> expression_statement selection_statement iteration_statement
-%type <node> jump_statement translation_unit
+%type <node> jump_statement
 %type <node> external_declaration function_definition
 
 %type <nodes> declaration_list statement_list argument_expression_list
-%type <nodes> parameter_list parameter_type_list
+%type <nodes> parameter_list parameter_type_list struct_declaration_list
+%type <nodes> struct_declarator_list enumerator_list identifier_list
+%type <nodes> translation_unit
 
 // Other types of nodes
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
@@ -379,10 +380,10 @@ struct_or_union
 
 struct_declaration_list
     : struct_declaration
-        { $$ = $1; }
+        { $$ = new NodeList($1); }
     | struct_declaration_list struct_declaration
         /* No need for fancy stuff here */
-        { $$ = new BinaryNode($1, $2); }
+        { $1->push_back($2); $$ = $1; }
     ;
 
 struct_declaration
@@ -401,9 +402,9 @@ specifier_qualifier_list
 
 struct_declarator_list
     : struct_declarator
-        { $$ = $1; }
+        { $$ = new NodeList($1); }
     | struct_declarator_list ',' struct_declarator
-        { $$ = new StructDeclaratorList($1, $3); }
+        { $1->push_back($3); $$ = $1; }
     ;
 
 struct_declarator
@@ -425,9 +426,9 @@ enum_specifier
 
 enumerator_list
     : enumerator
-        { $$ = $1; }
+        { $$ = new EnumList($1); }
     | enumerator_list ',' enumerator
-        { $$ = new EnumList($1, $3); }
+        { $1->push_back($3); $$ = $1; }
     ;
 
 enumerator
@@ -512,9 +513,9 @@ parameter_declaration
 
 identifier_list
     : IDENTIFIER
-        { $$ = new Identifier(*$1); }
+        { $$ = new NodeList(new Identifier(*$1)); }
     | identifier_list ',' IDENTIFIER
-        { $$ = new BinaryNode($1, new Identifier(*$3)); }
+        { $1->push_back(new Identifier(*$3)); $$ = $1; }
     ;
 
 type_name
@@ -638,9 +639,9 @@ jump_statement
 
 translation_unit
     : external_declaration
-        { $$ = $1; }
+        { $$ = new NodeList($1); }
     | translation_unit external_declaration
-        { $$ = new BinaryNode($1, $2); }
+        { $1->push_back($2); $$ = $1; }
     ;
 
 external_declaration

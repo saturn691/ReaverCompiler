@@ -30,7 +30,7 @@ public:
 
     Types get_type() const override
     {
-        return unary_expression->get_type();
+        throw std::runtime_error("Assign has no type");
     }
 
     void print(std::ostream &dst, int indent_level) const override
@@ -60,7 +60,7 @@ public:
 
         unary_expression->gen_asm(dst, dest_reg, context);
         int stack_loc = context.get_stack_location(id);
-        Types type = get_type();
+        Types type = context.get_type(id);
 
         // Put the assignment expression into a temporary register
         std::string reg = context.allocate_register(type);

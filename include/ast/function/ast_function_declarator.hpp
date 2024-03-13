@@ -26,12 +26,12 @@ public:
         delete identifier_list;
     }
 
-    virtual std::string get_id() const override
+    std::string get_id() const override
     {
         return direct_declarator->get_id();
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         direct_declarator->print(dst, 0);
         dst << "(";
@@ -42,7 +42,7 @@ public:
         dst << ")";
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

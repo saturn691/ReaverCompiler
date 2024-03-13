@@ -20,7 +20,7 @@ public:
 
     Types get_type() const override
     {
-        throw std::runtime_error("Identifier does not have a type");
+        throw std::runtime_error("Identifier has no type");
     }
 
     std::string get_id() const
@@ -34,7 +34,7 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = context.get_type(id);
+        Types type;
 
         // Check if it's the variable is an enum
         int enum_value = context.get_enum_value(id);
@@ -47,31 +47,48 @@ public:
         }
 
         // Find the id on the stack - will throw exception if not found.
-        int stack_loc = context.get_stack_location(id);
+        int stack_loc;
+        std::string store, load;
 
-        // Mode 1: LOAD
-        if (context.mode != Context::Mode::FUNCTION_DEFINITION)
+        switch (context.mode)
         {
-            if (context.is_pointer || context.get_is_pointer(id))
-            {
-                type = Types::INT;
-            }
-            std::string load = Context::get_load_instruction(type);
-            dst << indent << load << " " << dest_reg << ", "
-                << stack_loc << "(s0)" << std::endl;
+            case Context::Mode::DECLARATION:
+                type = context.current_declaration_type->get_type();
+                context.allocate_stack(type, id);
+                break;
+
+            // STORE
+            case Context::Mode::FUNCTION_DEFINITION:
+                stack_loc = context.get_stack_location(id);
+                type = context.get_type(id);
+                if (context.is_pointer)
+                {
+                    type = Types::INT;
+                    context.set_is_pointer(id, true);
+                }
+                store = Context::get_store_instruction(type);
+                dst << indent << store << " " << dest_reg << ", "
+                    << stack_loc << "(s0)" << std::endl;
+                break;
+
+            // Mode 1: LOAD
+            default:
+                if (context.is_pointer || context.get_is_pointer(id))
+                {
+                    type = Types::INT;
+                }
+                else
+                {
+                    type = context.get_type(id);
+                }
+                stack_loc = context.get_stack_location(id);
+                load = Context::get_load_instruction(type);
+                dst << indent << load << " " << dest_reg << ", "
+                    << stack_loc << "(s0)" << std::endl;
+                break;
         }
-        // Mode 2: STORE
-        else
-        {
-            if (context.is_pointer)
-            {
-                type = Types::INT;
-                context.set_is_pointer(id, true);
-            }
-            std::string store = Context::get_store_instruction(type);
-            dst << indent << store << " " << dest_reg << ", "
-                << stack_loc << "(s0)" << std::endl;
-        }
+
+        return;
     }
 
 private:
