@@ -27,6 +27,16 @@ public:
         delete argument_expression_list;
     }
 
+    Types get_type() const override
+    {
+        return identifier->get_type();
+    }
+
+    std::string get_id() const override
+    {
+        return identifier->get_id();
+    }
+
     void print(std::ostream &dst, int indent_level) const override
     {
         identifier->print(dst, 0);

@@ -50,8 +50,9 @@ public:
         }
         else
         {
-            int value = expression->evaluate(context);
-            context.add_enum_value(identifier, value);
+            // TODO get value
+            // int value = expression->evaluate(context);
+            // context.add_enum_value(identifier, value);
         }
     }
 

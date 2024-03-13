@@ -7,14 +7,28 @@
 /*
  *  Base class for all operators (e.g. + - * / << >> & |)
 */
-class Operator : public BinaryNode
+class Operator : public Expression, public BinaryNode
 {
 public:
-    using BinaryNode::BinaryNode;
+    Operator(Expression* _left, Expression* _right) :
+        left(_left),
+        right(_right)
+    {}
 
     virtual void print(std::ostream &dst, int indent_level) const override
     {
         throw std::runtime_error("Operator::print() not implemented");
+    }
+
+    std::string get_id() const override
+    {
+        // Does not exist for operators.
+        throw std::runtime_error("Operator::get_id() not implemented");
+    }
+
+    Types get_type() const override
+    {
+        return std::max(left->get_type(), right->get_type());
     }
 
     void gen_ins(
@@ -64,6 +78,10 @@ public:
                     << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
         }
     }
+
+private:
+    Expression* left;
+    Expression* right;
 };
 
 

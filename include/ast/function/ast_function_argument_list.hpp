@@ -12,7 +12,11 @@
 class FunctionArgumentList : public NodeList
 {
 public:
-    using NodeList::NodeList;
+    FunctionArgumentList(
+        Expression* _node
+    ) :
+        nodes({_node})
+    {}
 
     virtual void gen_asm(
         std::ostream &dst,
@@ -26,6 +30,11 @@ public:
             std::string arg_reg = context.allocate_arg_register(node->get_type());
             node->gen_asm(dst, arg_reg, context);
         }
+    }
+
+    void push_back(Expression* _node)
+    {
+        nodes.push_back(_node);
     }
 
 private:

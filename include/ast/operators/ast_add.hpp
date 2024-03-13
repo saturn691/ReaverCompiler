@@ -29,7 +29,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        Types type = get_type(context);
+        Types type = get_type();
 
         context.multiply_pointer = true;
 

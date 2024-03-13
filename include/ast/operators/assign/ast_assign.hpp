@@ -10,30 +10,30 @@
 /*
  *  Node for assignment (e.g. "x = 5;")
 */
-class Assign : public Node
+class Assign : public Expression
 {
 public:
     Assign(
-        Node* _unary_expression,
-        Node* _assignment_operator,
-        Node* _assignment_expression
+        Expression* _unary_expression,
+        AssignOp* _assignment_operator,
+        Expression* _assignment_expression
     ) :
         unary_expression(_unary_expression),
         assignment_operator(_assignment_operator),
         assignment_expression(_assignment_expression)
     {}
 
-    virtual std::string get_id() const override
+    std::string get_id() const override
     {
         return unary_expression->get_id();
     }
 
-    virtual Types get_type(Context &context) const override
+    Types get_type() const override
     {
-        return unary_expression->get_type(context);
+        return unary_expression->get_type();
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
 
@@ -46,26 +46,27 @@ public:
         dst << ";" << std::endl;
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        std::string id = assignment_operator->get_id();
+        std::string a_id = assignment_operator->get_id();
+        std::string id = unary_expression->get_id();
 
         Context::Mode mode = context.mode;
         context.mode = Context::Mode::ASSIGN;
 
         unary_expression->gen_asm(dst, dest_reg, context);
-        int stack_loc = context.get_stack_location(get_id());
-        Types type = get_type(context);
+        int stack_loc = context.get_stack_location(id);
+        Types type = get_type();
 
         // Put the assignment expression into a temporary register
         std::string reg = context.allocate_register(type);
 
         unsigned int multiplier = Context::type_size_map.at(type);
-        if (context.get_is_pointer(get_id()))
+        if (context.get_is_pointer(id))
         {
             context.pointer_multiplier = multiplier;
         }
@@ -138,7 +139,7 @@ public:
         else
         {
             // TODO implement for all assignment operators
-            if (id == "+=")
+            if (a_id == "+=")
             {
                 Add(
                     unary_expression,
@@ -158,9 +159,9 @@ public:
     }
 
 private:
-    Node* unary_expression;
-    Node* assignment_operator;
-    Node* assignment_expression;
+    Expression* unary_expression;
+    AssignOp* assignment_operator;
+    Expression* assignment_expression;
 };
 
 

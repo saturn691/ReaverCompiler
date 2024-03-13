@@ -1,7 +1,7 @@
 #ifndef ast_array_access_hpp
 #define ast_array_access_hpp
 
-#include "../ast_node.hpp"
+#include "../ast_expression.hpp"
 #include "../ast_context.hpp"
 
 #include <cmath>
@@ -9,20 +9,20 @@
 /*
  *  Node for array access (e.g. "arr[5];")
 */
-class ArrayAccess : public Node
+class ArrayAccess : public Expression
 {
 public:
     ArrayAccess(
-        Node* _array,
-        Node* _index
+        Identifier* _identifier,
+        Expression* _index
     ) :
-        array(_array),
+        identifier(_identifier),
         index(_index)
     {}
 
     virtual ~ArrayAccess()
     {
-        delete array;
+        delete identifier;
         delete index;
     }
 
@@ -31,10 +31,20 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
         dst << indent;
-        array->print(dst, 0);
+        identifier->print(dst, 0);
         dst << "[";
         index->print(dst, 0);
         dst << "]";
+    }
+
+    Types get_type() const override
+    {
+        return identifier->get_type();
+    }
+
+    std::string get_id() const override
+    {
+        return identifier->get_id();
     }
 
     std::string get_index_register() const
@@ -48,9 +58,9 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = array->get_type(context);
+        std::string id = identifier->get_id();
+        Types type = context.get_type(id);
         std::string reg = context.allocate_register(type);
-        std::string id = array->get_id();
 
         index->gen_asm(dst, reg, context);
         index_register = reg;
@@ -99,7 +109,7 @@ public:
 
 private:
     // postfix_expression '[' expression ']'
-    Node* array;
+    Identifier* identifier;
     Node* index;
     mutable std::string index_register;
 };

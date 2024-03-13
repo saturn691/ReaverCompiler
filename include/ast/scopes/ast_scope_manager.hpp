@@ -12,8 +12,8 @@ class ScopeManager : public Node
 public:
     // No arguments provided into the function definition
     ScopeManager(
-        Node* _statement_list,
-        Node* _declaration_list
+        NodeList* _statement_list,
+        NodeList* _declaration_list
     ) :
         statement_list(_statement_list),
         declaration_list(_declaration_list)
@@ -66,8 +66,8 @@ public:
     }
 
 private:
-    Node* statement_list;
-    Node* declaration_list;
+    NodeList* statement_list;
+    NodeList* declaration_list;
 };
 
 

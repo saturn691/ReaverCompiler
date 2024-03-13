@@ -6,11 +6,11 @@
 /*
  *  Node for array declaration (e.g. "x[8];")
 */
-class ArrayDeclarator : public Node
+class ArrayDeclarator : public Declarator
 {
 public:
     ArrayDeclarator(
-        Node* _direct_declarator,
+        Declarator* _direct_declarator,
         Node* _array_size
     ) :
         direct_declarator(_direct_declarator),
@@ -40,19 +40,20 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        std::string id = direct_declarator->get_id();
+        Types type = context.get_type(id);
 
         direct_declarator->gen_asm(dst, dest_reg, context);
 
-        Types type = direct_declarator->get_type(context);
-        int arr_size = array_size->evaluate(context);
-        std::string id = direct_declarator->get_id();
-        int stack_loc = context.allocate_array_stack(type, arr_size, id);
+        // TODO Assembly must be generated here
+        // int arr_size = array_size->evaluate(context);
+        // int stack_loc = context.allocate_array_stack(type, arr_size, id);
     }
 
 private:
     // direct_declarator '[' constant_expression ']'
     // x [ 8 ]
-    Node* direct_declarator;
+    Declarator* direct_declarator;
     Node* array_size; // constant_expression
 };
 

@@ -13,7 +13,7 @@ class Switch : public Node
 {
 public:
     Switch(
-        Node* _expression,
+        Expression* _expression,
         Node* _statement
     ) :
         expression(_expression),
@@ -62,7 +62,7 @@ public:
         context.end_label_stack.push(end_label);
 
         std::string switch_reg = context.allocate_register(
-            expression->get_type(context)
+            expression->get_type()
         );
         context.switch_reg = switch_reg;
 
@@ -85,7 +85,7 @@ public:
     }
 
 private:
-    Node* expression;
+    Expression* expression;
     Node* statement;
 };
 

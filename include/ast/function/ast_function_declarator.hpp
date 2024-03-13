@@ -2,18 +2,19 @@
 #define ast_function_declarator_hpp
 
 #include "../ast_node.hpp"
+#include "../ast_declarator.hpp"
 
 
 /*
  *  Node for defining function arguments (e.g. "f(int x, int y)")
 */
-class FunctionDeclarator : public Node
+class FunctionDeclarator : public Declarator
 {
 public:
     // No arguments provided into the function definition
     FunctionDeclarator(
-        Node* _direct_declarator,
-        Node* _identifier_list
+        Declarator* _direct_declarator,
+        NodeList* _identifier_list
     ) :
         direct_declarator(_direct_declarator),
         identifier_list(_identifier_list)
@@ -66,8 +67,8 @@ public:
     }
 
 private:
-    Node* direct_declarator;
-    Node* identifier_list;
+    Declarator* direct_declarator;
+    NodeList* identifier_list;
 };
 
 

@@ -14,7 +14,7 @@ class Case : public Node
 {
 public:
     Case(
-        Node* _expression,
+        Expression* _expression,
         Node* _statement
     ) :
         expression(_expression),
@@ -46,7 +46,7 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string case_label = context.get_unique_label("switch_case");
         std::string case_reg = context.allocate_register(
-            expression->get_type(context)
+            expression->get_type()
         );
 
         // Redirect into stringstream to be outputted later
@@ -65,7 +65,7 @@ public:
     }
 
 private:
-    Node* expression;
+    Expression* expression;
     Node* statement;
 };
 

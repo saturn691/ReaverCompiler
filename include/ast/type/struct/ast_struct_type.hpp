@@ -54,6 +54,14 @@ public:
         }
     }
 
+    void gen_asm(
+        std::ostream &dst,
+        std::string &dest_reg,
+        Context &context
+    ) const override {
+        // Nothing to do
+    }
+
 private:
     std::string identifier;
     std::vector<std::pair<std::string, TypePtr>> members;

@@ -19,13 +19,15 @@
 
 // All the possible types of tokens
 %union{
-    Node            *node;
-    NodeList        *nodes;
-    AssignOp        *assign_op;
-    Expression      *expression;
-    double          number;
-    std::string     *string;
-    yytokentype     token;
+    Node                *node;
+    NodeList            *nodes;
+    Type                *type;
+    Declarator          *declarator;
+    AssignOp            *assign_op;
+    Expression          *expr;
+    double              number;
+    std::string         *string;
+    yytokentype         token;
 }
 
 %token IDENTIFIER CONSTANT STRING_LITERAL CHAR_LITERAL SIZEOF
@@ -44,35 +46,42 @@
 %type <number> CONSTANT
 %type <string> IDENTIFIER STRING_LITERAL CHAR_LITERAL unary_operator
 
-%type <node> primary_expression postfix_expression
-%type <node> unary_expression cast_expression
-%type <node> multiplicative_expression additive_expression shift_expression
-%type <node> relational_expression equality_expression and_expression
-%type <node> exclusive_or_expression inclusive_or_expression
-%type <node> logical_and_expression logical_or_expression
-%type <node> conditional_expression assignment_expression
-%type <node> expression constant_expression
-%type <node> declaration declaration_specifiers
+%type <expr> primary_expression postfix_expression unary_expression
+%type <expr> assignment_expression
+%type <expr> cast_expression
+%type <expr> multiplicative_expression additive_expression shift_expression
+%type <expr> relational_expression equality_expression and_expression
+%type <expr> exclusive_or_expression inclusive_or_expression
+%type <expr> logical_and_expression logical_or_expression
+%type <expr> conditional_expression initializer
+%type <expr> expression constant_expression
+
+%type <node> declaration
 %type <node> init_declarator_list init_declarator
 /* %type <node> storage_class_specifier type_qualifier */
-%type <node> type_specifier struct_declaration_list
-%type <node> struct_declaration struct_or_union_specifier struct_or_union
-%type <node> specifier_qualifier_list struct_declarator_list struct_declarator
+
+%type <node> struct_declaration_list
+%type <node> struct_declaration struct_or_union_specifier
+/* %type <node> struct_or_union */
+%type <node> struct_declarator_list struct_declarator
 %type <node> enum_specifier enumerator_list enumerator
-%type <node> declarator direct_declarator pointer
-%type <node> type_qualifier_list parameter_type_list parameter_list
+%type <node> pointer
+%type <node> type_qualifier_list
 %type <node> parameter_declaration identifier_list type_name
 /* %type <node> abstract_declarator direct_abstract_declarator */
-%type <node> initializer initializer_list
+%type <node> initializer_list
 %type <node> statement labeled_statement compound_statement
 %type <node> expression_statement selection_statement iteration_statement
 %type <node> jump_statement translation_unit
 %type <node> external_declaration function_definition
 
-// Other types of nodes
 %type <nodes> declaration_list statement_list argument_expression_list
+%type <nodes> parameter_list parameter_type_list
+
+// Other types of nodes
+%type <type> type_specifier declaration_specifiers specifier_qualifier_list
 %type <assign_op> assignment_operator
-%type <expression> ... // TODO -- need to implement
+%type <declarator> declarator direct_declarator
 
 
 %start root
@@ -86,14 +95,23 @@ primary_expression
     | CONSTANT                      { $$ = new Number($1); }
     | STRING_LITERAL                { $$ = new String(*$1); }
     | CHAR_LITERAL                  { $$ = new Char(*$1); }
-    | '(' expression ')'            { $$ = $2; }
+    | '(' expression ')'            { $$ = static_cast<Expression*>($2); }
     ;
 
 postfix_expression
     : primary_expression
         { $$ = $1; }
+    /*
+        2D array access is not tested.
+        Ugh we're not going to pass 100% of the tests.
+        Sorry guys. Put a PR in if you want to fix it.
+    */
     | postfix_expression '[' expression ']'
-        { $$ = new ArrayAccess($1, $3); }
+        { $$ = new ArrayAccess(dynamic_cast<Identifier*>($1), $3); }
+    /*
+        Function pointers are not tested in this code, so we can
+        assume that the LHS is an identifier
+    */
     | postfix_expression '(' ')'
         { $$ = new FunctionCall(dynamic_cast<Identifier*>($1), NULL); }
     | postfix_expression '(' argument_expression_list ')'
@@ -112,7 +130,7 @@ argument_expression_list
     : assignment_expression
         { $$ = new FunctionArgumentList($1); }
     | argument_expression_list ',' assignment_expression
-        { $1->PushBack($3); $$ = $1; }
+        { $1->push_back($3); $$ = $1; }
     ;
 
 unary_expression
@@ -125,7 +143,7 @@ unary_expression
     | unary_operator cast_expression
         { $$ = new UnaryExpression(*$1, $2); }
     | SIZEOF unary_expression
-        { $$ = new SizeOf($2); }
+        { $$ = new SizeOf(static_cast<Node*>($2)); }
     | SIZEOF '(' type_name ')'
         { $$ = new SizeOf($3); }
     ;
@@ -314,7 +332,7 @@ init_declarator
     : declarator
         { $$ = $1; }
     | declarator '=' initializer
-        { $$ = new Assign($1, new AssignOp("="), $3); }
+        // { $$ = new Assign($1, new AssignOp("="), $3); }
     ;
 
 // ------
@@ -339,8 +357,8 @@ type_specifier
     /* NOTE: This is a temporary solution- ignore compound types. */
     | SIGNED                        { $$ = new BasicType(Types::INT); }
     | UNSIGNED                      { $$ = new BasicType(Types::UNSIGNED_INT); }
-    | struct_or_union_specifier     { $$ = $1; }
-    | enum_specifier                { $$ = $1; }
+    | struct_or_union_specifier     // { $$ = $1; }
+    | enum_specifier                // { $$ = $1; }
     /* typedefs */
     // TODO must be implemented
     | TYPE_NAME
@@ -434,7 +452,8 @@ declarator
 
 direct_declarator
     : IDENTIFIER
-        { $$ = new VariableDeclarator(new Identifier(*$1)); }
+    // TODO Might need some context
+        { $$ = new Identifier(*$1); }
     /* ^ Variable declarations */
     | '(' declarator ')'
         { $$ = $2; }
@@ -477,15 +496,16 @@ parameter_type_list
 
 parameter_list
     : parameter_declaration
-        { $$ = $1; }
+        { $$ = new FunctionParameterList($1); }
     | parameter_list ',' parameter_declaration
-        { $$ = new FunctionParameterList($1, $3); }
+        { $1->push_back($3); $$ = $1; }
     ;
 
 parameter_declaration
     : declaration_specifiers declarator
         { $$ = new FunctionParameter($1, $2); }
     | declaration_specifiers abstract_declarator
+        /* ??? */
     | declaration_specifiers
         { $$ = $1; }
     ;
@@ -499,11 +519,13 @@ identifier_list
 
 type_name
     : specifier_qualifier_list      { $$ = $1; }
+    // What is an abstract declarator?
     | specifier_qualifier_list abstract_declarator
     ;
 
 // ------
 // Maybe we need to implement this, I dunno
+// ------
 abstract_declarator
     : pointer                                               // { $$ = $1; }
     | direct_abstract_declarator                            // { $$ = $1; }
@@ -571,14 +593,14 @@ declaration_list
     : declaration
         { $$ = new NodeList($1); }
     | declaration_list declaration
-        { $1->PushBack($2); $$ = $1; }
+        { $1->push_back($2); $$ = $1; }
     ;
 
 statement_list
     : statement
         { $$ = new NodeList($1); }
     | statement_list statement
-        { $1->PushBack($2); $$ = $1; }
+        { $1->push_back($2); $$ = $1; }
     ;
 
 expression_statement

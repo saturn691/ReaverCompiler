@@ -2,29 +2,28 @@
 #define ast_identifier_hpp
 
 #include "../ast_node.hpp"
-
+#include "../ast_declarator.hpp"
 
 /*
  *  Leaf node for variables / function names.
  *  Example: ["x" in "int x = 10;"] OR ["f" in "int f(int x) { return 5;}"]
 */
-class Identifier : public Node
+class Identifier : public Expression
 {
 public:
-    Identifier(std::string _id) : id(_id) {}
-
-    virtual ~Identifier()
-    {}
+    Identifier(const std::string &_id) : id(_id) {}
 
     void print(std::ostream &dst, int indent_level) const override
     {
         dst << id;
     }
 
-    /**
-     * Returns the identifier associated with the node.
-    */
-    virtual std::string get_id() const
+    Types get_type() const override
+    {
+        throw std::runtime_error("Identifier does not have a type");
+    }
+
+    std::string get_id() const
     {
         return id;
     }

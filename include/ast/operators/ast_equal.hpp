@@ -10,7 +10,11 @@
 class Equal : public Operator
 {
 public:
-    Equal(Node* _left, Node* _right, bool _invert = false) :
+    Equal(
+        Expression* _left,
+        Expression* _right,
+        bool _invert = false
+    ) :
         Operator(_left, _right),
         invert(_invert)
     {}
@@ -39,7 +43,7 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = get_type(context);
+        Types type = get_type();
 
         std::string temp_reg1 = context.allocate_register(type);
         std::string temp_reg2 = context.allocate_register(type);

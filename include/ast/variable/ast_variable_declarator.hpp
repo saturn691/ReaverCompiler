@@ -44,13 +44,13 @@ public:
             // Reserve space on the stack
             context.current_declaration_type->allocate_stack(
                 context,
-                get_id()
+                identifier->get_id()
             );
         }
         else
         {
             // Add the member to the struct
-            std::string id = get_id();
+            std::string id = identifier->get_id();
             context.struct_members.emplace_back(
                 id,
                 context.current_sub_declaration_type
@@ -59,7 +59,7 @@ public:
     }
 
 private:
-    Node* identifier;
+    Identifier* identifier;
 };
 
 

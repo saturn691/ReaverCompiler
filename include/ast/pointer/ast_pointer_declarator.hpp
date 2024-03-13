@@ -8,12 +8,12 @@
 /*
  *  Node for pointer declaration (e.g. "*x;")
 */
-class PointerDeclarator : public Node
+class PointerDeclarator : public Declarator
 {
 public:
     PointerDeclarator(
         Node* _pointer,
-        Node* _direct_declarator
+        Declarator* _direct_declarator
     ) :
         pointer(_pointer),
         direct_declarator(_direct_declarator)
@@ -30,11 +30,14 @@ public:
         return direct_declarator->get_id();
     }
 
+    // TODO check this
+/*
     virtual Types get_type(Context &context) const override
     {
         // A pointer is always 4 bytes
         return Types::INT;
     }
+*/
 
     virtual void print(std::ostream &dst, int indent_level) const override
     {
@@ -66,7 +69,7 @@ public:
 
 private:
     Node* pointer;
-    Node* direct_declarator;
+    Declarator* direct_declarator;
 };
 
 #endif // ast_pointer_declarator_hpp

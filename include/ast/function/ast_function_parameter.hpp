@@ -2,6 +2,7 @@
 #define ast_function_parameter_hpp
 
 #include "../ast_node.hpp"
+#include "../type/ast_type.hpp"
 
 
 /*
@@ -13,7 +14,7 @@ class FunctionParameter : public Node
 public:
     // No arguments provided into the function definition
     FunctionParameter(
-        Node* _declaration_specifiers,
+        Type* _declaration_specifiers,
         Node* _declarator
     ) :
         declaration_specifiers(_declaration_specifiers),
@@ -24,16 +25,6 @@ public:
     {
         delete declaration_specifiers;
         delete declarator;
-    }
-
-    virtual std::string get_id() const override
-    {
-        return declarator->get_id();
-    }
-
-    virtual Types get_type(Context &context) const override
-    {
-        return declaration_specifiers->get_type(context);
     }
 
     virtual void print(std::ostream &dst, int indent_level) const override
@@ -48,8 +39,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        Types type = get_type(context);
-        std::string id = get_id();
+        Types type = declaration_specifiers->get_type();
         context.add_function_declaration_type(type);
 
         if (dest_reg == "MAGIC CODE")
@@ -57,7 +47,8 @@ public:
             context.mode = Context::Mode::FUNCTION_DEFINITION;
             std::string indent(AST_PRINT_INDENT_SPACES, ' ');
             std::string arg_reg = context.allocate_arg_register(type);
-            int stack_loc = context.allocate_stack(type, id);
+            // TODO do this in the declarator
+            // int stack_loc = context.allocate_stack(type, id);
 
             declarator->gen_asm(dst, arg_reg, context);
             context.mode = Context::Mode::GLOBAL;
@@ -65,7 +56,7 @@ public:
     }
 
 private:
-    Node* declaration_specifiers;
+    Type* declaration_specifiers;
     Node* declarator;
 };
 

@@ -2,13 +2,14 @@
 #define AST_INCREMENT_HPP
 
 #include "../ast_node.hpp"
+#include "../ast_expression.hpp"
 #include "../primitives/ast_number.hpp"
 
 // Node for post-increment (e.g., i++)
-class PostIncrement : public Node {
+class PostIncrement : public Expression {
 public:
     PostIncrement(
-        Node* _operand,
+        Expression* _operand,
         bool _invert = false,
         bool _pre = false
     ) :
@@ -37,14 +38,14 @@ public:
         }
     }
 
-    virtual Types get_type(Context &context) const override
+    Types get_type() const override
     {
-        return operand->get_type(context);
+        return operand->get_type();
     }
 
-    virtual unsigned int get_size(Context &context) const override
+    std::string get_id() const override
     {
-        return operand->get_size(context);
+        return operand->get_id();
     }
 
     virtual void gen_asm(
@@ -64,7 +65,7 @@ public:
         */
 
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = get_type(context);
+        Types type = get_type();
         std::string temp_reg = context.allocate_register(type);
 
         operand->gen_asm(dst, temp_reg, context); // x
@@ -117,7 +118,7 @@ public:
     }
 
 private:
-    Node* operand;  // The operand to be incremented
+    Expression* operand;  // The operand to be incremented
     bool invert;  // Switch between increment and decrement
     bool pre;  // Whether this is a pre-increment or post-increment
 

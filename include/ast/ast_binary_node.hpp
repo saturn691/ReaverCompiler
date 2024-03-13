@@ -10,6 +10,7 @@
 class BinaryNode : public Node
 {
 public:
+    BinaryNode() {}
     BinaryNode(Node* _left, Node* _right) : left(_left), right(_right)
     {}
 

@@ -51,7 +51,7 @@ public:
         */
 
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = get_type(context);
+        Types type = get_type();
 
         std::string temp_reg = context.allocate_register(Types::INT);
         std::string float_temp_reg = context.allocate_register(Types::FLOAT);

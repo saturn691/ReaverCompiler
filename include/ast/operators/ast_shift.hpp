@@ -31,8 +31,8 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        std::string temp_reg1 = context.allocate_register(get_type(context));
-        std::string temp_reg2 = context.allocate_register(get_type(context));
+        std::string temp_reg1 = context.allocate_register(get_type());
+        std::string temp_reg2 = context.allocate_register(get_type());
 
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);
@@ -74,8 +74,8 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        std::string temp_reg1 = context.allocate_register(get_type(context));
-        std::string temp_reg2 = context.allocate_register(get_type(context));
+        std::string temp_reg1 = context.allocate_register(get_type());
+        std::string temp_reg2 = context.allocate_register(get_type());
 
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);

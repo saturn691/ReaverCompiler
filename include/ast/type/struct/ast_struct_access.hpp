@@ -9,12 +9,12 @@
  *  Declarations are HIGHER than declarators in the AST
  *  (e.g. "int x, y, z;")
 */
-class StructAccess : public Node
+class StructAccess : public Expression
 {
 public:
     StructAccess(
-        Node* _postfix_expression,
-        Node* _identifier
+        Expression* _postfix_expression,
+        Identifier* _identifier
     ) :
         postfix_expression(_postfix_expression),
         identifier(_identifier)
@@ -34,11 +34,12 @@ public:
              + identifier->get_id();
     }
 
-    virtual Types get_type(Context &context) const override
+    virtual Types get_type() const override
     {
         // Find the id on the stack - will throw exception if not found
-        std::string id = get_id();
-        return context.get_type(id);
+        // std::string id = get_id();
+        // return context.get_type(id);
+        // TODO - implement this
     }
 
     virtual void gen_asm(
@@ -50,7 +51,7 @@ public:
         // Find the id on the stack - will throw exception if not found
         std::string id = get_id();
         int stack_loc = context.get_stack_location(id);
-        Types type = get_type(context);
+        Types type = get_type();
 
         switch (type)
         {
@@ -78,8 +79,8 @@ public:
     }
 
 private:
-    Node* postfix_expression;
-    Node* identifier;
+    Expression* postfix_expression;
+    Identifier* identifier;
 };
 
 

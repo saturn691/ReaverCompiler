@@ -30,7 +30,7 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = get_type(context);
+        Types type = get_type();
         context.multiply_pointer = true;
 
         std::string temp_reg1 = context.allocate_register(type);

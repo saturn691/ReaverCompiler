@@ -43,6 +43,8 @@ public:
 class NodeList : public Node
 {
 public:
+    NodeList() : nodes({})
+    {}
     NodeList(Node *node) : nodes({node})
     {}
 
@@ -54,12 +56,12 @@ public:
         }
     }
 
-    void PushBack(Node *node)
+    void push_back(Node *node)
     {
         nodes.push_back(node);
     }
 
-    void print(std::ostream &dst, int indent_level) const override
+    virtual void print(std::ostream &dst, int indent_level) const override
     {
         for (auto &node : nodes)
         {
@@ -70,7 +72,7 @@ public:
         }
     }
 
-    void gen_asm(
+    virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

@@ -2,7 +2,7 @@
 #define ast_function_definition_hpp
 
 #include "../ast_node.hpp"
-
+#include "../ast_declarator.hpp"
 
 /*
  *  Node for defining functions (e.g. "int f() { return 5; }")
@@ -12,8 +12,8 @@ class FunctionDefinition : public Node
 public:
     // No arguments provided into the function definition
     FunctionDefinition(
-        Node* _declaration_specifier,
-        Node* _declarator,
+        Type* _declaration_specifier,
+        Declarator* _declarator,
         Node* _compound_statement
     ) :
         declaration_specifier(_declaration_specifier),
@@ -96,8 +96,8 @@ public:
     }
 
 private:
-    Node* declaration_specifier;
-    Node* declarator;
+    Type* declaration_specifier;
+    Declarator* declarator;
     Node* compound_statement;
 };
 
