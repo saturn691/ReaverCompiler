@@ -83,11 +83,6 @@ public:
         context.allocate_stack(type, id);
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Type::evaluate() not allowed");
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,

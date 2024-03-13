@@ -12,8 +12,8 @@ class FunctionDeclarator : public Node
 public:
     // No arguments provided into the function definition
     FunctionDeclarator(
-        NodePtr _direct_declarator,
-        NodePtr _identifier_list
+        Node* _direct_declarator,
+        Node* _identifier_list
     ) :
         direct_declarator(_direct_declarator),
         identifier_list(_identifier_list)
@@ -41,11 +41,6 @@ public:
         dst << ")";
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("FunctionDeclarator::evaluate() not implemented");
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -71,8 +66,8 @@ public:
     }
 
 private:
-    NodePtr direct_declarator;
-    NodePtr identifier_list;
+    Node* direct_declarator;
+    Node* identifier_list;
 };
 
 

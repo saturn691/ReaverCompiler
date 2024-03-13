@@ -13,7 +13,7 @@ class EnumDefinition : public Node
 {
 public:
     EnumDefinition(
-        NodePtr _enumerator_list
+        Node* _enumerator_list
     ) :
         identifier(""),
         enumerator_list(_enumerator_list)
@@ -21,7 +21,7 @@ public:
 
     EnumDefinition(
         std::string _identifier,
-        NodePtr _enumerator_list
+        Node* _enumerator_list
     ) :
         identifier(_identifier),
         enumerator_list(_enumerator_list)
@@ -49,7 +49,7 @@ public:
 
 private:
     std::string identifier;
-    NodePtr enumerator_list;
+    Node* enumerator_list;
 };
 
 

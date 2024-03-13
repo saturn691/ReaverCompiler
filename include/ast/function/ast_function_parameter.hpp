@@ -13,8 +13,8 @@ class FunctionParameter : public Node
 public:
     // No arguments provided into the function definition
     FunctionParameter(
-        NodePtr _declaration_specifiers,
-        NodePtr _declarator
+        Node* _declaration_specifiers,
+        Node* _declarator
     ) :
         declaration_specifiers(_declaration_specifiers),
         declarator(_declarator)
@@ -43,11 +43,6 @@ public:
         declarator->print(dst, 0);
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("FunctionParameter::evaluate() not implemented");
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -70,8 +65,8 @@ public:
     }
 
 private:
-    NodePtr declaration_specifiers;
-    NodePtr declarator;
+    Node* declaration_specifiers;
+    Node* declarator;
 };
 
 

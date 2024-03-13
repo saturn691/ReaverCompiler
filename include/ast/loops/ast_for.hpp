@@ -12,9 +12,9 @@ class For : public Node
 public:
     // Constructor for 'for' loop with no iteration expression
     For(
-        NodePtr _initiation,
-        NodePtr _condition,
-        NodePtr _statement
+        Node* _initiation,
+        Node* _condition,
+        Node* _statement
     ) :
         initiation(_initiation),
         condition(_condition),
@@ -24,10 +24,10 @@ public:
 
     // Constructor for 'for' loop with iteration expression
     For(
-        NodePtr _initiation,
-        NodePtr _condition,
-        NodePtr _iteration,
-        NodePtr _statement
+        Node* _initiation,
+        Node* _condition,
+        Node* _iteration,
+        Node* _statement
     ) :
         initiation(_initiation),
         condition(_condition),
@@ -63,11 +63,6 @@ public:
             statement->print(dst, indent_level + 1); // statement
         }
         dst << indent << "}" << std::endl;
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("For::evaluate() not implemented");
     }
 
     virtual void gen_asm(
@@ -116,10 +111,10 @@ public:
     }
 
 private:
-    NodePtr initiation;
-    NodePtr condition;
-    NodePtr iteration;
-    NodePtr statement;
+    Node* initiation;
+    Node* condition;
+    Node* iteration;
+    Node* statement;
 };
 
 

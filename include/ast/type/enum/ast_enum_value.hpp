@@ -20,7 +20,7 @@ public:
 
     EnumValue(
         std::string _identifier,
-        NodePtr _expression
+        Node* _expression
     ) :
         identifier(_identifier),
         expression(_expression)
@@ -57,7 +57,7 @@ public:
 
 private:
     std::string identifier;
-    NodePtr expression;
+    Node* expression;
 };
 
 

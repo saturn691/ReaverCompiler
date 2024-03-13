@@ -27,11 +27,6 @@ public:
         return Types::VOID;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        return value;
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,

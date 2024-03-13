@@ -14,8 +14,8 @@ class Case : public Node
 {
 public:
     Case(
-        NodePtr _expression,
-        NodePtr _statement
+        Node* _expression,
+        Node* _statement
     ) :
         expression(_expression),
         statement(_statement)
@@ -65,8 +65,8 @@ public:
     }
 
 private:
-    NodePtr expression;
-    NodePtr statement;
+    Node* expression;
+    Node* statement;
 };
 
 
@@ -74,7 +74,7 @@ class DefaultCase : public Node
 {
 public:
     DefaultCase(
-        NodePtr _statement
+        Node* _statement
     ) :
         statement(_statement)
     {}
@@ -113,7 +113,7 @@ public:
     }
 
 private:
-    NodePtr statement;
+    Node* statement;
 };
 
 

@@ -14,7 +14,7 @@ class UnaryExpression : public Node
 public:
     UnaryExpression(
         std::string _unary_operator,
-        NodePtr _cast_expression
+        Node* _cast_expression
     ) :
         unary_operator(_unary_operator),
         cast_expression(_cast_expression)
@@ -91,7 +91,7 @@ public:
 
 private:
     std::string unary_operator;
-    NodePtr cast_expression;
+    Node* cast_expression;
 };
 
 

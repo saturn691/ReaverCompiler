@@ -10,8 +10,8 @@ class ArrayDeclarator : public Node
 {
 public:
     ArrayDeclarator(
-        NodePtr _direct_declarator,
-        NodePtr _array_size
+        Node* _direct_declarator,
+        Node* _array_size
     ) :
         direct_declarator(_direct_declarator),
         array_size(_array_size)
@@ -34,11 +34,6 @@ public:
         dst << "]";
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("ArrayDeclarator::evaluate() not implemented");
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -57,8 +52,8 @@ public:
 private:
     // direct_declarator '[' constant_expression ']'
     // x [ 8 ]
-    NodePtr direct_declarator;
-    NodePtr array_size; // constant_expression
+    Node* direct_declarator;
+    Node* array_size; // constant_expression
 };
 
 #endif // ast_array_declarator_hpp

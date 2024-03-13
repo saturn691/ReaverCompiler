@@ -14,9 +14,9 @@ class Assign : public Node
 {
 public:
     Assign(
-        NodePtr _unary_expression,
-        NodePtr _assignment_operator,
-        NodePtr _assignment_expression
+        Node* _unary_expression,
+        Node* _assignment_operator,
+        Node* _assignment_expression
     ) :
         unary_expression(_unary_expression),
         assignment_operator(_assignment_operator),
@@ -44,11 +44,6 @@ public:
         dst << " ";
         assignment_expression->print(dst, 0); // 5
         dst << ";" << std::endl;
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Assign::evaluate() not implemented");
     }
 
     virtual void gen_asm(
@@ -163,9 +158,9 @@ public:
     }
 
 private:
-    NodePtr unary_expression;
-    NodePtr assignment_operator;
-    NodePtr assignment_expression;
+    Node* unary_expression;
+    Node* assignment_operator;
+    Node* assignment_expression;
 };
 
 

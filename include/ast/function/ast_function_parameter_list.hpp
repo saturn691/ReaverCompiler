@@ -19,11 +19,6 @@ public:
         right->print(dst, 0);
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("FunctionParameterList::evaluate() not implemented");
-    }
-
     virtual Types get_type(Context &context) const override
     {
         return left->get_type(context);

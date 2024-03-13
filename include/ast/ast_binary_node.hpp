@@ -10,7 +10,7 @@
 class BinaryNode : public Node
 {
 public:
-    BinaryNode(NodePtr _left, NodePtr _right) : left(_left), right(_right)
+    BinaryNode(Node* _left, Node* _right) : left(_left), right(_right)
     {}
 
     virtual ~BinaryNode()
@@ -25,40 +25,8 @@ public:
         right->print(dst, indent_level);
     }
 
-    virtual Types get_type(Context &context) const override
-    {
-        Types left_type = left->get_type(context);
-        Types right_type = right->get_type(context);
-        Types return_type;
-
-        /*
-        This logic might seem a bit strange, but it checks the left and right
-        types and returns the one with the higher priority.
-
-        e.g. INT + INT -> INT
-        e.g. INT + FLOAT -> FLOAT
-        e.g. UNSIGNED_INT + INT -> INT
-        */
-
-        if (left_type > right_type)
-        {
-            return_type = left_type;
-        }
-        else
-        {
-            return_type = right_type;
-        }
-
-        return return_type;
-    }
-
-    NodePtr get_left() const { return left; }
-    NodePtr get_right() const { return right; }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Return::evaluate() not implemented");
-    }
+    Node* get_left() const { return left; }
+    Node* get_right() const { return right; }
 
     virtual void gen_asm(
         std::ostream &dst,
@@ -70,8 +38,8 @@ public:
     }
 
 protected:
-    NodePtr left;
-    NodePtr right;
+    Node* left;
+    Node* right;
 };
 
 #endif  /* ast_binary_node_hpp */

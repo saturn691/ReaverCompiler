@@ -36,11 +36,6 @@ public:
         return Types::UNSIGNED_CHAR;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Cannot evaluate char literal");
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,

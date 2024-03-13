@@ -15,8 +15,8 @@ class Declaration : public Node
 {
 public:
     Declaration(
-        NodePtr _declaration_specifiers,
-        NodePtr _init_declarator_list
+        Node* _declaration_specifiers,
+        Node* _init_declarator_list
     ) :
         declaration_specifiers(_declaration_specifiers),
         init_declarator_list(_init_declarator_list)
@@ -36,11 +36,6 @@ public:
         dst << ";" << std::endl;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Return::evaluate() not implemented");
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -56,8 +51,8 @@ public:
     }
 
 private:
-    NodePtr declaration_specifiers;
-    NodePtr init_declarator_list;
+    Node* declaration_specifiers;
+    Node* init_declarator_list;
 };
 
 

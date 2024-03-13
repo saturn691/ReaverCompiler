@@ -26,11 +26,6 @@ public:
         dst << op;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("AssignOp::evaluate() not implemented");
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,

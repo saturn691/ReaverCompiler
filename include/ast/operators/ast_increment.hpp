@@ -8,7 +8,7 @@
 class PostIncrement : public Node {
 public:
     PostIncrement(
-        NodePtr _operand,
+        Node* _operand,
         bool _invert = false,
         bool _pre = false
     ) :
@@ -117,7 +117,7 @@ public:
     }
 
 private:
-    NodePtr operand;  // The operand to be incremented
+    Node* operand;  // The operand to be incremented
     bool invert;  // Switch between increment and decrement
     bool pre;  // Whether this is a pre-increment or post-increment
 

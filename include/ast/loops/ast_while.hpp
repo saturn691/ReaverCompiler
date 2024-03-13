@@ -11,8 +11,8 @@ class While : public Node
 {
 public:
     While (
-        NodePtr _condition,
-        NodePtr _statement
+        Node* _condition,
+        Node* _statement
     ) :
         condition(_condition),
         statement(_statement)
@@ -33,11 +33,6 @@ public:
             statement->print(dst, indent_level + 1); // statement
         }
         dst << indent << "}" << std::endl;
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("While::evaluate() not implemented");
     }
 
     virtual void gen_asm(
@@ -70,8 +65,8 @@ public:
     }
 
 private:
-    NodePtr condition;
-    NodePtr statement;
+    Node* condition;
+    Node* statement;
 };
 
 

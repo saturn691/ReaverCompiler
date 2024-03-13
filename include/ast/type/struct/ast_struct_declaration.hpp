@@ -13,8 +13,8 @@ class StructDeclaration : public Node
 {
 public:
     StructDeclaration(
-        NodePtr specifier_qualifier_list,
-        NodePtr _struct_declarator_list
+        Node* specifier_qualifier_list,
+        Node* _struct_declarator_list
     ) :
         specifier_qualifier_list(specifier_qualifier_list),
         struct_declarator_list(_struct_declarator_list)
@@ -40,8 +40,8 @@ public:
     }
 
 private:
-    NodePtr specifier_qualifier_list;
-    NodePtr struct_declarator_list;
+    Node* specifier_qualifier_list;
+    Node* struct_declarator_list;
 };
 
 

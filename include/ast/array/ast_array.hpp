@@ -10,9 +10,9 @@ class ArrayDeclaration : public Node
 {
 public:
     ArrayDeclaration(
-        NodePtr _declaration_specifier,
-        NodePtr _declarator,
-        NodePtr _array_size
+        Node* _declaration_specifier,
+        Node* _declarator,
+        Node* _array_size
     ) :
         declaration_specifier(_declaration_specifier),
         declarator(_declarator),
@@ -39,16 +39,6 @@ public:
         dst << "]";
     }
 
-    virtual Types get_type(Context &context) const override
-    {
-        return declaration_specifier->get_type(context);
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("ArrayDeclaration::evaluate() not implemented");
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -58,9 +48,9 @@ public:
     }
 
 private:
-    NodePtr declaration_specifier;
-    NodePtr declarator;
-    NodePtr array_size;
+    Node* declaration_specifier;
+    Node* declarator;
+    Node* array_size;
 };
 
 #endif // ast_array_declaration_hpp

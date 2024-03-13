@@ -29,11 +29,6 @@ public:
         return Types::INT;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Cannot evaluate string literal");
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,

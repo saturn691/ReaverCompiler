@@ -10,7 +10,7 @@
 class Return : public Node
 {
 public:
-    Return(NodePtr _return_node) : return_node(_return_node)
+    Return(Node* _return_node) : return_node(_return_node)
     {}
 
     virtual ~Return()
@@ -29,11 +29,6 @@ public:
         dst << indent << ")" << std::endl;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Return::evaluate() not implemented");
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -49,7 +44,7 @@ public:
     }
 
 private:
-    NodePtr return_node;
+    Node* return_node;
 };
 
 

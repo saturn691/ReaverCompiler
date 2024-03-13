@@ -12,11 +12,11 @@
 class Node;
 class Context;
 
-typedef const Node *NodePtr;
 
-
-/*
+/**
  *  Base class for nodes in the AST. Only contains virtual functions.
+ *  This is the standard interface for all nodes and only contains the functions
+ *  that all nodes must implement.
 */
 class Node
 {
@@ -27,39 +27,66 @@ public:
     // Tell and expression to print itself to the given stream
     virtual void print(std::ostream &dst, int indent_level) const = 0;
 
-    // Finds the identifier in one of the branches.
-    // Not necessary to implement in every child class.
-    virtual std::string get_id() const
-    {
-        throw std::runtime_error("Node::get_id() not implemented");
-    }
-
-    // Finds the type in one of the branches.
-    // Supports all types including enums.
-    virtual Types get_type(Context &context) const
-    {
-        throw std::runtime_error("Node::get_type() not implemented");
-    }
-
-    // Gets the size of the identifier or type
-    virtual unsigned int get_size(Context &context) const
-    {
-        throw std::runtime_error("Node::get_size() not implemented");
-    }
-
-    virtual double evaluate(Context &context) const
-    {
-        throw std::runtime_error("Node::evaluate() not implemented");
-    }
-
     // RISC-V asm generation
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
-    ) const {
-        throw std::runtime_error("Node::gen_asm() not implemented");
+    ) const = 0;
+};
+
+
+/**
+ *  This data structure (array) is much better than the data structure used
+ *  previously (linked list), as it's easier to access elements and iterate
+*/
+class NodeList : public Node
+{
+public:
+    NodeList(Node *node) : nodes({node})
+    {}
+
+    ~NodeList()
+    {
+        for (auto &node : nodes)
+        {
+            delete node;
+        }
     }
+
+    void PushBack(Node *node)
+    {
+        nodes.push_back(node);
+    }
+
+    void print(std::ostream &dst, int indent_level) const override
+    {
+        for (auto &node : nodes)
+        {
+            if (node != nullptr)
+            {
+                node->print(dst, indent_level);
+            }
+        }
+    }
+
+    void gen_asm(
+        std::ostream &dst,
+        std::string &dest_reg,
+        Context &context
+    ) const override
+    {
+        for (auto &node : nodes)
+        {
+            if (node != nullptr)
+            {
+                node->gen_asm(dst, dest_reg, context);
+            }
+        }
+    }
+
+private:
+    std::vector<Node*> nodes;
 };
 
 

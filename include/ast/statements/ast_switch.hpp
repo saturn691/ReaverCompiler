@@ -13,8 +13,8 @@ class Switch : public Node
 {
 public:
     Switch(
-        NodePtr _expression,
-        NodePtr _statement
+        Node* _expression,
+        Node* _statement
     ) :
         expression(_expression),
         statement(_statement)
@@ -85,8 +85,8 @@ public:
     }
 
 private:
-    NodePtr expression;
-    NodePtr statement;
+    Node* expression;
+    Node* statement;
 };
 
 

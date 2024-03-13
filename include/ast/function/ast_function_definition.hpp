@@ -12,9 +12,9 @@ class FunctionDefinition : public Node
 public:
     // No arguments provided into the function definition
     FunctionDefinition(
-        NodePtr _declaration_specifier,
-        NodePtr _declarator,
-        NodePtr _compound_statement
+        Node* _declaration_specifier,
+        Node* _declarator,
+        Node* _compound_statement
     ) :
         declaration_specifier(_declaration_specifier),
         declarator(_declarator),
@@ -41,11 +41,6 @@ public:
         dst << "{" << std::endl;
         compound_statement->print(dst, indent_level + 1);
         dst << "}";
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("FunctionDefinition::evaluate() not implemented");
     }
 
     virtual void gen_asm(
@@ -101,9 +96,9 @@ public:
     }
 
 private:
-    NodePtr declaration_specifier;
-    NodePtr declarator;
-    NodePtr compound_statement;
+    Node* declaration_specifier;
+    Node* declarator;
+    Node* compound_statement;
 };
 
 

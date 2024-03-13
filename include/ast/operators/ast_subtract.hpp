@@ -24,13 +24,6 @@ public:
         dst << std::endl;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        double left_val = get_left()->evaluate(context);
-        double right_val = get_right()->evaluate(context);
-        return left_val - right_val;
-    }
-
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,

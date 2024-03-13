@@ -12,8 +12,8 @@ class PointerDeclarator : public Node
 {
 public:
     PointerDeclarator(
-        NodePtr _pointer,
-        NodePtr _direct_declarator
+        Node* _pointer,
+        Node* _direct_declarator
     ) :
         pointer(_pointer),
         direct_declarator(_direct_declarator)
@@ -34,11 +34,6 @@ public:
     {
         // A pointer is always 4 bytes
         return Types::INT;
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("PointerDeclarator::evaluate() not implemented");
     }
 
     virtual void print(std::ostream &dst, int indent_level) const override
@@ -70,8 +65,8 @@ public:
     }
 
 private:
-    NodePtr pointer;
-    NodePtr direct_declarator;
+    Node* pointer;
+    Node* direct_declarator;
 };
 
 #endif // ast_pointer_declarator_hpp

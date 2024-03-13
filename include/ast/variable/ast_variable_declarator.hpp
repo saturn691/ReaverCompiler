@@ -2,6 +2,7 @@
 #define ast_variable_declarator_hpp
 
 #include "../ast_node.hpp"
+#include "../primitives/ast_identifier.hpp"
 #include "../ast_context.hpp"
 
 
@@ -12,7 +13,7 @@ class VariableDeclarator : public Node
 {
 public:
     VariableDeclarator(
-        NodePtr _identifier
+        Identifier* _identifier
     ) :
         identifier(_identifier)
     {}
@@ -25,21 +26,6 @@ public:
     virtual void print(std::ostream &dst, int indent_level) const override
     {
         identifier->print(dst, indent_level);
-    }
-
-    virtual std::string get_id() const override
-    {
-        return identifier->get_id();
-    }
-
-    virtual Types get_type(Context &context) const override
-    {
-        return identifier->get_type(context);
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("VariableDeclarator::evaluate() not implemented");
     }
 
     virtual void gen_asm(
@@ -73,7 +59,7 @@ public:
     }
 
 private:
-    NodePtr identifier;
+    Node* identifier;
 };
 
 

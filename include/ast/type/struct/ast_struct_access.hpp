@@ -13,8 +13,8 @@ class StructAccess : public Node
 {
 public:
     StructAccess(
-        NodePtr _postfix_expression,
-        NodePtr _identifier
+        Node* _postfix_expression,
+        Node* _identifier
     ) :
         postfix_expression(_postfix_expression),
         identifier(_identifier)
@@ -78,8 +78,8 @@ public:
     }
 
 private:
-    NodePtr postfix_expression;
-    NodePtr identifier;
+    Node* postfix_expression;
+    Node* identifier;
 };
 
 

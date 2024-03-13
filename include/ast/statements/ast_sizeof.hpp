@@ -10,7 +10,7 @@
 class SizeOf : public Node
 {
 public:
-    SizeOf(NodePtr _child) : child(_child) {}
+    SizeOf(Node* _child) : child(_child) {}
 
     ~SizeOf()
     {
@@ -39,7 +39,7 @@ public:
 
 private:
     // unary_expression or type_name
-    NodePtr child;
+    Node* child;
 };
 
 

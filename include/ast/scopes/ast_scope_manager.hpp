@@ -12,8 +12,8 @@ class ScopeManager : public Node
 public:
     // No arguments provided into the function definition
     ScopeManager(
-        NodePtr _statement_list,
-        NodePtr _declaration_list
+        Node* _statement_list,
+        Node* _declaration_list
     ) :
         statement_list(_statement_list),
         declaration_list(_declaration_list)
@@ -23,11 +23,6 @@ public:
     {
         delete statement_list;
         delete declaration_list;
-    }
-
-    virtual std::string get_id() const override
-    {
-        throw std::runtime_error("ScopeManager::get_id() not implemented");
     }
 
     virtual void print(std::ostream &dst, int indent_level) const override
@@ -46,16 +41,6 @@ public:
             declaration_list->print(dst, indent_level);
         }
         dst << "}" << std::endl;
-    }
-
-    virtual Types get_type(Context& context) const override
-    {
-        throw std::runtime_error("ScopeManager::get_type() not implemented");
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("ScopeManager::evaluate() not implemented");
     }
 
     virtual void gen_asm(
@@ -81,8 +66,8 @@ public:
     }
 
 private:
-    NodePtr statement_list;
-    NodePtr declaration_list;
+    Node* statement_list;
+    Node* declaration_list;
 };
 
 

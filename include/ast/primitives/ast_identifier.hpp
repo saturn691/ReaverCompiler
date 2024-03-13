@@ -16,38 +16,26 @@ public:
     virtual ~Identifier()
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         dst << id;
     }
 
-    virtual std::string get_id() const override
+    /**
+     * Returns the identifier associated with the node.
+    */
+    virtual std::string get_id() const
     {
         return id;
     }
 
-    virtual Types get_type(Context &context) const override
-    {
-        return context.get_type(id);
-    }
-
-    virtual unsigned int get_size(Context &context) const override
-    {
-        return context.get_size(id);
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Identifier::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = get_type(context);
+        Types type = context.get_type(id);
 
         // Check if it's the variable is an enum
         int enum_value = context.get_enum_value(id);

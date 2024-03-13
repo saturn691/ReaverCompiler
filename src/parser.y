@@ -14,12 +14,18 @@
   void update_type_map(std::string id, Types type);
   int yylex(void);
   void yyerror(const char *);
+  int yylex_destroy(void);
 }
 
+// All the possible types of tokens
 %union{
-    const Node *node;
-    double number;
-    std::string *string;
+    Node            *node;
+    NodeList        *nodes;
+    AssignOp        *assign_op;
+    Expression      *expression;
+    double          number;
+    std::string     *string;
+    yytokentype     token;
 }
 
 %token IDENTIFIER CONSTANT STRING_LITERAL CHAR_LITERAL SIZEOF
@@ -38,30 +44,36 @@
 %type <number> CONSTANT
 %type <string> IDENTIFIER STRING_LITERAL CHAR_LITERAL unary_operator
 
-%type <node> primary_expression postfix_expression argument_expression_list
+%type <node> primary_expression postfix_expression
 %type <node> unary_expression cast_expression
 %type <node> multiplicative_expression additive_expression shift_expression
 %type <node> relational_expression equality_expression and_expression
 %type <node> exclusive_or_expression inclusive_or_expression
 %type <node> logical_and_expression logical_or_expression
-%type <node> conditional_expression assignment_expression assignment_operator
+%type <node> conditional_expression assignment_expression
 %type <node> expression constant_expression
 %type <node> declaration declaration_specifiers
 %type <node> init_declarator_list init_declarator
-%type <node> storage_class_specifier type_specifier struct_declaration_list
+/* %type <node> storage_class_specifier type_qualifier */
+%type <node> type_specifier struct_declaration_list
 %type <node> struct_declaration struct_or_union_specifier struct_or_union
 %type <node> specifier_qualifier_list struct_declarator_list struct_declarator
 %type <node> enum_specifier enumerator_list enumerator
-%type <node> type_qualifier declarator direct_declarator pointer
+%type <node> declarator direct_declarator pointer
 %type <node> type_qualifier_list parameter_type_list parameter_list
 %type <node> parameter_declaration identifier_list type_name
-%type <node> abstract_declarator direct_abstract_declarator
+/* %type <node> abstract_declarator direct_abstract_declarator */
 %type <node> initializer initializer_list
 %type <node> statement labeled_statement compound_statement
-%type <node> declaration_list statement_list
 %type <node> expression_statement selection_statement iteration_statement
 %type <node> jump_statement translation_unit
 %type <node> external_declaration function_definition
+
+// Other types of nodes
+%type <nodes> declaration_list statement_list argument_expression_list
+%type <assign_op> assignment_operator
+%type <expression> ... // TODO -- need to implement
+
 
 %start root
 %%
@@ -83,12 +95,13 @@ postfix_expression
     | postfix_expression '[' expression ']'
         { $$ = new ArrayAccess($1, $3); }
     | postfix_expression '(' ')'
-        { $$ = new FunctionCall($1, NULL); }
+        { $$ = new FunctionCall(dynamic_cast<Identifier*>($1), NULL); }
     | postfix_expression '(' argument_expression_list ')'
-        { $$ = new FunctionCall($1, $3); }
+        { $$ = new FunctionCall(dynamic_cast<Identifier*>($1), $3); }
     | postfix_expression '.' IDENTIFIER
         { $$ = new StructAccess($1, new Identifier(*$3)); }
     | postfix_expression PTR_OP IDENTIFIER
+        // TODO -- Need to implement -> operator
     | postfix_expression INC_OP
         { $$ = new PostIncrement($1); }
     | postfix_expression DEC_OP
@@ -97,9 +110,9 @@ postfix_expression
 
 argument_expression_list
     : assignment_expression
-        { $$ = new FunctionArgumentList($1, NULL); }
+        { $$ = new FunctionArgumentList($1); }
     | argument_expression_list ',' assignment_expression
-        { $$ = new FunctionArgumentList($1, $3); }
+        { $1->PushBack($3); $$ = $1; }
     ;
 
 unary_expression
@@ -277,10 +290,11 @@ type_define
         { update_type_map(*$4, ((TypePtr)$2)->get_type()); }
     ;
 
+// Only consider type_specifier
 declaration_specifiers
     : storage_class_specifier
-        { $$ = $1; }
     | storage_class_specifier declaration_specifiers
+    // Do not consider storage_class_specifier
     | type_specifier
         { $$ = $1; }
     | type_specifier declaration_specifiers
@@ -555,16 +569,16 @@ compound_statement
 
 declaration_list
     : declaration
-        { $$ = $1; }
+        { $$ = new NodeList($1); }
     | declaration_list declaration
-        { $$ = new BinaryNode($1, $2); }
+        { $1->PushBack($2); $$ = $1; }
     ;
 
 statement_list
     : statement
-        { $$ = $1; }
+        { $$ = new NodeList($1); }
     | statement_list statement
-        { $$ = new BinaryNode($1, $2); }
+        { $1->PushBack($2); $$ = $1; }
     ;
 
 expression_statement
@@ -641,6 +655,8 @@ const Node *parseAST(std::string filename)
 
     g_root = NULL;
     yyparse();
+    fclose(yyin);
+    yylex_destroy();
 
     return g_root;
 }

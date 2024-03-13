@@ -10,7 +10,7 @@
 class LessThanEqual : public Operator
 {
 public:
-    LessThanEqual(NodePtr _left, NodePtr _right, bool _invert = false) :
+    LessThanEqual(Node* _left, Node* _right, bool _invert = false) :
         Operator(_left, _right),
         invert(_invert)
     {}
@@ -31,11 +31,6 @@ public:
         }
         get_right()->print(dst, indent_level);
         dst << std::endl;
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("evaluate not implemented");
     }
 
     virtual void gen_asm(

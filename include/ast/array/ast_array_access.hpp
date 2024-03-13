@@ -13,8 +13,8 @@ class ArrayAccess : public Node
 {
 public:
     ArrayAccess(
-        NodePtr _array,
-        NodePtr _index
+        Node* _array,
+        Node* _index
     ) :
         array(_array),
         index(_index)
@@ -35,21 +35,6 @@ public:
         dst << "[";
         index->print(dst, 0);
         dst << "]";
-    }
-
-    virtual std::string get_id() const override
-    {
-        return array->get_id();
-    }
-
-    virtual Types get_type(Context &context) const override
-    {
-        return array->get_type(context);
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("ArrayAccess::evaluate() not implemented");
     }
 
     std::string get_index_register() const
@@ -114,8 +99,8 @@ public:
 
 private:
     // postfix_expression '[' expression ']'
-    NodePtr array;
-    NodePtr index;
+    Node* array;
+    Node* index;
     mutable std::string index_register;
 };
 

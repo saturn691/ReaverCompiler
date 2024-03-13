@@ -13,7 +13,7 @@ class Pointer : public Node
 {
 public:
     Pointer(
-        NodePtr _pointer
+        Node* _pointer
     ) :
         pointer(_pointer)
     {}
@@ -23,7 +23,7 @@ public:
         delete pointer;
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
@@ -35,22 +35,7 @@ public:
         }
     }
 
-    virtual std::string get_id() const override
-    {
-        throw std::runtime_error("Pointer::get_id() not implemented");
-    }
-
-    virtual Types get_type(Context &context) const override
-    {
-        throw std::runtime_error("Pointer::get_type() not implemented");
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Pointer::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -59,7 +44,7 @@ public:
     }
 
 private:
-    NodePtr pointer;
+    Node* pointer;
 };
 
 #endif // ast_pointer_hpp

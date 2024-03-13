@@ -13,7 +13,7 @@ class StructDefinition : public Node
 public:
     StructDefinition(
         std::string _identifier,
-        NodePtr _struct_declaration_list
+        Node* _struct_declaration_list
     ) :
         identifier(_identifier),
         struct_declaration_list(_struct_declaration_list)
@@ -50,7 +50,7 @@ public:
 
 private:
     std::string identifier;
-    NodePtr struct_declaration_list;
+    Node* struct_declaration_list;
 };
 
 
