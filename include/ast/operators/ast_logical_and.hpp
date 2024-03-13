@@ -51,7 +51,9 @@ public:
         */
 
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = get_type();
+        Types type = get_type(context);
+        Context::Mode mode = context.mode;
+        context.mode = Context::Mode::GLOBAL;
 
         std::string temp_reg = context.allocate_register(Types::INT);
         std::string float_temp_reg = context.allocate_register(Types::FLOAT);
@@ -111,6 +113,7 @@ public:
 
         dst << label2 << ":" << std::endl;
 
+        context.mode = mode;
         context.deallocate_register(temp_reg);
     }
 };

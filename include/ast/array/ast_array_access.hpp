@@ -37,9 +37,9 @@ public:
         dst << "]";
     }
 
-    Types get_type() const override
+    Types get_type(Context &context) const override
     {
-        return identifier->get_type();
+        return identifier->get_type(context);
     }
 
     std::string get_id() const override

@@ -46,7 +46,7 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string case_label = context.get_unique_label("switch_case");
         std::string case_reg = context.allocate_register(
-            expression->get_type()
+            expression->get_type(context)
         );
 
         // Redirect into stringstream to be outputted later

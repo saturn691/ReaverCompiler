@@ -62,7 +62,7 @@ public:
         context.end_label_stack.push(end_label);
 
         std::string switch_reg = context.allocate_register(
-            expression->get_type()
+            expression->get_type(context)
         );
         context.switch_reg = switch_reg;
 

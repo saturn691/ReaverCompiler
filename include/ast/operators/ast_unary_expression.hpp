@@ -38,9 +38,9 @@ public:
         return cast_expression->get_id();
     }
 
-    Types get_type() const override
+    Types get_type(Context &context) const override
     {
-        return cast_expression->get_type();
+        return cast_expression->get_type(context);
     }
 
     std::string get_unary_operator() const
@@ -54,6 +54,8 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        Context::Mode mode = context.mode;
+        context.mode = Context::Mode::GLOBAL;
 
         if (unary_operator == "*")
         {
@@ -76,18 +78,19 @@ public:
         else if (unary_operator == "&") // for pointers -> address of
         {
             // TODO pass this onto cast_expression->gen_asm()
-            // std::string id = cast_expression->get_id();
-            // int address = context.get_stack_location(id);
-            // dst << indent << "addi " << dest_reg << ", s0, " << address << std::endl;
+            std::string id = cast_expression->get_id();
+            int address = context.get_stack_location(id);
+            dst << indent << "addi " << dest_reg << ", s0, " << address << std::endl;
         }
         // for pointers -> dereference
-        else if (unary_operator == "*" && context.mode != Context::Mode::ASSIGN)
+        else if (unary_operator == "*" && mode != Context::Mode::ASSIGN)
         {
-            std::string load = Context::get_load_instruction(get_type());
+            std::string load = Context::get_load_instruction(get_type(context));
             dst << indent << load << " " << dest_reg
                 << ", 0(" << dest_reg << ")" << std::endl;
         }
 
+        context.mode = mode;
         context.is_pointer = false;
     }
 

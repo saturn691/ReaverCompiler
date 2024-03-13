@@ -29,8 +29,9 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        Types type = get_type();
-
+        Types type = get_type(context);
+        Context::Mode mode = context.mode;
+        context.mode = Context::Mode::GLOBAL;
         context.multiply_pointer = true;
 
         std::string temp_reg1 = context.allocate_register(type);
@@ -44,6 +45,7 @@ public:
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
         context.multiply_pointer = false;
+        context.mode = mode;
     }
 
 private:

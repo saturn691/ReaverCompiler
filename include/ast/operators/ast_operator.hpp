@@ -26,9 +26,9 @@ public:
         throw std::runtime_error("Operator::get_id() not implemented");
     }
 
-    Types get_type() const override
+    Types get_type(Context &context) const override
     {
-        return std::max(left->get_type(), right->get_type());
+        return std::max(left->get_type(context), right->get_type(context));
     }
 
     Expression* get_left() const

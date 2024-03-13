@@ -29,7 +29,9 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = get_type();
+        Types type = get_type(context);
+        Context::Mode mode = context.mode;
+        context.mode = Context::Mode::GLOBAL;
 
         std::string temp_reg1 = context.allocate_register(type);
         get_left()->gen_asm(dst, temp_reg1, context);
@@ -39,6 +41,7 @@ public:
 
         gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map);
 
+        context.mode = mode;
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
     }

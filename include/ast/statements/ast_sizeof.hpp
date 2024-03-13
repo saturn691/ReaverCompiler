@@ -30,7 +30,7 @@ public:
         return "";
     }
 
-    Types get_type() const override
+    Types get_type(Context &context) const override
     {
         // Try casting to Type
         Type* type = dynamic_cast<Type*>(child);
@@ -43,7 +43,7 @@ public:
         }
         else if (expression != NULL)
         {
-            return expression->get_type();
+            return expression->get_type(context);
         }
         else
         {
@@ -67,10 +67,10 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-
-        // TODO this
-        // unsigned int size = child->get_size(context);
-        // dst << indent << "li " << dest_reg << ", " << size << std::endl;
+        Context::Mode old_mode = context.mode;
+        context.mode = Context::Mode::SIZEOF;
+        child->gen_asm(dst, dest_reg, context);
+        context.mode = old_mode;
     }
 
 private:

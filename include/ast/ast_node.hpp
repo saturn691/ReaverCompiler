@@ -87,7 +87,7 @@ public:
         }
     }
 
-private:
+protected:
     std::vector<Node*> nodes;
 };
 

@@ -18,9 +18,9 @@ public:
         dst << id;
     }
 
-    Types get_type() const override
+    Types get_type(Context &context) const override
     {
-        throw std::runtime_error("Identifier has no type");
+        return context.get_type(id);
     }
 
     std::string get_id() const
@@ -35,6 +35,9 @@ public:
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         Types type;
+        int stack_loc;
+        std::string store, load;
+        unsigned int size;
 
         // Check if it's the variable is an enum
         int enum_value = context.get_enum_value(id);
@@ -47,15 +50,19 @@ public:
         }
 
         // Find the id on the stack - will throw exception if not found.
-        int stack_loc;
-        std::string store, load;
-
         switch (context.mode)
         {
             case Context::Mode::DECLARATION:
                 type = context.current_declaration_type->get_type();
                 context.allocate_stack(type, id);
                 break;
+
+            // SIZEOF
+            case Context::Mode::SIZEOF:
+                type = context.current_declaration_type->get_type();
+                size = context.get_size(id);
+                dst << indent << "li " << dest_reg << ", " << size << std::endl;
+                return;
 
             // STORE
             case Context::Mode::FUNCTION_DEFINITION:

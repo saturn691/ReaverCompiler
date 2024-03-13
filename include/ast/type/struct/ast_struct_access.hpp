@@ -34,7 +34,7 @@ public:
              + identifier->get_id();
     }
 
-    Types get_type() const override
+    Types get_type(Context &context) const override
     {
         // Find the id on the stack - will throw exception if not found
         // std::string id = get_id();
@@ -51,7 +51,7 @@ public:
         // Find the id on the stack - will throw exception if not found
         std::string id = get_id();
         int stack_loc = context.get_stack_location(id);
-        Types type = get_type();
+        Types type = get_type(context);
 
         switch (type)
         {

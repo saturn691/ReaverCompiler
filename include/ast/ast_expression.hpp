@@ -12,7 +12,7 @@ public:
     virtual ~Expression()
     {}
 
-    virtual Types get_type() const = 0;
+    virtual Types get_type(Context &context) const = 0;
 };
 
 #endif

@@ -84,6 +84,11 @@ public:
         Context &context
     ) const override {
         context.current_declaration_type = this;
+        if (context.mode == Context::Mode::SIZEOF)
+        {
+            unsigned int size = get_size(context);
+            dst << "li " << dest_reg << ", " << size << std::endl;
+        }
     }
 
 private:

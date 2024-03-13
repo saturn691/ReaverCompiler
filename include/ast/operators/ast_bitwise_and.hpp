@@ -31,6 +31,8 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string temp_reg1 = context.allocate_register(Types::INT);
         std::string temp_reg2 = context.allocate_register(Types::INT);
+        Context::Mode mode = context.mode;
+        context.mode = Context::Mode::GLOBAL;
 
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);
@@ -38,6 +40,7 @@ public:
         dst << indent << "and " << dest_reg
             << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
 
+        context.mode = mode;
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
     }

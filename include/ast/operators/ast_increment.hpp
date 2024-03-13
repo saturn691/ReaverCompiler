@@ -38,9 +38,9 @@ public:
         }
     }
 
-    Types get_type() const override
+    Types get_type(Context &context) const override
     {
-        return operand->get_type();
+        return operand->get_type(context);
     }
 
     std::string get_id() const override
@@ -65,8 +65,10 @@ public:
         */
 
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = get_type();
+        Types type = get_type(context);
         std::string temp_reg = context.allocate_register(type);
+        Context::Mode mode = context.mode;
+        context.mode = Context::Mode::GLOBAL;
 
         operand->gen_asm(dst, temp_reg, context); // x
 
@@ -114,6 +116,7 @@ public:
                 << ", " << temp_reg << std::endl;
         }
 
+        context.mode = mode;
         context.deallocate_register(temp_reg);
     }
 

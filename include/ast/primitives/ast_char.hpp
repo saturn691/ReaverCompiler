@@ -31,7 +31,7 @@ public:
         dst << "'" << string << "'";
     }
 
-    Types get_type() const override
+    Types get_type(Context &context) const override
     {
         return Types::UNSIGNED_CHAR;
     }

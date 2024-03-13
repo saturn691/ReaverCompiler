@@ -21,7 +21,12 @@ public:
         dst << value;
     }
 
-    Types get_type() const override
+    double evaluate() const
+    {
+        return value;
+    }
+
+    Types get_type(Context &context) const override
     {
         // Here return the lowest priority type
         return Types::VOID;

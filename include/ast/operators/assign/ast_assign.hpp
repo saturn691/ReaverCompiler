@@ -28,7 +28,7 @@ public:
         return unary_expression->get_id();
     }
 
-    Types get_type() const override
+    Types get_type(Context &context) const override
     {
         throw std::runtime_error("Assign has no type");
     }

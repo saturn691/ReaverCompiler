@@ -57,7 +57,7 @@
 %type <expr> expression constant_expression
 
 %type <node> declaration
-%type <node> init_declarator_list init_declarator
+%type <node> init_declarator_list
 /* %type <node> storage_class_specifier type_qualifier */
 
 %type <node> struct_declaration struct_or_union_specifier
@@ -82,7 +82,7 @@
 // Other types of nodes
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
 %type <assign_op> assignment_operator
-%type <declarator> declarator direct_declarator
+%type <declarator> declarator direct_declarator init_declarator
 
 
 %start root
@@ -333,7 +333,7 @@ init_declarator
     : declarator
         { $$ = $1; }
     | declarator '=' initializer
-        // { $$ = new Assign($1, new AssignOp("="), $3); }
+        { $$ = new InitDeclarator($1, $3); }
     ;
 
 // ------

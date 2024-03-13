@@ -12,11 +12,16 @@
 class FunctionArgumentList : public NodeList
 {
 public:
-    FunctionArgumentList(
-        Expression* _node
-    ) :
-        nodes({_node})
-    {}
+    using NodeList::NodeList;
+
+    void print(std::ostream &dst, int indent_level) const override
+    {
+        for (auto &node : nodes)
+        {
+            node->print(dst, indent_level);
+            dst << ", ";
+        }
+    }
 
     void gen_asm(
         std::ostream &dst,
@@ -27,7 +32,10 @@ public:
 
         for (auto &node : nodes)
         {
-            std::string arg_reg = context.allocate_arg_register(node->get_type());
+            Expression* n = dynamic_cast<Expression*>(node);
+            std::string arg_reg = context
+                .allocate_arg_register(n->get_type(context));
+
             node->gen_asm(dst, arg_reg, context);
         }
     }
@@ -36,9 +44,6 @@ public:
     {
         nodes.push_back(_node);
     }
-
-private:
-    std::vector<Expression*> nodes;
 };
 
 
