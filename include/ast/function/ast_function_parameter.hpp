@@ -2,6 +2,8 @@
 #define ast_function_parameter_hpp
 
 #include "../ast_node.hpp"
+#include "../type/ast_type.hpp"
+#include "../ast_declarator.hpp"
 
 
 /*
@@ -13,8 +15,8 @@ class FunctionParameter : public Node
 public:
     // No arguments provided into the function definition
     FunctionParameter(
-        NodePtr _declaration_specifiers,
-        NodePtr _declarator
+        Type* _declaration_specifiers,
+        Declarator* _declarator
     ) :
         declaration_specifiers(_declaration_specifiers),
         declarator(_declarator)
@@ -26,35 +28,20 @@ public:
         delete declarator;
     }
 
-    virtual std::string get_id() const override
-    {
-        return declarator->get_id();
-    }
-
-    virtual Types get_type(Context &context) const override
-    {
-        return declaration_specifiers->get_type(context);
-    }
-
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         declaration_specifiers->print(dst, 0);
         dst << " ";
         declarator->print(dst, 0);
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("FunctionParameter::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
-        Types type = get_type(context);
-        std::string id = get_id();
+        Types type = declaration_specifiers->get_type();
+        std::string id = declarator->get_id();
         context.add_function_declaration_type(type);
 
         if (dest_reg == "MAGIC CODE")
@@ -70,8 +57,8 @@ public:
     }
 
 private:
-    NodePtr declaration_specifiers;
-    NodePtr declarator;
+    Type* declaration_specifiers;
+    Declarator* declarator;
 };
 
 

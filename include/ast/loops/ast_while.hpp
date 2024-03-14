@@ -11,14 +11,14 @@ class While : public Node
 {
 public:
     While (
-        NodePtr _condition,
-        NodePtr _statement
+        Node* _condition,
+        Node* _statement
     ) :
         condition(_condition),
         statement(_statement)
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
@@ -35,12 +35,7 @@ public:
         dst << indent << "}" << std::endl;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("While::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -70,8 +65,8 @@ public:
     }
 
 private:
-    NodePtr condition;
-    NodePtr statement;
+    Node* condition;
+    Node* statement;
 };
 
 

@@ -10,7 +10,7 @@
 class Return : public Node
 {
 public:
-    Return(NodePtr _return_node) : return_node(_return_node)
+    Return(Node* _return_node) : return_node(_return_node)
     {}
 
     virtual ~Return()
@@ -18,7 +18,7 @@ public:
         delete return_node;
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
@@ -29,12 +29,7 @@ public:
         dst << indent << ")" << std::endl;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Return::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -49,7 +44,7 @@ public:
     }
 
 private:
-    NodePtr return_node;
+    Node* return_node;
 };
 
 

@@ -2,13 +2,14 @@
 #define AST_INCREMENT_HPP
 
 #include "../ast_node.hpp"
+#include "../ast_expression.hpp"
 #include "../primitives/ast_number.hpp"
 
 // Node for post-increment (e.g., i++)
-class PostIncrement : public Node {
+class PostIncrement : public Expression {
 public:
     PostIncrement(
-        NodePtr _operand,
+        Expression* _operand,
         bool _invert = false,
         bool _pre = false
     ) :
@@ -21,7 +22,7 @@ public:
         delete operand;
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override {
+    void print(std::ostream &dst, int indent_level) const override {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
         std::string op = (invert ? "--" : "++");
 
@@ -37,17 +38,17 @@ public:
         }
     }
 
-    virtual Types get_type(Context &context) const override
+    Types get_type(Context &context) const override
     {
         return operand->get_type(context);
     }
 
-    virtual unsigned int get_size(Context &context) const override
+    std::string get_id() const override
     {
-        return operand->get_size(context);
+        return operand->get_id();
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -66,11 +67,13 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         Types type = get_type(context);
         std::string temp_reg = context.allocate_register(type);
+        Context::Mode mode = context.mode;
+        context.mode = Context::Mode::GLOBAL;
 
         operand->gen_asm(dst, temp_reg, context); // x
 
         // We need to store the original value if this is a post-increment
-        if (!pre && context.mode == Context::Mode::RETURN)
+        if (!pre && mode == Context::Mode::RETURN)
         {
             std::string move_ins = move_ins_map.at(type);
             dst << indent << move_ins << " " << dest_reg
@@ -106,18 +109,19 @@ public:
             << ", " << stack_loc << "(s0)" << std::endl;
 
         // Pre-increment means we store the incremented value
-        if (pre && context.mode == Context::Mode::RETURN)
+        if (pre && mode == Context::Mode::RETURN)
         {
             std::string move_ins = move_ins_map.at(type);
             dst << indent << move_ins << " " << dest_reg
                 << ", " << temp_reg << std::endl;
         }
 
+        context.mode = mode;
         context.deallocate_register(temp_reg);
     }
 
 private:
-    NodePtr operand;  // The operand to be incremented
+    Expression* operand;  // The operand to be incremented
     bool invert;  // Switch between increment and decrement
     bool pre;  // Whether this is a pre-increment or post-increment
 

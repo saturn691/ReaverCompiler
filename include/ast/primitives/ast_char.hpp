@@ -1,14 +1,14 @@
 #ifndef ast_char_hpp
 #define ast_char_hpp
 
-#include "../ast_node.hpp"
+#include "../ast_expression.hpp"
 #include "../ast_context.hpp"
 
 
 /*
  *  Leaf node for char literals (e.g. 'a')
 */
-class Char : public Node
+class Char : public Expression
 {
 public:
     Char(std::string _string)
@@ -26,22 +26,22 @@ public:
     virtual ~Char()
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         dst << "'" << string << "'";
     }
 
-    virtual Types get_type(Context &context) const override
+    Types get_type(Context &context) const override
     {
         return Types::UNSIGNED_CHAR;
     }
 
-    virtual double evaluate(Context &context) const override
+    std::string get_id() const override
     {
-        throw std::runtime_error("Cannot evaluate char literal");
+        return std::to_string((int)string);
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

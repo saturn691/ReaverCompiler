@@ -1,7 +1,7 @@
 #ifndef ast_array_access_hpp
 #define ast_array_access_hpp
 
-#include "../ast_node.hpp"
+#include "../ast_expression.hpp"
 #include "../ast_context.hpp"
 
 #include <cmath>
@@ -9,47 +9,42 @@
 /*
  *  Node for array access (e.g. "arr[5];")
 */
-class ArrayAccess : public Node
+class ArrayAccess : public Expression
 {
 public:
     ArrayAccess(
-        NodePtr _array,
-        NodePtr _index
+        Identifier* _identifier,
+        Expression* _index
     ) :
-        array(_array),
+        identifier(_identifier),
         index(_index)
     {}
 
     virtual ~ArrayAccess()
     {
-        delete array;
+        delete identifier;
         delete index;
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
         dst << indent;
-        array->print(dst, 0);
+        identifier->print(dst, 0);
         dst << "[";
         index->print(dst, 0);
         dst << "]";
     }
 
-    virtual std::string get_id() const override
+    Types get_type(Context &context) const override
     {
-        return array->get_id();
+        return identifier->get_type(context);
     }
 
-    virtual Types get_type(Context &context) const override
+    std::string get_id() const override
     {
-        return array->get_type(context);
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("ArrayAccess::evaluate() not implemented");
+        return identifier->get_id();
     }
 
     std::string get_index_register() const
@@ -57,15 +52,15 @@ public:
         return index_register;
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Types type = array->get_type(context);
+        std::string id = identifier->get_id();
+        Types type = context.get_type(id);
         std::string reg = context.allocate_register(type);
-        std::string id = array->get_id();
 
         index->gen_asm(dst, reg, context);
         index_register = reg;
@@ -115,8 +110,8 @@ public:
 
 private:
     // postfix_expression '[' expression ']'
-    NodePtr array;
-    NodePtr index;
+    Identifier* identifier;
+    Node* index;
     mutable std::string index_register;
 };
 

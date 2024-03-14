@@ -2,7 +2,7 @@
 #define ast_function_definition_hpp
 
 #include "../ast_node.hpp"
-
+#include "../ast_declarator.hpp"
 
 /*
  *  Node for defining functions (e.g. "int f() { return 5; }")
@@ -12,9 +12,9 @@ class FunctionDefinition : public Node
 public:
     // No arguments provided into the function definition
     FunctionDefinition(
-        NodePtr _declaration_specifier,
-        NodePtr _declarator,
-        NodePtr _compound_statement
+        Type* _declaration_specifier,
+        Declarator* _declarator,
+        Node* _compound_statement
     ) :
         declaration_specifier(_declaration_specifier),
         declarator(_declarator),
@@ -28,7 +28,7 @@ public:
         delete compound_statement;
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
@@ -43,12 +43,7 @@ public:
         dst << "}";
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("FunctionDefinition::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -101,9 +96,9 @@ public:
     }
 
 private:
-    NodePtr declaration_specifier;
-    NodePtr declarator;
-    NodePtr compound_statement;
+    Type* declaration_specifier;
+    Declarator* declarator;
+    Node* compound_statement;
 };
 
 

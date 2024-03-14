@@ -15,7 +15,7 @@ public:
     virtual ~BasicType()
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         switch (type)
         {
@@ -61,12 +61,7 @@ public:
         }
     }
 
-    virtual Types get_type(Context &context) const override
-    {
-        return type;
-    }
-
-    virtual Types get_type() const override
+    Types get_type() const override
     {
         return type;
     }
@@ -76,24 +71,24 @@ public:
         return Context::type_size_map.at(type);
     }
 
-    virtual void allocate_stack(
+    void allocate_stack(
         Context &context,
         std::string id
     ) const override {
         context.allocate_stack(type, id);
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Type::evaluate() not allowed");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
         context.current_declaration_type = this;
+        if (context.mode == Context::Mode::SIZEOF)
+        {
+            unsigned int size = get_size(context);
+            dst << "li " << dest_reg << ", " << size << std::endl;
+        }
     }
 
 private:

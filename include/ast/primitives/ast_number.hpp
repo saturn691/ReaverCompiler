@@ -1,14 +1,14 @@
 #ifndef ast_number_hpp
 #define ast_number_hpp
 
-#include "../ast_node.hpp"
+#include "../ast_expression.hpp"
 #include <cstring>
 
 
 /*
  *  Leaf node for numbers (e.g. "10" in "int x = 10;")
 */
-class Number : public Node
+class Number : public Expression
 {
 public:
     Number(double _value) : value(_value) {}
@@ -16,23 +16,28 @@ public:
     virtual ~Number()
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         dst << value;
     }
 
-    virtual Types get_type(Context &context) const override
+    double evaluate() const
+    {
+        return value;
+    }
+
+    Types get_type(Context &context) const override
     {
         // Here return the lowest priority type
         return Types::VOID;
     }
 
-    virtual double evaluate(Context &context) const override
+    std::string get_id() const override
     {
-        return value;
+        return std::to_string(value);
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

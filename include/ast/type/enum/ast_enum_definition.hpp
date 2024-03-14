@@ -13,7 +13,7 @@ class EnumDefinition : public Node
 {
 public:
     EnumDefinition(
-        NodePtr _enumerator_list
+        Node* _enumerator_list
     ) :
         identifier(""),
         enumerator_list(_enumerator_list)
@@ -21,13 +21,13 @@ public:
 
     EnumDefinition(
         std::string _identifier,
-        NodePtr _enumerator_list
+        Node* _enumerator_list
     ) :
         identifier(_identifier),
         enumerator_list(_enumerator_list)
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         dst << "enum " << identifier << std::endl;
         dst << "{";
@@ -38,7 +38,7 @@ public:
         dst << std::endl;
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -49,7 +49,7 @@ public:
 
 private:
     std::string identifier;
-    NodePtr enumerator_list;
+    Node* enumerator_list;
 };
 
 

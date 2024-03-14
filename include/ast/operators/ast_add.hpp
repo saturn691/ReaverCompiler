@@ -13,7 +13,7 @@ class Add : public Operator
 public:
     using Operator::Operator;
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
 
@@ -24,18 +24,14 @@ public:
         dst << std::endl;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("Add::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
         Types type = get_type(context);
-
+        Context::Mode mode = context.mode;
+        context.mode = Context::Mode::GLOBAL;
         context.multiply_pointer = true;
 
         std::string temp_reg1 = context.allocate_register(type);
@@ -49,6 +45,7 @@ public:
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
         context.multiply_pointer = false;
+        context.mode = mode;
     }
 
 private:

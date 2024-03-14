@@ -145,6 +145,8 @@ public:
         LOCAL,
 
         ASSIGN,                     // Used for pointers
+        DECLARATION,                // Used for declarations
+        SIZEOF,                     // Used for sizeof()
         FUNCTION_DEFINITION,        // Duh
         RETURN                      // Duh as well
     };

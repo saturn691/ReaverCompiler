@@ -8,12 +8,12 @@
 /*
  *  Node for pointer declaration (e.g. "*x;")
 */
-class PointerDeclarator : public Node
+class PointerDeclarator : public Declarator
 {
 public:
     PointerDeclarator(
-        NodePtr _pointer,
-        NodePtr _direct_declarator
+        Node* _pointer,
+        Declarator* _direct_declarator
     ) :
         pointer(_pointer),
         direct_declarator(_direct_declarator)
@@ -25,23 +25,12 @@ public:
         delete direct_declarator;
     }
 
-    virtual std::string get_id() const override
+    std::string get_id() const override
     {
         return direct_declarator->get_id();
     }
 
-    virtual Types get_type(Context &context) const override
-    {
-        // A pointer is always 4 bytes
-        return Types::INT;
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("PointerDeclarator::evaluate() not implemented");
-    }
-
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
@@ -56,7 +45,7 @@ public:
         }
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -70,8 +59,8 @@ public:
     }
 
 private:
-    NodePtr pointer;
-    NodePtr direct_declarator;
+    Node* pointer;
+    Declarator* direct_declarator;
 };
 
 #endif // ast_pointer_declarator_hpp

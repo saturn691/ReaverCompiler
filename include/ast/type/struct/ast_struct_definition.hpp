@@ -8,18 +8,18 @@
  *  Defines a struct
  *  (e.g. "struct x { int a; int b; };")
 */
-class StructDefinition : public Node
+class StructDefinition : public Type
 {
 public:
     StructDefinition(
         std::string _identifier,
-        NodePtr _struct_declaration_list
+        Node* _struct_declaration_list
     ) :
         identifier(_identifier),
         struct_declaration_list(_struct_declaration_list)
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         dst << "struct " << identifier << std::endl;
         dst << "{" << std::endl;
@@ -28,16 +28,22 @@ public:
         dst << std::endl;
     }
 
-    virtual void gen_asm(
+    Types get_type() const override {}
+
+    void allocate_stack(Context &context, std::string id) const override {}
+
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
+        Context::Mode old_mode = context.mode;
+        context.mode = Context::Mode::STRUCT;
+
         // Clear the cache of struct members
         context.struct_members.clear();
 
         // Populate context.struct_members
-        context.mode = Context::Mode::STRUCT;
         struct_declaration_list->gen_asm(dst, dest_reg, context);
 
         // Create a new struct type and add it to the struct map
@@ -45,12 +51,13 @@ public:
             identifier,
             context.struct_members
         );
-        context.mode = Context::Mode::GLOBAL;
+
+        context.mode = old_mode;
     }
 
 private:
     std::string identifier;
-    NodePtr struct_declaration_list;
+    Node* struct_declaration_list;
 };
 
 

@@ -10,12 +10,16 @@
 class Equal : public Operator
 {
 public:
-    Equal(NodePtr _left, NodePtr _right, bool _invert = false) :
+    Equal(
+        Expression* _left,
+        Expression* _right,
+        bool _invert = false
+    ) :
         Operator(_left, _right),
         invert(_invert)
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES* indent_level), ' ');
 
@@ -33,18 +37,15 @@ public:
         dst << std::endl;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("evaluate not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         Types type = get_type(context);
+        Context::Mode mode = context.mode;
+        context.mode = Context::Mode::GLOBAL;
 
         std::string temp_reg1 = context.allocate_register(type);
         std::string temp_reg2 = context.allocate_register(type);
@@ -87,6 +88,7 @@ public:
         dst << indent << set_ins << " " << dest_reg
             << ", " << dest_reg << std::endl;
 
+        context.mode = mode;
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
     }

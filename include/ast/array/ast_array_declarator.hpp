@@ -6,12 +6,12 @@
 /*
  *  Node for array declaration (e.g. "x[8];")
 */
-class ArrayDeclarator : public Node
+class ArrayDeclarator : public Declarator
 {
 public:
     ArrayDeclarator(
-        NodePtr _direct_declarator,
-        NodePtr _array_size
+        Declarator* _direct_declarator,
+        Expression* _array_size
     ) :
         direct_declarator(_direct_declarator),
         array_size(_array_size)
@@ -23,7 +23,7 @@ public:
         delete array_size;
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
@@ -37,17 +37,7 @@ public:
         dst << "]";
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("ArrayDeclarator::evaluate() not implemented");
-    }
-
-    virtual std::string get_id() const override
-    {
-        return direct_declarator->get_id();
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -72,30 +62,20 @@ public:
             direct_declarator->gen_asm(dst, dest_reg, context);
         }
 
-        Types type = direct_declarator->get_type(context);
-        int arr_size;
-        if (context.mode == Context::Mode::FUNCTION_DEFINITION)
-        {
-            // Interpret this as a pointer
-            arr_size = 1;
-        }
-        else
-        {
-            arr_size = array_size->evaluate(context);
+        std::string id = direct_declarator->get_id();
+        Types type = context.get_type(id);
 
-            // I moved this inside the else statement due to duplicated stack
-            // allocation, but I'm not sure if this is correct
-
-            std::string id = direct_declarator->get_id();
-            int stack_loc = context.allocate_array_stack(type, arr_size, id);
-        }
+        // TODO Maybe don't expression is a number? It works however.
+        // Downcast to number and evaluate
+        int arr_size = dynamic_cast<Number*>(array_size)->evaluate();
+        int stack_loc = context.allocate_array_stack(type, arr_size, id);
     }
 
 private:
     // direct_declarator '[' constant_expression ']'
     // x [ 8 ]
-    NodePtr direct_declarator;
-    NodePtr array_size; // constant_expression
+    Declarator* direct_declarator;
+    Expression* array_size; // constant_expression
 };
 
 #endif // ast_array_declarator_hpp

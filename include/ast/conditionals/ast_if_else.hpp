@@ -11,9 +11,9 @@ class IfElse : public Node
 {
 public:
     IfElse(
-        NodePtr _condition,
-        NodePtr _then_statement,
-        NodePtr _else_statement = nullptr
+        Node* _condition,
+        Node* _then_statement,
+        Node* _else_statement = nullptr
     ) :
         condition(_condition),
         then_statement(_then_statement),
@@ -26,7 +26,7 @@ public:
         delete else_statement;
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
@@ -46,12 +46,7 @@ public:
         }
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("IfElse::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -93,9 +88,9 @@ public:
     }
 
 private:
-    NodePtr condition;
-    NodePtr then_statement;
-    NodePtr else_statement;
+    Node* condition;
+    Node* then_statement;
+    Node* else_statement;
 };
 
 

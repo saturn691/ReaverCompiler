@@ -20,13 +20,13 @@ public:
 
     EnumValue(
         std::string _identifier,
-        NodePtr _expression
+        Node* _expression
     ) :
         identifier(_identifier),
         expression(_expression)
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
         // Intentionally at the start. This is to do with commas
@@ -38,7 +38,7 @@ public:
         }
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -50,14 +50,16 @@ public:
         }
         else
         {
-            int value = expression->evaluate(context);
+            // Assume expression is a number
+            // Downcast to number and evaluate
+            int value = dynamic_cast<Number*>(expression)->evaluate();
             context.add_enum_value(identifier, value);
         }
     }
 
 private:
     std::string identifier;
-    NodePtr expression;
+    Node* expression;
 };
 
 

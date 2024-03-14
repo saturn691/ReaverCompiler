@@ -13,6 +13,12 @@ class StructType : public Type
 {
 public:
     StructType(
+        std::string _identifier
+    ) :
+        identifier(_identifier)
+    {}
+
+    StructType(
         std::string _identifier,
         std::vector<std::pair<std::string, TypePtr>> _members
     ) :
@@ -20,19 +26,19 @@ public:
         members(_members)
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
         dst << indent << "struct " << identifier;
         // Intentionally no std::endl
     }
 
-    virtual Types get_type() const override
+    Types get_type() const override
     {
         return Types::STRUCT;
     }
 
-    virtual void allocate_stack(
+    void allocate_stack(
         Context &context,
         std::string id
     ) const override {
@@ -52,6 +58,14 @@ public:
                 context.allocate_stack(type, new_id);
             }
         }
+    }
+
+    void gen_asm(
+        std::ostream &dst,
+        std::string &dest_reg,
+        Context &context
+    ) const override {
+        context.current_declaration_type = context.struct_map[identifier];
     }
 
 private:

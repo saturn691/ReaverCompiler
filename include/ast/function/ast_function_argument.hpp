@@ -12,7 +12,7 @@ class FunctionArgument : public Node
 public:
     // No arguments provided into the function definition
     FunctionArgument(
-        NodePtr _assignment_expression
+        Node* _assignment_expression
     ) :
         assignment_expression(_assignment_expression)
     {}
@@ -23,17 +23,12 @@ public:
     }
 
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         assignment_expression->print(dst, 0);
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("FunctionCall::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -50,7 +45,7 @@ public:
     }
 
 private:
-    NodePtr assignment_expression;
+    Node* assignment_expression;
 };
 
 

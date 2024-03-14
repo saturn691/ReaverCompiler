@@ -13,8 +13,8 @@ class Switch : public Node
 {
 public:
     Switch(
-        NodePtr _expression,
-        NodePtr _statement
+        Expression* _expression,
+        Node* _statement
     ) :
         expression(_expression),
         statement(_statement)
@@ -26,7 +26,7 @@ public:
         delete statement;
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
@@ -39,7 +39,7 @@ public:
         dst << indent << "}" << std::endl;
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -85,8 +85,8 @@ public:
     }
 
 private:
-    NodePtr expression;
-    NodePtr statement;
+    Expression* expression;
+    Node* statement;
 };
 
 

@@ -16,22 +16,17 @@ public:
     virtual ~AssignOp()
     {}
 
-    virtual std::string get_id() const override
+    std::string get_id() const
     {
         return op;
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         dst << op;
     }
 
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("AssignOp::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

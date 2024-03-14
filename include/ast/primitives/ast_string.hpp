@@ -1,14 +1,14 @@
 #ifndef ast_string_hpp
 #define ast_string_hpp
 
-#include "../ast_node.hpp"
+#include "../ast_expression.hpp"
 #include "../ast_context.hpp"
 
 
 /*
  *  Leaf node for string literals (e.g. "hello")
 */
-class String : public Node
+class String : public Expression
 {
 public:
     String(std::string _string) :
@@ -18,23 +18,23 @@ public:
     virtual ~String()
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         dst << string;
     }
 
-    virtual Types get_type(Context &context) const override
+    Types get_type(Context &context) const override
     {
         // This is a pointer to a char array
         return Types::INT;
     }
 
-    virtual double evaluate(Context &context) const override
+    std::string get_id() const override
     {
-        throw std::runtime_error("Cannot evaluate string literal");
+        return string;
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context

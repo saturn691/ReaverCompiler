@@ -9,39 +9,40 @@
  *  Declarations are HIGHER than declarators in the AST
  *  (e.g. "int x, y, z;")
 */
-class StructAccess : public Node
+class StructAccess : public Expression
 {
 public:
     StructAccess(
-        NodePtr _postfix_expression,
-        NodePtr _identifier
+        Expression* _postfix_expression,
+        Identifier* _identifier
     ) :
         postfix_expression(_postfix_expression),
         identifier(_identifier)
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         postfix_expression->print(dst, 0);
         dst << ".";
         identifier->print(dst, 0);
     }
 
-    virtual std::string get_id() const override
+    std::string get_id() const override
     {
         return postfix_expression->get_id()
              + "."
              + identifier->get_id();
     }
 
-    virtual Types get_type(Context &context) const override
+    Types get_type(Context &context) const override
     {
         // Find the id on the stack - will throw exception if not found
         std::string id = get_id();
         return context.get_type(id);
+        // TODO - implement this
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
@@ -78,8 +79,8 @@ public:
     }
 
 private:
-    NodePtr postfix_expression;
-    NodePtr identifier;
+    Expression* postfix_expression;
+    Identifier* identifier;
 };
 
 

@@ -1,10 +1,12 @@
 #ifndef ast_hpp
 #define ast_hpp
 
-#include <ast/ast_binary_node.hpp>
 #include <ast/ast_context.hpp>
 #include <ast/ast_empty_node.hpp>
 #include <ast/ast_node.hpp>
+#include <ast/ast_declarator.hpp>
+#include <ast/ast_init_declarator.hpp>
+#include <ast/ast_expression.hpp>
 
 #include <ast/function/ast_function_argument_list.hpp>
 #include <ast/function/ast_function_argument.hpp>

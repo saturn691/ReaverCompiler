@@ -13,14 +13,14 @@ class StructDeclaration : public Node
 {
 public:
     StructDeclaration(
-        NodePtr specifier_qualifier_list,
-        NodePtr _struct_declarator_list
+        Type* specifier_qualifier_list,
+        NodeList* _struct_declarator_list
     ) :
         specifier_qualifier_list(specifier_qualifier_list),
         struct_declarator_list(_struct_declarator_list)
     {}
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
         dst << indent;
@@ -30,18 +30,18 @@ public:
         dst << ";" << std::endl;
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
-        context.current_sub_declaration_type = (TypePtr)specifier_qualifier_list;
+        context.current_sub_declaration_type = specifier_qualifier_list;
         struct_declarator_list->gen_asm(dst, dest_reg, context);
     }
 
 private:
-    NodePtr specifier_qualifier_list;
-    NodePtr struct_declarator_list;
+    Type* specifier_qualifier_list;
+    NodeList* struct_declarator_list;
 };
 
 

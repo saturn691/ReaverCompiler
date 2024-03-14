@@ -11,9 +11,9 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/custom/505-sum_one_array.c",
+                "compiler_tests/struct/sizeof.c",
                 "-o",
-                "bin/output/custom/505-sum_one_array/505-sum_one_array.s",
+                "bin/debug.s",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

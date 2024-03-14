@@ -2,37 +2,44 @@
 #define ast_function_call_hpp
 
 #include "../ast_node.hpp"
+#include "../ast_expression.hpp"
+#include "../primitives/ast_identifier.hpp"
 
 
 /*
  *  Node for defining function calls (e.g. "f(x, y)")
 */
-class FunctionCall : public Node
+class FunctionCall : public Expression
 {
 public:
     // No arguments provided into the function definition
     FunctionCall(
-        NodePtr _postfix_expression,
-        NodePtr _argument_expression_list
+        Identifier* _identifier,
+        NodeList* _argument_expression_list
     ) :
-        postfix_expression(_postfix_expression),
+        identifier(_identifier),
         argument_expression_list(_argument_expression_list)
     {}
 
     virtual ~FunctionCall()
     {
-        delete postfix_expression;
+        delete identifier;
         delete argument_expression_list;
     }
 
-    virtual std::string get_id() const override
+    Types get_type(Context &context) const override
     {
-        return postfix_expression->get_id();
+        return identifier->get_type(context);
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    std::string get_id() const override
     {
-        postfix_expression->print(dst, 0);
+        return identifier->get_id();
+    }
+
+    void print(std::ostream &dst, int indent_level) const override
+    {
+        identifier->print(dst, 0);
         dst << "(";
         if (argument_expression_list)
         {
@@ -41,26 +48,17 @@ public:
         dst << ");" << std::endl;
     }
 
-    virtual Types get_type(Context& context) const override
-    {
-        return context.get_type(get_id());
-    }
-
-    virtual double evaluate(Context &context) const override
-    {
-        throw std::runtime_error("FunctionCall::evaluate() not implemented");
-    }
-
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        std::string id = identifier->get_id();
+        Types type = context.get_type(id);
 
         // Triggers the generation of assembly for the function parameters.
         std::string input_reg = "don't care";
-        Types type = get_type(context);
 
         // First argument goes into a0
         if (argument_expression_list)
@@ -69,7 +67,7 @@ public:
         }
 
         context.push_registers(dst);
-        dst << indent << "call " << get_id() << std::endl;
+        dst << indent << "call " << id << std::endl;
         context.pop_registers(dst);
 
         switch (type)
@@ -89,8 +87,8 @@ public:
     }
 
 private:
-    NodePtr postfix_expression;
-    NodePtr argument_expression_list;
+    Identifier* identifier;
+    NodeList* argument_expression_list;
 };
 
 
