@@ -14,7 +14,7 @@
 #include "type/ast_type.hpp"
 
 #define AST_STACK_ALIGN             16
-#define AST_STACK_ALLOCATE          64
+#define AST_STACK_ALLOCATE          128
 #define AST_PRINT_INDENT_SPACES     4
 
 
