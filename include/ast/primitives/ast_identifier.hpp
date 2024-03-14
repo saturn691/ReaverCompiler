@@ -53,8 +53,7 @@ public:
         switch (context.mode)
         {
             case Context::Mode::DECLARATION:
-                type = context.current_declaration_type->get_type();
-                context.allocate_stack(type, id);
+                context.current_declaration_type->allocate_stack(context, id);
                 break;
 
             // SIZEOF
@@ -62,7 +61,14 @@ public:
                 type = context.current_declaration_type->get_type();
                 size = context.get_size(id);
                 dst << indent << "li " << dest_reg << ", " << size << std::endl;
-                return;
+                break;
+
+            case Context::Mode::STRUCT:
+                context.struct_members.emplace_back(
+                    id,
+                    context.current_sub_declaration_type
+                );
+                break;
 
             // STORE
             case Context::Mode::FUNCTION_DEFINITION:

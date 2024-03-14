@@ -30,15 +30,6 @@ public:
         return direct_declarator->get_id();
     }
 
-    // TODO check this
-/*
-    Types get_type(Context &context) const override
-    {
-        // A pointer is always 4 bytes
-        return Types::INT;
-    }
-*/
-
     void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');

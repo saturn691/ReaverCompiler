@@ -60,7 +60,7 @@
 %type <node> init_declarator_list
 /* %type <node> storage_class_specifier type_qualifier */
 
-%type <node> struct_declaration struct_or_union_specifier
+%type <node> struct_declaration
 /* %type <node> struct_or_union */
 %type <node> struct_declarator
 %type <node> enum_specifier enumerator
@@ -81,6 +81,7 @@
 
 // Other types of nodes
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
+%type <type> struct_or_union_specifier
 %type <assign_op> assignment_operator
 %type <declarator> declarator direct_declarator init_declarator
 
@@ -358,7 +359,7 @@ type_specifier
     /* NOTE: This is a temporary solution- ignore compound types. */
     | SIGNED                        { $$ = new BasicType(Types::INT); }
     | UNSIGNED                      { $$ = new BasicType(Types::UNSIGNED_INT); }
-    | struct_or_union_specifier     // { $$ = $1; }
+    | struct_or_union_specifier     { $$ = $1; }
     | enum_specifier                // { $$ = $1; }
     /* typedefs */
     // TODO must be implemented
@@ -370,7 +371,7 @@ struct_or_union_specifier
         { $$ = new StructDefinition(*$2, $4); }
     | struct_or_union '{' struct_declaration_list '}'
     | struct_or_union IDENTIFIER
-        { $$ = new StructInstance(*$2); }
+        { $$ = new StructType(*$2); }
     ;
 
 struct_or_union

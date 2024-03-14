@@ -11,7 +11,7 @@ class ArrayDeclarator : public Declarator
 public:
     ArrayDeclarator(
         Declarator* _direct_declarator,
-        Node* _array_size
+        Expression* _array_size
     ) :
         direct_declarator(_direct_declarator),
         array_size(_array_size)
@@ -40,21 +40,23 @@ public:
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        std::string id = direct_declarator->get_id();
-        Types type = context.get_type(id);
 
         direct_declarator->gen_asm(dst, dest_reg, context);
 
-        // TODO Assembly must be generated here
-        // int arr_size = array_size->evaluate(context);
-        // int stack_loc = context.allocate_array_stack(type, arr_size, id);
+        std::string id = direct_declarator->get_id();
+        Types type = context.get_type(id);
+
+        // TODO Maybe don't expression is a number? It works however.
+        // Downcast to number and evaluate
+        int arr_size = dynamic_cast<Number*>(array_size)->evaluate();
+        int stack_loc = context.allocate_array_stack(type, arr_size, id);
     }
 
 private:
     // direct_declarator '[' constant_expression ']'
     // x [ 8 ]
     Declarator* direct_declarator;
-    Node* array_size; // constant_expression
+    Expression* array_size; // constant_expression
 };
 
 #endif // ast_array_declarator_hpp

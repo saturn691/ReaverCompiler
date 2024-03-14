@@ -73,7 +73,7 @@ public:
         operand->gen_asm(dst, temp_reg, context); // x
 
         // We need to store the original value if this is a post-increment
-        if (!pre && context.mode == Context::Mode::RETURN)
+        if (!pre && mode == Context::Mode::RETURN)
         {
             std::string move_ins = move_ins_map.at(type);
             dst << indent << move_ins << " " << dest_reg
@@ -109,7 +109,7 @@ public:
             << ", " << stack_loc << "(s0)" << std::endl;
 
         // Pre-increment means we store the incremented value
-        if (pre && context.mode == Context::Mode::RETURN)
+        if (pre && mode == Context::Mode::RETURN)
         {
             std::string move_ins = move_ins_map.at(type);
             dst << indent << move_ins << " " << dest_reg

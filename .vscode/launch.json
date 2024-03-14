@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/local_var/expression_initialiser.c",
+                "compiler_tests/struct/sizeof.c",
                 "-o",
                 "bin/debug.s",
             ],

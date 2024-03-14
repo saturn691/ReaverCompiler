@@ -13,8 +13,8 @@ class StructDeclaration : public Node
 {
 public:
     StructDeclaration(
-        Node* specifier_qualifier_list,
-        Node* _struct_declarator_list
+        Type* specifier_qualifier_list,
+        NodeList* _struct_declarator_list
     ) :
         specifier_qualifier_list(specifier_qualifier_list),
         struct_declarator_list(_struct_declarator_list)
@@ -35,13 +35,13 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        context.current_sub_declaration_type = (TypePtr)specifier_qualifier_list;
+        context.current_sub_declaration_type = specifier_qualifier_list;
         struct_declarator_list->gen_asm(dst, dest_reg, context);
     }
 
 private:
-    Node* specifier_qualifier_list;
-    Node* struct_declarator_list;
+    Type* specifier_qualifier_list;
+    NodeList* struct_declarator_list;
 };
 
 

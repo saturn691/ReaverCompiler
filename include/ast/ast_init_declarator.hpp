@@ -3,6 +3,7 @@
 
 #include "ast_declarator.hpp"
 #include "ast_expression.hpp"
+#include "pointer/ast_pointer_declarator.hpp"
 
 
 class InitDeclarator : public Declarator
@@ -46,7 +47,17 @@ public:
         declarator->gen_asm(dst, dest_reg, context);
 
         // Initialise it with the value
-        Types type = context.get_type(id);
+        // If it's a PointerDeclarator, then it's an INT type
+        Types type;
+        if (dynamic_cast<PointerDeclarator*>(declarator))
+        {
+            type = Types::INT;
+        }
+        else
+        {
+            type = context.get_type(id);
+        }
+
         std::string temp_reg = context.allocate_register(type);
         initializer->gen_asm(dst, temp_reg, context);
 

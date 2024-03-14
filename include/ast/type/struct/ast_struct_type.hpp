@@ -13,6 +13,12 @@ class StructType : public Type
 {
 public:
     StructType(
+        std::string _identifier
+    ) :
+        identifier(_identifier)
+    {}
+
+    StructType(
         std::string _identifier,
         std::vector<std::pair<std::string, TypePtr>> _members
     ) :
@@ -59,7 +65,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        // Nothing to do
+        context.current_declaration_type = context.struct_map[identifier];
     }
 
 private:
