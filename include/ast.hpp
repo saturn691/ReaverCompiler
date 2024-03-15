@@ -66,6 +66,7 @@
 #include <ast/scopes/ast_scope_manager.hpp>
 
 #include <ast/statements/ast_break.hpp>
+#include <ast/statements/ast_continue.hpp>
 #include <ast/statements/ast_case.hpp>
 #include <ast/statements/ast_return.hpp>
 #include <ast/statements/ast_sizeof.hpp>

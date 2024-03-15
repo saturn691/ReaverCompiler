@@ -632,7 +632,7 @@ iteration_statement
 
 jump_statement
     : GOTO IDENTIFIER ';'           // Does not need to be implemented
-    | CONTINUE ';'                  // TODO -- need to implement
+    | CONTINUE ';'                  { $$ = new Continue(); }
     | BREAK ';'                     { $$ = new Break(); }
     | RETURN ';'                    { $$ = new Return(new Number(0)); }
     | RETURN expression ';'         { $$ = new Return($2); }

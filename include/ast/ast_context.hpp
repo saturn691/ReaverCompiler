@@ -153,6 +153,9 @@ public:
 
     Mode mode = Mode::GLOBAL;
 
+    // Used for continue statements
+    std::stack<std::string> continue_label_stack;
+
     // Used for breaking out of switch-case statements
     std::stack<std::string> end_label_stack;
 
