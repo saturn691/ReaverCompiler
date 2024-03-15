@@ -43,7 +43,7 @@
 
 // Conditionals
 #include <ast/conditionals/ast_if_else.hpp>
-// #include <ast/conditionals/ast_ternary.hpp>
+#include <ast/conditionals/ast_ternary.hpp>
 
 // Loops
 #include <ast/loops/ast_for.hpp>

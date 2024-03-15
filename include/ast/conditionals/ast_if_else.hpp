@@ -66,11 +66,13 @@ public:
 
         if (else_statement != nullptr)
         {
-            dst << indent << "beq " << condition_reg << ", zero, " << else_label << std::endl;
+            dst << indent << "beq " << condition_reg
+                << ", zero, " << else_label << std::endl;
         }
         else
         {
-            dst << indent << "beq " << condition_reg << ", zero, " << end_label << std::endl;
+            dst << indent << "beq " << condition_reg
+                << ", zero, " << end_label << std::endl;
         }
 
         context.deallocate_register(condition_reg);

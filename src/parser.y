@@ -254,7 +254,7 @@ conditional_expression
         { $$ = $1; }
     // TODO ternary must be supported
     | logical_or_expression '?' expression ':' conditional_expression
-        /* { $$ = new Ternary($3, $5, $7); } */
+        { $$ = new Ternary($1, $3, $5); }
     ;
 
 assignment_expression
@@ -447,7 +447,7 @@ type_qualifier
 
 declarator
     : pointer direct_declarator
-        { $$ = new PointerDeclarator($1, $2);}
+        { $$ = new PointerDeclarator($1, $2); }
     | direct_declarator
         { $$ = $1; }
     ;

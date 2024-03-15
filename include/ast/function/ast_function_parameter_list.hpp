@@ -30,8 +30,6 @@ public:
 
         NodeList::gen_asm(dst, dest_reg, context);
     }
-private:
-    std::vector<Node*> nodes;
 };
 
 

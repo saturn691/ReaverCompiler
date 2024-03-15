@@ -31,11 +31,11 @@ Context::Context() :
 }
 
 
+// TODO need smarter algorithm for this
 std::string Context::allocate_register(Types type)
 {
     switch (type)
     {
-
         case Types::FLOAT:
         case Types::DOUBLE:
             // Search temporary registers (ft0-ft11)
@@ -135,6 +135,10 @@ std::string Context::allocate_arg_register(Types type)
             }
             break;
     }
+
+    throw std::runtime_error(
+        "Context::allocate_arg_register() - no free registers"
+    );
 }
 
 

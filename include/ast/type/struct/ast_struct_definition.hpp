@@ -28,7 +28,10 @@ public:
         dst << std::endl;
     }
 
-    Types get_type() const override {}
+    Types get_type() const override
+    {
+        throw std::runtime_error("StructDefinition does not have a type");
+    }
 
     void allocate_stack(Context &context, std::string id) const override {}
 

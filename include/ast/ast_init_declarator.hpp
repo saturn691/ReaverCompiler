@@ -23,7 +23,12 @@ public:
         delete initializer;
     }
 
-    virtual void print(std::ostream &dst, int indent_level) const override
+    std::string get_id() const override
+    {
+        return declarator->get_id();
+    }
+
+    void print(std::ostream &dst, int indent_level) const override
     {
         declarator->print(dst, indent_level);
         if (initializer)
@@ -33,7 +38,7 @@ public:
         }
     }
 
-    virtual void gen_asm(
+    void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
