@@ -148,11 +148,13 @@ public:
         ASSIGN,                     // Used for pointers
         DECLARATION,                // Used for declarations
         SIZEOF,                     // Used for sizeof()
+        OPERATOR,                   // Used for operators
         FUNCTION_DEFINITION,        // Duh
         RETURN                      // Duh as well
     };
 
-    Mode mode = Mode::GLOBAL;
+    std::stack<Mode> mode_stack;
+    bool has_mode(Mode mode) const;
 
     // Used for continue statements
     std::stack<std::string> continue_label_stack;

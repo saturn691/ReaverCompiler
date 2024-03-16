@@ -53,8 +53,8 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        Context::Mode mode = context.mode;
-        context.mode = Context::Mode::GLOBAL;
+        Context::Mode mode = context.mode_stack.top();
+        context.mode_stack.push(Context::Mode::OPERATOR);
 
         if (unary_operator == "*")
         {
@@ -89,7 +89,7 @@ public:
                 << ", 0(" << dest_reg << ")" << std::endl;
         }
 
-        context.mode = mode;
+        context.mode_stack.pop();
         context.is_pointer = false;
     }
 

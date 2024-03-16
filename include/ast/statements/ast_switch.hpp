@@ -55,7 +55,7 @@ public:
         end_label
         */
 
-        context.mode = Context::Mode::SWITCH;
+        context.mode_stack.push(Context::Mode::SWITCH);
         std::string end_label = context.get_unique_label("switch_end");
 
         // Imperative for breaking out of the statement
@@ -80,7 +80,7 @@ public:
         // Cleanup
         context.deallocate_register(switch_reg);
         context.switch_reg = "";
-        context.mode = Context::Mode::GLOBAL;
+        context.mode_stack.pop();
         context.end_label_stack.pop();
     }
 

@@ -49,7 +49,7 @@ public:
         }
 
         // Find the id on the stack - will throw exception if not found.
-        switch (context.mode)
+        switch (context.mode_stack.top())
         {
             case Context::Mode::DECLARATION:
                 context.current_declaration_type->allocate_stack(context, id);

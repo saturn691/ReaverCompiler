@@ -34,9 +34,9 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        context.mode = Context::Mode::RETURN;
+        context.mode_stack.push(Context::Mode::RETURN);;
         return_node->gen_asm(dst, dest_reg, context);
-        context.mode = Context::Mode::GLOBAL;
+        context.mode_stack.pop();
 
         dst << AST_INDENT << "j " << context.current_id << "_end" << std::endl;
     }

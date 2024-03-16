@@ -67,8 +67,8 @@ public:
 
         Types type = get_type(context);
         std::string temp_reg = context.allocate_register(type);
-        Context::Mode mode = context.mode;
-        context.mode = Context::Mode::GLOBAL;
+        Context::Mode mode = context.mode_stack.top();
+        context.mode_stack.push(Context::Mode::OPERATOR);
 
         operand->gen_asm(dst, temp_reg, context); // x
 
@@ -116,7 +116,7 @@ public:
                 << ", " << temp_reg << std::endl;
         }
 
-        context.mode = mode;
+        context.mode_stack.pop();
         context.deallocate_register(temp_reg);
     }
 

@@ -63,51 +63,34 @@ public:
         std::string id = unary_expression->get_id();
         int stack_loc = context.get_stack_location(id);
         Types type = context.get_type(id);
-        Context::Mode mode = context.mode;
+        unsigned int multiplier = Context::type_size_map.at(type);
+        context.pointer_multiplier = context.get_is_pointer(id) ? multiplier : 1;
 
-        context.mode = Context::Mode::ASSIGN;
+        ArrayAccess* array_access = dynamic_cast<ArrayAccess*>(unary_expression);
+        UnaryExpression* unary_expr = dynamic_cast<UnaryExpression*>(unary_expression);
+
+        context.mode_stack.push(Context::Mode::ASSIGN);
+
+        // Start of assembly generation
         unary_expression->gen_asm(dst, dest_reg, context);
 
         // Put the assignment expression into a temporary register
         std::string reg = context.allocate_register(type);
+        std::string store = Context::get_store_instruction(type);
 
-        // TODO there is a better way to do this
-        unsigned int multiplier = Context::type_size_map.at(type);
-        if (context.get_is_pointer(id))
-        {
-            context.pointer_multiplier = multiplier;
-        }
-        else
-        {
-            context.pointer_multiplier = 1;
-        }
-        assignment_expression->gen_asm(dst, reg, context);
-
-        ArrayAccess* array_access = dynamic_cast<ArrayAccess*>(unary_expression);
-        UnaryExpression* unary_expr = dynamic_cast<UnaryExpression*>(unary_expression);
-        std::string arr_reg;
+        gen_assignment_asm(dst, reg, context);
 
         if (array_access)
         {
-            arr_reg = array_access->get_index_register();
-            switch (type)
-            {
-                case Types::INT:
-                case Types::UNSIGNED_INT:
-                    dst << AST_INDENT << "sw " << reg
-                        << ", 0(" << arr_reg << ")" << std::endl;
-                    context.deallocate_register(arr_reg);
-                    break;
+            std::string arr_reg = array_access->get_index_register();
 
-                default:
-                    throw std::runtime_error(
-                        "Assign::gen_asm(): Unsupported type for assignment"
-                    );
-                    break;
-            }
+            dst << AST_INDENT << store << " " << reg
+                << ", 0(" << arr_reg << ")" << std::endl;
+            context.deallocate_register(arr_reg);
         }
-        // Pointer dereference
         /*
+            Pointer dereference
+
             For situations like:
                 int x = 5;
                 int *y = &x;
@@ -125,27 +108,12 @@ public:
             std::string unary_op = unary_expr->get_unary_operator();
             if (unary_op == "*")
             {
-                switch (type)
-                {
-                    case Types::INT:
-                    case Types::UNSIGNED_INT:
-                        dst << AST_INDENT << "sw " << reg << ", 0("
-                            << dest_reg << ")" << std::endl;
-                        break;
-
-                    default:
-                        throw std::runtime_error(
-                            "Assign::gen_asm(): Unsupported type for assignment"
-                        );
-                        break;
-                }
+                dst << AST_INDENT << store << " " << reg << ", 0("
+                    << dest_reg << ")" << std::endl;
             }
         }
         else
         {
-            gen_assignment_asm(dst, reg, context);
-
-            std::string store = Context::get_store_instruction(type);
             dst << AST_INDENT << store << " " << reg << ", "
                 << stack_loc << "(s0)" << std::endl;
 
@@ -160,9 +128,9 @@ public:
         }
 
         // Restore the mode
-        context.mode = mode;
-        context.deallocate_register(reg);
         context.pointer_multiplier = 1;
+        context.mode_stack.pop();
+        context.deallocate_register(reg);
     }
 
 private:
@@ -180,6 +148,7 @@ private:
         switch (a_id)
         {
             case AssignOpType::ASSIGN:
+                assignment_expression->gen_asm(dst, dest_reg, context);
                 break;
 
             case AssignOpType::MUL_ASSIGN:

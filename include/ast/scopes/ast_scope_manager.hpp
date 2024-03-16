@@ -47,8 +47,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        Context::Mode mode = context.mode;
-
+        context.mode_stack.push(Context::Mode::LOCAL);
         context.push_identifier_map();
 
         if (statement_list != NULL)
@@ -60,9 +59,11 @@ public:
             declaration_list->gen_asm(dst, dest_reg, context);
         }
 
+        context.mode_stack.pop();
+
         // C conventions require that the return code is 0 when unspecified
         // Easiest thing to do is to set it to 0 here. Can be made cleaner.
-        if (mode == Context::Mode::FUNCTION_DEFINITION)
+        if (context.mode_stack.top() == Context::Mode::FUNCTION_DEFINITION)
         {
             dst << AST_INDENT
                 << "# Only gets here if function body empty" << std::endl;

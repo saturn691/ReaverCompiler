@@ -51,8 +51,7 @@ public:
 
 
         Types type = get_type(context);
-        Context::Mode mode = context.mode;
-        context.mode = Context::Mode::GLOBAL;
+        context.mode_stack.push(Context::Mode::OPERATOR);
 
         std::string temp_reg = context.allocate_register(Types::INT);
         std::string float_temp_reg = context.allocate_register(Types::FLOAT);
@@ -113,7 +112,7 @@ public:
         dst << AST_INDENT << "mv " << dest_reg << ", "
             << temp_reg << std::endl;
 
-        context.mode = mode;
+        context.mode_stack.pop();
         context.deallocate_register(temp_reg);
         context.deallocate_register(float_temp_reg);
         context.deallocate_register(float_zero_reg);

@@ -31,8 +31,7 @@ public:
     ) const override {
         // Cannot use normal get_type, only depends on the LHS
         Types type = get_left()->get_type(context);
-        Context::Mode mode = context.mode;
-        context.mode = Context::Mode::GLOBAL;
+        context.mode_stack.push(Context::Mode::OPERATOR);
 
         // Undefined behaviour for floats/doubles
         std::string temp_reg1 = context.allocate_register(Types::INT);
@@ -43,7 +42,7 @@ public:
 
         gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map);
 
-        context.mode = mode;
+        context.mode_stack.pop();
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
     }

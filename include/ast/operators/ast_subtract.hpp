@@ -31,8 +31,7 @@ public:
     ) const override {
         Types type = get_type(context);
         context.multiply_pointer = true;
-        Context::Mode mode = context.mode;
-        context.mode = Context::Mode::GLOBAL;
+        context.mode_stack.push(Context::Mode::OPERATOR);
 
         std::string temp_reg1 = context.allocate_register(type);
         get_left()->gen_asm(dst, temp_reg1, context);
@@ -42,7 +41,7 @@ public:
 
         gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map);
 
-        context.mode = mode;
+        context.mode_stack.pop();
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
         context.multiply_pointer = false;

@@ -48,7 +48,7 @@ public:
         Context &context
     ) const override {
         std::string id = declarator->get_id();
-        context.mode = Context::Mode::FUNCTION_DEFINITION;
+        context.mode_stack.push(Context::Mode::FUNCTION_DEFINITION);
 
         // Let the children nodes know of the return type
         context.current_declaration_type = (TypePtr)declaration_specifier;
@@ -81,7 +81,7 @@ public:
         context.gen_memory_asm(dst);
 
         // Lookout for global variables
-        context.mode = Context::Mode::GLOBAL;
+        context.mode_stack.pop();
     }
 
 private:

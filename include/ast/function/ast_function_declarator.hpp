@@ -50,7 +50,7 @@ public:
         // Let the compiler know that this function exists
         context.add_function_declaration(get_id());
 
-        if (context.mode == Context::Mode::FUNCTION_DEFINITION)
+        if (context.mode_stack.top() == Context::Mode::FUNCTION_DEFINITION)
         {
             dst << get_id() << ":" << std::endl;
             context.init_stack(dst);

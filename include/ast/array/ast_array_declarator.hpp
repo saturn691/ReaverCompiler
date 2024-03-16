@@ -56,7 +56,7 @@ public:
             i.e., `int x[]` is equivalent to `int *x` in function parameters
         */
 
-        if (context.mode == Context::Mode::FUNCTION_DEFINITION)
+        if (context.mode_stack.top() == Context::Mode::FUNCTION_DEFINITION)
         {
             context.is_pointer = true;
             direct_declarator->gen_asm(dst, dest_reg, context);

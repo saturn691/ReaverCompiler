@@ -30,7 +30,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        if (context.mode == Context::Mode::SWITCH)
+        if (context.has_mode(Context::Mode::SWITCH))
         {
             // Break from default cases are ignored
             context.switch_cases.second << AST_INDENT << "j "

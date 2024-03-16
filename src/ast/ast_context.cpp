@@ -28,6 +28,7 @@ Context::Context() :
     )
 {
     map_stack.push(id_map_t());
+    mode_stack.push(Mode::GLOBAL);
 }
 
 
@@ -651,4 +652,26 @@ std::string Context::get_store_instruction(Types type)
     }
 
     return instruction;
+}
+
+
+/**
+ * Helper function to check if a mode is in mode_stack
+*/
+bool Context::has_mode(Mode mode) const
+{
+    // Take a copy of the stack
+    std::stack<Mode> mode_stack_copy = mode_stack;
+
+    // Keep popping
+    while (!mode_stack_copy.empty())
+    {
+        if (mode_stack_copy.top() == mode)
+        {
+            return true;
+        }
+        mode_stack_copy.pop();
+    }
+
+    return false;
 }

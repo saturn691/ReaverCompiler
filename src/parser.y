@@ -563,7 +563,8 @@ direct_abstract_declarator
     ;
 
 initializer
-    : assignment_expression                                 { $$ = $1; }
+    : assignment_expression
+        { $$ = $1; }
     // Like int arr[] = {1, 2, 3, 4, 5};
     // TODO Does have to be implemented
     | '{' initializer_list '}'

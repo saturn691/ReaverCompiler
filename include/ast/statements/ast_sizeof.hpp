@@ -66,10 +66,9 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        Context::Mode old_mode = context.mode;
-        context.mode = Context::Mode::SIZEOF;
+        context.mode_stack.push(Context::Mode::SIZEOF);
         child->gen_asm(dst, dest_reg, context);
-        context.mode = old_mode;
+        context.mode_stack.pop();
     }
 
 private:

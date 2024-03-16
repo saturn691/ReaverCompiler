@@ -43,8 +43,7 @@ public:
         Context &context
     ) const override {
         Types type = get_type(context);
-        Context::Mode mode = context.mode;
-        context.mode = Context::Mode::GLOBAL;
+        context.mode_stack.push(Context::Mode::OPERATOR);
 
         std::string temp_reg1 = context.allocate_register(type);
         std::string temp_reg2 = context.allocate_register(type);
@@ -87,7 +86,7 @@ public:
         dst << AST_INDENT << set_ins << " " << dest_reg
             << ", " << dest_reg << std::endl;
 
-        context.mode = mode;
+        context.mode_stack.pop();
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
     }

@@ -11,8 +11,8 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                // "compiler_tests/custom/504-dot_product.c",
-                "writing-a-c-compiler-tests/tests/chapter_5/valid/empty_function_body.c",
+                "compiler_tests/misc/switch2.c",
+                // "writing-a-c-compiler-tests/tests/chapter_5/valid/empty_function_body.c",
                 "-o",
                 "bin/debug.s",
             ],

@@ -30,8 +30,7 @@ public:
     ) const override {
         std::string temp_reg1 = context.allocate_register(Types::INT);
         std::string temp_reg2 = context.allocate_register(Types::INT);
-        Context::Mode mode = context.mode;
-        context.mode = Context::Mode::GLOBAL;
+        context.mode_stack.push(Context::Mode::OPERATOR);
 
 
         get_left()->gen_asm(dst, temp_reg1, context);
@@ -40,7 +39,7 @@ public:
         dst << AST_INDENT << "xor " << dest_reg
             << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
 
-        context.mode = mode;
+        context.mode_stack.pop();
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
     }

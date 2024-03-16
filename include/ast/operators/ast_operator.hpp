@@ -130,7 +130,7 @@ public:
                 }
                 else
                 {
-                    dst << AST_INDENT << fmv << dest_reg
+                    dst << AST_INDENT << fmv << " " << dest_reg
                         << ", " << src_reg << std::endl;
                 }
                 break;
