@@ -510,7 +510,6 @@ def run_tests(args, xml_file: JUnitXMLFile):
         drivers = sorted(drivers, key=lambda p: (p.parent.name, p.name))
         drivers = [driver.parent.joinpath(f"{driver.stem}_driver.c")
                    for driver in drivers]
-        print(drivers)
     else:
         drivers = list(Path(args.dir).rglob("*_driver.c"))
         drivers = sorted(drivers, key=lambda p: (p.parent.name, p.name))

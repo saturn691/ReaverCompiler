@@ -28,7 +28,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string temp_reg1 = context.allocate_register(Types::INT);
         std::string temp_reg2 = context.allocate_register(Types::INT);
         Context::Mode mode = context.mode;
@@ -38,7 +37,7 @@ public:
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);
 
-        dst << indent << "xor " << dest_reg
+        dst << AST_INDENT << "xor " << dest_reg
             << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
 
         context.mode = mode;

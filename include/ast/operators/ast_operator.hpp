@@ -52,9 +52,6 @@ public:
     ) const {
         // Don't question no_convert @booth-algo, it's a hack
         // Essentially some comparison operators work slightly differently
-
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-
         std::string float_move_ins = (type == Types::FLOAT) ? "fcvt.w.s" : "fcvt.w.d";
 
         switch (type)
@@ -70,21 +67,21 @@ public:
                         3. rtz = round to zero
                     */
 
-                    dst << indent << ins_map.at(type) << " " << temp_reg1
+                    dst << AST_INDENT << ins_map.at(type) << " " << temp_reg1
                         << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
 
-                    dst << indent << float_move_ins << " " << dest_reg
+                    dst << AST_INDENT << float_move_ins << " " << dest_reg
                         << ", " << temp_reg1 << ", rtz"<< std::endl;
                 }
                 else
                 {
-                    dst << indent << ins_map.at(type) << " " << dest_reg
+                    dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
                         << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
                 }
                 break;
 
             default:
-                dst << indent << ins_map.at(type) << " " << dest_reg
+                dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
                     << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
         }
     }

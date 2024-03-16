@@ -29,7 +29,7 @@ public:
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
-        dst << indent << unary_operator;
+        dst << AST_INDENT << unary_operator;
         cast_expression->print(dst, 0);
     }
 
@@ -53,7 +53,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         Context::Mode mode = context.mode;
         context.mode = Context::Mode::GLOBAL;
 
@@ -65,28 +64,28 @@ public:
 
         if (unary_operator == "-")
         {
-            dst << indent << "neg " << dest_reg << ", " << dest_reg << std::endl;
+            dst << AST_INDENT << "neg " << dest_reg << ", " << dest_reg << std::endl;
         }
         else if (unary_operator == "~")
         {
-            dst << indent << "not " << dest_reg << ", " << dest_reg << std::endl;
+            dst << AST_INDENT << "not " << dest_reg << ", " << dest_reg << std::endl;
         }
         else if (unary_operator == "!")
         {
-            dst << indent << "seqz " << dest_reg << ", " << dest_reg << std::endl;
+            dst << AST_INDENT << "seqz " << dest_reg << ", " << dest_reg << std::endl;
         }
         else if (unary_operator == "&") // for pointers -> address of
         {
             // TODO pass this onto cast_expression->gen_asm()
             std::string id = cast_expression->get_id();
             int address = context.get_stack_location(id);
-            dst << indent << "addi " << dest_reg << ", s0, " << address << std::endl;
+            dst << AST_INDENT << "addi " << dest_reg << ", s0, " << address << std::endl;
         }
         // for pointers -> dereference
         else if (unary_operator == "*" && mode != Context::Mode::ASSIGN)
         {
             std::string load = Context::get_load_instruction(get_type(context));
-            dst << indent << load << " " << dest_reg
+            dst << AST_INDENT << load << " " << dest_reg
                 << ", 0(" << dest_reg << ")" << std::endl;
         }
 

@@ -172,6 +172,7 @@ multiplicative_expression
     | multiplicative_expression '/' cast_expression
         { $$ = new Divide($1, $3); }
     | multiplicative_expression '%' cast_expression
+        { $$ = new Modulo($1, $3); }
     ;
 
 additive_expression

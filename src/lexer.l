@@ -68,6 +68,18 @@ auto check_type_map(std::string id)
 \/\/(.*?)\n		{ ; }
 \/\*(.|[\r\n])*?\*\/	{ ; }
 
+"#define"(.*?)\n	{ /* Ignore #define lines */ }
+"#include"(.*?)\n	{ /* Ignore #include lines */ }
+"#undef"(.*?)\n		{ /* Ignore #undef lines */ }
+"#ifdef"(.*?)\n		{ /* Ignore #ifdef lines */ }
+"#ifndef"(.*?)\n	{ /* Ignore #ifndef lines */ }
+"#if"(.*?)\n		{ /* Ignore #if lines */ }
+"#else"(.*?)\n		{ /* Ignore #else lines */ }
+"#elif"(.*?)\n		{ /* Ignore #elif lines */ }
+"#endif"(.*?)\n		{ /* Ignore #endif lines */ }
+"#error"(.*?)\n		{ /* Ignore #error lines */ }
+"#pragma"(.*?)\n	{ /* Ignore #pragma lines */ }
+
 "auto"			{ return(AUTO); }
 "break"			{ return(BREAK); }
 "case"			{ return(CASE); }

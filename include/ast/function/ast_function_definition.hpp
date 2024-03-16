@@ -46,7 +46,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id = declarator->get_id();
         // Ok, if you're reading this, please don't question this line
         // This is to prevent declarations from generating assembly
@@ -86,7 +85,7 @@ public:
         // Return nodes jump here
         dst << end_label << ":" << std::endl;
         context.end_stack(dst);
-        dst << indent << "ret" << std::endl;
+        dst << AST_INDENT << "ret" << std::endl;
 
         // Footer section
         std::cout << std::endl;

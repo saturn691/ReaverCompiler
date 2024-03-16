@@ -32,17 +32,17 @@ public:
 
         dst << indent;
         dst << "if" << std::endl;
-        dst << indent << "(" << std::endl;
+        dst << AST_INDENT << "(" << std::endl;
         condition->print(dst, indent_level + 1); // condition
-        dst << indent << ")" << std::endl;
-        dst << indent << "{" << std::endl;
+        dst << AST_INDENT << ")" << std::endl;
+        dst << AST_INDENT << "{" << std::endl;
         then_statement->print(dst, indent_level + 1); // then statement
-        dst << indent << "}" << std::endl;
+        dst << AST_INDENT << "}" << std::endl;
         if (else_statement != nullptr) {
-            dst << indent << "else" << std::endl;
-            dst << indent << "{" << std::endl;
+            dst << AST_INDENT << "else" << std::endl;
+            dst << AST_INDENT << "{" << std::endl;
             else_statement->print(dst, indent_level + 1); // else statement
-            dst << indent << "}" << std::endl;
+            dst << AST_INDENT << "}" << std::endl;
         }
     }
 
@@ -55,7 +55,7 @@ public:
         // if (condition_code) then (then_code) else (else_code)
         // if (condition) { then } else { else }
 
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
 
         std::string else_label = context.get_unique_label("if");
         std::string end_label = context.get_unique_label("if");
@@ -66,19 +66,19 @@ public:
 
         if (else_statement != nullptr)
         {
-            dst << indent << "beq " << condition_reg
+            dst << AST_INDENT << "beq " << condition_reg
                 << ", zero, " << else_label << std::endl;
         }
         else
         {
-            dst << indent << "beq " << condition_reg
+            dst << AST_INDENT << "beq " << condition_reg
                 << ", zero, " << end_label << std::endl;
         }
 
         context.deallocate_register(condition_reg);
 
         then_statement->gen_asm(dst, dest_reg, context);
-        dst << indent << "j " << end_label << std::endl;
+        dst << AST_INDENT << "j " << end_label << std::endl;
 
         if (else_statement != nullptr)
         {

@@ -47,7 +47,7 @@ public:
         if (dest_reg == "MAGIC CODE")
         {
             context.mode = Context::Mode::FUNCTION_DEFINITION;
-            std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
             std::string arg_reg = context.allocate_arg_register(type);
             int _ = context.allocate_stack(type, id);
 

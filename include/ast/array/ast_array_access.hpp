@@ -57,7 +57,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id = identifier->get_id();
         Types type = context.get_type(id);
         std::string reg = context.allocate_register(type);
@@ -80,28 +79,28 @@ public:
             std::string addr_reg = context.allocate_register(Types::INT);
 
             // Dereference the pointer to get the base address
-            dst << indent << "lw " << addr_reg << ", "
+            dst << AST_INDENT << "lw " << addr_reg << ", "
                 << base_pointer << "(s0)" << std::endl;
-            dst << indent << "slli " << reg << ", " << reg
+            dst << AST_INDENT << "slli " << reg << ", " << reg
                 << ", " << log_size << std::endl;
-            dst << indent << "add " << reg << ", " << reg
+            dst << AST_INDENT << "add " << reg << ", " << reg
                 << ", " << addr_reg << std::endl;
 
             context.deallocate_register(addr_reg);
         }
         else
         {
-            dst << indent << "slli " << reg << ", " << reg
+            dst << AST_INDENT << "slli " << reg << ", " << reg
                 << ", " << log_size << std::endl;
-            dst << indent << "addi " << reg << ", " << reg
+            dst << AST_INDENT << "addi " << reg << ", " << reg
                 << ", " << base_pointer << std::endl;
-            dst << indent << "add " << reg << ", " << reg
+            dst << AST_INDENT << "add " << reg << ", " << reg
                 << ", s0" << std::endl;
         }
 
         // Load the value from the array
         std::string load = Context::get_load_instruction(type);
-        dst << indent << load << " " << dest_reg
+        dst << AST_INDENT << load << " " << dest_reg
             << ", 0(" << reg << ")" << std::endl;
 
         // intentionally do not deallocate the register

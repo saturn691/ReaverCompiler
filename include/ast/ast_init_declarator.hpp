@@ -44,7 +44,6 @@ public:
         Context &context
     ) const override
     {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id  = declarator->get_id();
 
         // Assign some stack space to the variable
@@ -69,7 +68,7 @@ public:
         // Store the value in the stack
         int stack_loc = context.get_stack_location(id);
         std::string store = context.get_store_instruction(type);
-        dst << indent << store << " " << temp_reg
+        dst << AST_INDENT << store << " " << temp_reg
             << ", " << stack_loc << "(s0)" << std::endl;
 
         context.deallocate_register(temp_reg);

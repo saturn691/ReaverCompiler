@@ -48,25 +48,25 @@ public:
 
         dst << indent;
         dst << "for" << std::endl;
-        dst << indent << "(" << std::endl;
+        dst << AST_INDENT << "(" << std::endl;
         initiation->print(dst, indent_level + 1); // initiation
         condition->print(dst, indent_level + 1); // condition
-        dst << indent << ";" << std::endl;
+        dst << AST_INDENT << ";" << std::endl;
 
         if (iteration != nullptr)
         {
             iteration->print(dst, indent_level + 1); // iteration
         }
 
-        dst << indent << ")" << std::endl;
-        dst << indent << "{" << std::endl;
+        dst << AST_INDENT << ")" << std::endl;
+        dst << AST_INDENT << "{" << std::endl;
 
         if (statement != nullptr)
         {
             statement->print(dst, indent_level + 1); // statement
         }
 
-        dst << indent << "}" << std::endl;
+        dst << AST_INDENT << "}" << std::endl;
     }
 
     void gen_asm(
@@ -74,8 +74,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-
         std::string start_label = context.get_unique_label("for_start");
         std::string end_label = context.get_unique_label("for_end");
 
@@ -98,7 +96,7 @@ public:
         if (condition)
         {
             condition->gen_asm(dst, loop_reg, context);
-            dst << indent << "beqz " << loop_reg << ", " << end_label << std::endl;
+            dst << AST_INDENT << "beqz " << loop_reg << ", " << end_label << std::endl;
         }
 
         // Loop statement
@@ -113,7 +111,7 @@ public:
             iteration->gen_asm(dst, loop_reg, context);
         }
 
-        dst << indent << "j " << start_label << std::endl;
+        dst << AST_INDENT << "j " << start_label << std::endl;
         dst << end_label << ":" << std::endl;
 
         // Clean up

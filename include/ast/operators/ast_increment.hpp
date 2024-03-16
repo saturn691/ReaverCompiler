@@ -28,7 +28,7 @@ public:
 
         if (pre)
         {
-            dst << indent << op;
+            dst << AST_INDENT << op;
             operand->print(dst, 0);
         }
         else
@@ -64,7 +64,7 @@ public:
             Code may be a bit unreadable but just follow this in order.
         */
 
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
         Types type = get_type(context);
         std::string temp_reg = context.allocate_register(type);
         Context::Mode mode = context.mode;
@@ -76,7 +76,7 @@ public:
         if (!pre && mode == Context::Mode::RETURN)
         {
             std::string move_ins = move_ins_map.at(type);
-            dst << indent << move_ins << " " << dest_reg
+            dst << AST_INDENT << move_ins << " " << dest_reg
                 << ", " << temp_reg << std::endl;
         }
 
@@ -95,24 +95,24 @@ public:
                 one_reg = context.allocate_register(Types::FLOAT);
                 one_node.gen_asm(dst, one_reg, context);
 
-                dst << indent << add << " " << temp_reg
+                dst << AST_INDENT << add << " " << temp_reg
                     << ", " << temp_reg << ", " << one_reg << std::endl; // ++
                 break;
 
             default:
-                dst << indent << "addi " << temp_reg
+                dst << AST_INDENT << "addi " << temp_reg
                     << ", " << temp_reg << ", " << number << std::endl; // ++
         }
 
         int stack_loc = context.get_stack_location(operand->get_id());
-        dst << indent << store << " " << temp_reg
+        dst << AST_INDENT << store << " " << temp_reg
             << ", " << stack_loc << "(s0)" << std::endl;
 
         // Pre-increment means we store the incremented value
         if (pre && mode == Context::Mode::RETURN)
         {
             std::string move_ins = move_ins_map.at(type);
-            dst << indent << move_ins << " " << dest_reg
+            dst << AST_INDENT << move_ins << " " << dest_reg
                 << ", " << temp_reg << std::endl;
         }
 

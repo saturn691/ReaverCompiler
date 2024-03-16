@@ -24,15 +24,15 @@ public:
 
         dst << indent;
         dst << "while" << std::endl;
-        dst << indent << "(" << std::endl;
+        dst << AST_INDENT << "(" << std::endl;
         condition->print(dst, indent_level + 1); // condition
-        dst << indent << ")" << std::endl;
-        dst << indent << "{" << std::endl;
+        dst << AST_INDENT << ")" << std::endl;
+        dst << AST_INDENT << "{" << std::endl;
         if (statement)
         {
             statement->print(dst, indent_level + 1); // statement
         }
-        dst << indent << "}" << std::endl;
+        dst << AST_INDENT << "}" << std::endl;
     }
 
     void gen_asm(
@@ -40,14 +40,12 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-
         std::string start_label = context.get_unique_label("while");
         std::string end_label = context.get_unique_label("while");
 
         std::string condition_reg = context.allocate_register(Types::INT);
 
-        dst << indent << "j" << indent << end_label << std::endl;
+        dst << AST_INDENT << "j" << AST_INDENT << end_label << std::endl;
         dst << start_label << ":" << std::endl;
         if (statement)
         {
@@ -59,7 +57,7 @@ public:
             condition->gen_asm(dst, condition_reg, context);
         }
         // This is unoptimised, but who cares :) just SSA it bro
-        dst << indent << "bnez " << condition_reg << ", " << start_label << std::endl;
+        dst << AST_INDENT << "bnez " << condition_reg << ", " << start_label << std::endl;
 
         context.deallocate_register(condition_reg);
     }

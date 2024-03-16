@@ -50,7 +50,7 @@ public:
         "snez" instruction, but this is a good enough for now.
         */
 
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
         Types type = get_type(context);
         Context::Mode mode = context.mode;
         context.mode = Context::Mode::GLOBAL;
@@ -69,19 +69,19 @@ public:
             case Types::LONG_DOUBLE:
                 get_left()->gen_asm(dst, float_temp_reg, context);
                 // Set up the zero register for floating point numbers.
-                dst << indent << "fmv.w.x " << float_zero_reg
+                dst << AST_INDENT << "fmv.w.x " << float_zero_reg
                     << ", zero" << std::endl;
 
-                dst << indent << "feq.s " << temp_reg
+                dst << AST_INDENT << "feq.s " << temp_reg
                     << ", " << float_zero_reg
                     << ", " << float_temp_reg << std::endl;
-                dst << indent << "bne " << temp_reg
+                dst << AST_INDENT << "bne " << temp_reg
                     << ", zero, " << label1 << std::endl;
                 break;
 
             default:
                 get_left()->gen_asm(dst, temp_reg, context);
-                dst << indent << "beq " << temp_reg
+                dst << AST_INDENT << "beq " << temp_reg
                     << ", zero, " << label1 << std::endl;
         }
 
@@ -91,25 +91,25 @@ public:
             case Types::DOUBLE:
             case Types::LONG_DOUBLE:
                 get_right()->gen_asm(dst, float_temp_reg, context);
-                dst << indent << "feq.s " << temp_reg
+                dst << AST_INDENT << "feq.s " << temp_reg
                     << ", " << float_zero_reg
                     << ", " << float_temp_reg << std::endl;
-                dst << indent << "bne " << temp_reg
+                dst << AST_INDENT << "bne " << temp_reg
                     << ", zero, " << label1 << std::endl;
                 break;
 
             default:
                 get_right()->gen_asm(dst, temp_reg, context);
-                dst << indent << "beq " << temp_reg
+                dst << AST_INDENT << "beq " << temp_reg
                     << ", zero, " << label1 << std::endl;
         }
 
         // Put the result into the destination register - see note above.
-        dst << indent << "li " << dest_reg << ", 1" << std::endl;
-        dst << indent << "j " << label2 << std::endl;
+        dst << AST_INDENT << "li " << dest_reg << ", 1" << std::endl;
+        dst << AST_INDENT << "j " << label2 << std::endl;
 
         dst << label1 << ":" << std::endl;
-        dst << indent << "li " << dest_reg << ", 0" << std::endl;
+        dst << AST_INDENT << "li " << dest_reg << ", 0" << std::endl;
 
         dst << label2 << ":" << std::endl;
 

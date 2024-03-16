@@ -51,7 +51,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string a_id = assignment_operator->get_id();
         std::string id = unary_expression->get_id();
 
@@ -89,7 +88,7 @@ public:
             {
                 case Types::INT:
                 case Types::UNSIGNED_INT:
-                    dst << indent << "sw " << reg
+                    dst << AST_INDENT << "sw " << reg
                         << ", 0(" << arr_reg << ")" << std::endl;
                     context.deallocate_register(arr_reg);
                     break;
@@ -124,7 +123,7 @@ public:
                 {
                     case Types::INT:
                     case Types::UNSIGNED_INT:
-                        dst << indent << "sw " << reg << ", 0("
+                        dst << AST_INDENT << "sw " << reg << ", 0("
                             << dest_reg << ")" << std::endl;
                         break;
 
@@ -148,7 +147,7 @@ public:
             }
 
             std::string store = Context::get_store_instruction(type);
-            dst << indent << store << " " << reg << ", "
+            dst << AST_INDENT << store << " " << reg << ", "
                 << stack_loc << "(s0)" << std::endl;
         }
 

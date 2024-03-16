@@ -34,9 +34,9 @@ public:
         dst << "switch (";
         expression->print(dst, 0);
         dst << ")" << std::endl;
-        dst << indent << "{" << std::endl;
+        dst << AST_INDENT << "{" << std::endl;
         statement->print(dst, indent_level + 1);
-        dst << indent << "}" << std::endl;
+        dst << AST_INDENT << "}" << std::endl;
     }
 
     void gen_asm(
@@ -54,7 +54,7 @@ public:
             (break = jump to the end)
         end_label
         */
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
         context.mode = Context::Mode::SWITCH;
         std::string end_label = context.get_unique_label("switch_end");
 

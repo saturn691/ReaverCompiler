@@ -29,7 +29,14 @@ public:
     Types get_type(Context &context) const override
     {
         // Here return the lowest priority type
-        return Types::VOID;
+        if (value == (int)value)
+        {
+            return Types::INT;
+        }
+        else
+        {
+            return Types::FLOAT;
+        }
     }
 
     std::string get_id() const override
@@ -42,7 +49,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
 
         if (dest_reg[0] == 'f')
         {
@@ -55,10 +61,10 @@ public:
             std::string lui_reg = context.allocate_register(Types::INT);
 
             // Accessing main memory to fetch constant value
-            dst << indent << "lui " << lui_reg
+            dst << AST_INDENT << "lui " << lui_reg
                 << ", %hi(." << label << ")" << std::endl;
 
-            dst << indent << "flw " << dest_reg
+            dst << AST_INDENT << "flw " << dest_reg
                 << ", %lo(." << label << ")"
                 << "(" << lui_reg << ")" << std::endl;
 
@@ -75,7 +81,7 @@ public:
             {
                 val = value;
             }
-            dst << indent << "li " << dest_reg << ", " << val << std::endl;
+            dst << AST_INDENT << "li " << dest_reg << ", " << val << std::endl;
         }
     }
 

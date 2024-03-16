@@ -42,7 +42,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         Types type = get_type(context);
         Context::Mode mode = context.mode;
         context.mode = Context::Mode::GLOBAL;

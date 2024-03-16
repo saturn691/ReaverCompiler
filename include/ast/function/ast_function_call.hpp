@@ -53,7 +53,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string id = identifier->get_id();
         Types type = context.get_type(id);
 
@@ -67,7 +66,7 @@ public:
         }
 
         context.push_registers(dst);
-        dst << indent << "call " << id << std::endl;
+        dst << AST_INDENT << "call " << id << std::endl;
         context.pop_registers(dst);
 
         switch (type)
@@ -75,12 +74,12 @@ public:
             case Types::FLOAT:
             case Types::DOUBLE:
             case Types::LONG_DOUBLE:
-                dst << indent << "fmv.s " << dest_reg
+                dst << AST_INDENT << "fmv.s " << dest_reg
                     << ", " << "fa0" << std::endl;
                 break;
 
             default:
-                dst << indent << "mv " << dest_reg
+                dst << AST_INDENT << "mv " << dest_reg
                     << ", " << "a0" << std::endl;
                 break;
         }

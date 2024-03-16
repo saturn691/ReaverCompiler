@@ -39,8 +39,7 @@ public:
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
-    ) const override {
-        Context::Mode old_mode = context.mode;
+    ) const override {        Context::Mode old_mode = context.mode;
         context.mode = Context::Mode::STRUCT;
 
         // Clear the cache of struct members

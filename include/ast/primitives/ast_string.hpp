@@ -56,15 +56,15 @@ public:
             0x1003         | .LC0 + 3     | 'l'
             0x1004         | .LC0 + 4     | 'o'
         */
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
         std::string label = context.get_unique_label("string");
         context.add_string_data(label, string);
 
         // Accessing main memory to fetch string
-        dst << indent << "lui " << dest_reg
+        dst << AST_INDENT << "lui " << dest_reg
             << ", %hi(." << label << ")" << std::endl;
 
-        dst << indent << "addi " << dest_reg << ", "
+        dst << AST_INDENT << "addi " << dest_reg << ", "
             << dest_reg << ", %lo(." << label << ")" << std::endl;
     }
 

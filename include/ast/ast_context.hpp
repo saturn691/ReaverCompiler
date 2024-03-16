@@ -16,6 +16,7 @@
 #define AST_STACK_ALIGN             16
 #define AST_STACK_ALLOCATE          128
 #define AST_PRINT_INDENT_SPACES     4
+#define AST_INDENT                  std::string(AST_PRINT_INDENT_SPACES, ' ')
 
 
 /*
