@@ -245,10 +245,11 @@ def run_test(driver: Path) -> Result:
             timeout=timed_out, error_log=msg)
 
     # GCC Reference Output
+    # Remove the "-ansi -std=c90" flags to allow // comments
     return_code, _, timed_out = run_subprocess(
         cmd=["riscv64-unknown-elf-gcc",
-             "-std=c90", "-pedantic",
-             "-ansi", "-O0",
+             "-pedantic",
+             "-O0",
              "-march=rv32imfd",
              "-mabi=ilp32d", "-o",
              f"{log_path}.gcc.s", "-S",
