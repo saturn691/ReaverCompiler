@@ -50,9 +50,7 @@ public:
         // Let the compiler know that this function exists
         context.add_function_declaration(get_id());
 
-        // Ok, if you're reading this, please don't question this line
-        // This is to prevent declarations from generating assembly
-        if (dest_reg == "MAGIC CODE")
+        if (context.mode == Context::Mode::FUNCTION_DEFINITION)
         {
             dst << get_id() << ":" << std::endl;
             context.init_stack(dst);
@@ -60,7 +58,6 @@ public:
             // Put parameters on the stack
             if (identifier_list)
             {
-                // Pass the magic code onwards
                 identifier_list->gen_asm(dst, dest_reg, context);
             }
         }

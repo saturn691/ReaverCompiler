@@ -8,17 +8,13 @@
 	.globl	f
 	.type	f, @function
 f:
-	addi	sp,sp,-32
-	sw	s0,28(sp)
-	addi	s0,sp,32
-	sw	a0,-20(s0)
-	sw	a1,-24(s0)
-	lw	a5,-24(s0)
-	lw	a4,-20(s0)
-	remu	a5,a4,a5
-	mv	a0,a5
-	lw	s0,28(sp)
-	addi	sp,sp,32
+	addi	sp,sp,-16
+	sw	s0,12(sp)
+	addi	s0,sp,16
+	nop
+	fmv.w.x	fa0,a5
+	lw	s0,12(sp)
+	addi	sp,sp,16
 	jr	ra
 	.size	f, .-f
 	.ident	"GCC: () 12.2.0"

@@ -63,7 +63,8 @@ public:
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
-    ) const override {        context.current_declaration_type = context.struct_map[identifier];
+    ) const override {
+        context.current_declaration_type = context.struct_map[identifier];
     }
 
 private:

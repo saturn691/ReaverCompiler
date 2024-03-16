@@ -23,6 +23,7 @@
     NodeList            *nodes;
     Type                *type;
     Declarator          *declarator;
+    ScopeManager        *scope_manager;
     AssignOp            *assign_op;
     Expression          *expr;
     double              number;
@@ -69,7 +70,7 @@
 %type <node> parameter_declaration type_name
 /* %type <node> abstract_declarator direct_abstract_declarator */
 %type <node> initializer_list
-%type <node> statement labeled_statement compound_statement
+%type <node> statement labeled_statement
 %type <node> expression_statement selection_statement iteration_statement
 %type <node> jump_statement
 %type <node> external_declaration function_definition
@@ -84,7 +85,7 @@
 %type <type> struct_or_union_specifier
 %type <assign_op> assignment_operator
 %type <declarator> declarator direct_declarator init_declarator
-
+%type <scope_manager> compound_statement
 
 %start root
 %%
@@ -266,17 +267,28 @@ assignment_expression
     ;
 
 assignment_operator
-    : '='                           { $$ = new AssignOp("="); }
-    | MUL_ASSIGN                    { $$ = new AssignOp("*="); }
-    | DIV_ASSIGN                    { $$ = new AssignOp("/="); }
-    | MOD_ASSIGN                    { $$ = new AssignOp("%="); }
-    | ADD_ASSIGN                    { $$ = new AssignOp("+="); }
-    | SUB_ASSIGN                    { $$ = new AssignOp("-="); }
-    | LEFT_ASSIGN                   { $$ = new AssignOp("<<="); }
-    | RIGHT_ASSIGN                  { $$ = new AssignOp(">>="); }
-    | AND_ASSIGN                    { $$ = new AssignOp("&="); }
-    | XOR_ASSIGN                    { $$ = new AssignOp("~="); }
-    | OR_ASSIGN                     { $$ = new AssignOp("|="); }
+    : '='
+        { $$ = new AssignOp(AssignOpType::ASSIGN); }
+    | MUL_ASSIGN
+        { $$ = new AssignOp(AssignOpType::MUL_ASSIGN); }
+    | DIV_ASSIGN
+        { $$ = new AssignOp(AssignOpType::DIV_ASSIGN); }
+    | MOD_ASSIGN
+        { $$ = new AssignOp(AssignOpType::MOD_ASSIGN); }
+    | ADD_ASSIGN
+        { $$ = new AssignOp(AssignOpType::ADD_ASSIGN); }
+    | SUB_ASSIGN
+        { $$ = new AssignOp(AssignOpType::SUB_ASSIGN); }
+    | LEFT_ASSIGN
+        { $$ = new AssignOp(AssignOpType::LEFT_ASSIGN); }
+    | RIGHT_ASSIGN
+        { $$ = new AssignOp(AssignOpType::RIGHT_ASSIGN); }
+    | AND_ASSIGN
+        { $$ = new AssignOp(AssignOpType::AND_ASSIGN); }
+    | XOR_ASSIGN
+        { $$ = new AssignOp(AssignOpType::XOR_ASSIGN); }
+    | OR_ASSIGN
+        { $$ = new AssignOp(AssignOpType::OR_ASSIGN); }
     ;
 
 expression
@@ -583,7 +595,7 @@ labeled_statement
 
 compound_statement
     : '{' '}'
-        { $$ = NULL; }
+        { $$ = new ScopeManager(NULL, NULL); }
     | '{' statement_list '}'
         { $$ = new ScopeManager($2, NULL); }
     | '{' declaration_list '}'
@@ -607,7 +619,7 @@ statement_list
     ;
 
 expression_statement
-    : ';'
+    : ';'                           { $$ = new EmptyNode(); }
     | expression ';'                { $$ = $1; }
     ;
 

@@ -61,6 +61,11 @@ public:
         nodes.push_back(node);
     }
 
+    int size() const
+    {
+        return nodes.size();
+    }
+
     virtual void print(std::ostream &dst, int indent_level) const override
     {
         for (auto &node : nodes)
