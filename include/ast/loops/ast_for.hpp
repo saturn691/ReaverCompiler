@@ -2,6 +2,7 @@
 #define ast_for_hpp
 
 #include "../ast_node.hpp"
+#include "../ast_empty_node.hpp"
 
 
 /*
@@ -75,11 +76,12 @@ public:
         Context &context
     ) const override {
         std::string start_label = context.get_unique_label("for_start");
+        std::string iteration_label = context.get_unique_label("for_iteration");
         std::string end_label = context.get_unique_label("for_end");
 
         // "The continue statement used anywhere within the loop-statement
         //  transfers control to iteration-expression"
-        context.continue_label_stack.push(start_label);
+        context.continue_label_stack.push(iteration_label);
         context.end_label_stack.push(end_label);
 
         std::string loop_reg = context.allocate_register(Types::INT);
@@ -90,10 +92,11 @@ public:
             initiation->gen_asm(dst, loop_reg, context);
         }
 
+        // START OF LOOP
         dst << start_label << ":" << std::endl;
 
         // Loop condition
-        if (condition)
+        if (condition && !dynamic_cast<EmptyNode*>(condition))
         {
             condition->gen_asm(dst, loop_reg, context);
             dst << AST_INDENT << "beqz " << loop_reg << ", " << end_label << std::endl;
@@ -106,6 +109,7 @@ public:
         }
 
         // Loop iteration
+        dst << iteration_label << ":" << std::endl;
         if (iteration)
         {
             iteration->gen_asm(dst, loop_reg, context);

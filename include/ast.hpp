@@ -49,6 +49,7 @@
 // Loops
 #include <ast/loops/ast_for.hpp>
 #include <ast/loops/ast_while.hpp>
+#include <ast/loops/ast_do_while.hpp>
 
 // Primitives
 #include <ast/primitives/ast_number.hpp>
