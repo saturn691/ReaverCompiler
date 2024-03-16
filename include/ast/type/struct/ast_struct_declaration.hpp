@@ -34,8 +34,7 @@ public:
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
-    ) const override {
-        context.current_sub_declaration_type = specifier_qualifier_list;
+    ) const override {        context.current_sub_declaration_type = specifier_qualifier_list;
         struct_declarator_list->gen_asm(dst, dest_reg, context);
     }
 

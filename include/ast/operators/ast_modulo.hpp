@@ -1,13 +1,14 @@
-#ifndef ast_divide_hpp
-#define ast_divide_hpp
+#ifndef AST_MODULO_HPP
+#define AST_MODULO_HPP
 
 #include "ast_operator.hpp"
 
 
 /*
- *  Node for divide.
+ *  Node for modulo.
+ *  Modulo is only defined for integer types.
 */
-class Divide : public Operator
+class Modulo : public Operator
 {
 public:
     using Operator::Operator;
@@ -18,7 +19,7 @@ public:
 
         dst << indent;
         get_left()->print(dst, indent_level);
-        dst << " / ";
+        dst << " % ";
         get_right()->print(dst, indent_level);
         dst << std::endl;
     }
@@ -28,13 +29,15 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        Types type = get_type(context);
+        // Cannot use normal get_type, only depends on the LHS
+        Types type = get_left()->get_type(context);
         context.mode_stack.push(Context::Mode::OPERATOR);
 
-        std::string temp_reg1 = context.allocate_register(type);
-        std::string temp_reg2 = context.allocate_register(type);
-
+        // Undefined behaviour for floats/doubles
+        std::string temp_reg1 = context.allocate_register(Types::INT);
         get_left()->gen_asm(dst, temp_reg1, context);
+
+        std::string temp_reg2 = context.allocate_register(Types::INT);
         get_right()->gen_asm(dst, temp_reg2, context);
 
         gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map);
@@ -46,18 +49,17 @@ public:
 
 private:
     const std::unordered_map<Types, std::string> ins_map = {
-        {Types::UNSIGNED_CHAR, "div"},
-        {Types::CHAR, "div"},
-        {Types::UNSIGNED_SHORT, "div"},
-        {Types::SHORT, "div"},
-        {Types::INT, "div"},
-        {Types::UNSIGNED_INT, "div"},
-        {Types::LONG, "div"},
-        {Types::UNSIGNED_LONG, "div"},
-        {Types::FLOAT, "fdiv.s"},
-        {Types::DOUBLE, "fdiv.d"},
+        {Types::UNSIGNED_CHAR, "remu"},
+        {Types::CHAR, "rem"},
+        {Types::UNSIGNED_SHORT, "remu"},
+        {Types::SHORT, "rem"},
+        {Types::INT, "rem"},
+        {Types::UNSIGNED_INT, "remu"},
+        {Types::LONG, "rem"},
+        {Types::UNSIGNED_LONG, "remu"},
     };
+
 };
 
 
-#endif  /* ast_divide_hpp */
+#endif  /* AST_MODULO_HPP */

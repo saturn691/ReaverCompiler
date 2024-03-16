@@ -28,6 +28,7 @@ Context::Context() :
     )
 {
     map_stack.push(id_map_t());
+    mode_stack.push(Mode::GLOBAL);
 }
 
 
@@ -166,7 +167,7 @@ void Context::deallocate_register(std::string register_name)
 
 void Context::push_registers(std::ostream& dst)
 {
-    std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
 
     dst << "# Pushing registers onto stack (if any)" << std::endl;
 
@@ -183,7 +184,7 @@ void Context::push_registers(std::ostream& dst)
                 Types::DOUBLE,
                 "!" + register_name
             );
-            dst << indent << "fsw " << register_name
+            dst << AST_INDENT << "fsw " << register_name
                 << ", " << stack_loc << "(s0)" << std::endl;
         }
     }
@@ -201,7 +202,7 @@ void Context::push_registers(std::ostream& dst)
                 Types::LONG,
                 "!" + register_name
             );
-            dst << indent << "sw " << register_name
+            dst << AST_INDENT << "sw " << register_name
                 << ", " << stack_loc << "(s0)" << std::endl;
         }
     }
@@ -210,7 +211,7 @@ void Context::push_registers(std::ostream& dst)
 
 void Context::pop_registers(std::ostream& dst)
 {
-    std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
     std::vector<std::string> to_erase;
     dst << "# Popping registers from stack (if any)" << std::endl;
 
@@ -225,11 +226,11 @@ void Context::pop_registers(std::ostream& dst)
             switch (type)
             {
                 case Types::DOUBLE:
-                    dst << indent << "flw " << dest_reg << ", "
+                    dst << AST_INDENT << "flw " << dest_reg << ", "
                         << stack_loc << "(s0)" << std::endl;
                     break;
                 default:
-                    dst << indent << "lw " << dest_reg << ", "
+                    dst << AST_INDENT << "lw " << dest_reg << ", "
                         << stack_loc << "(s0)" << std::endl;
                     break;
             }
@@ -278,16 +279,16 @@ void Context::init_stack(std::ostream& dst)
     In the future, when the compiler is multi-pass, this can be optimised
     away when a function call is not required.
     */
-    std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
     int ra_location = (AST_STACK_ALLOCATE - 4);
     int s0_location = ra_location - 4;
 
     // Save the frame pointer (s0) into the top of the stack
     // Note that this is with respect to (sp) not (s0)
-    dst << indent << "addi sp, sp, -" << AST_STACK_ALLOCATE << std::endl;
-    dst << indent << "sw ra, " << ra_location << "(sp)" << std::endl;
-    dst << indent << "sw s0, " << s0_location << "(sp)" << std::endl;
-    dst << indent << "addi s0, sp, " << AST_STACK_ALLOCATE << std::endl;
+    dst << AST_INDENT << "addi sp, sp, -" << AST_STACK_ALLOCATE << std::endl;
+    dst << AST_INDENT << "sw ra, " << ra_location << "(sp)" << std::endl;
+    dst << AST_INDENT << "sw s0, " << s0_location << "(sp)" << std::endl;
+    dst << AST_INDENT << "addi s0, sp, " << AST_STACK_ALLOCATE << std::endl;
 
     // Move the fp offset down by one alignment, to align the data
     frame_pointer_offset = -AST_STACK_ALIGN;
@@ -296,15 +297,15 @@ void Context::init_stack(std::ostream& dst)
 
 void Context::end_stack(std::ostream& dst)
 {
-    std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
     int ra_location = (AST_STACK_ALLOCATE - 4);
     int s0_location = ra_location - 4;
 
     // Load the frame pointer (s0) and the return address (ra)
     // Note that this is with respect to (sp) not (s0)
-    dst << indent << "lw ra, " << ra_location << "(sp)" << std::endl;
-    dst << indent << "lw s0, " << s0_location << "(sp)" << std::endl;
-    dst << indent << "addi sp, sp, " << AST_STACK_ALLOCATE << std::endl;
+    dst << AST_INDENT << "lw ra, " << ra_location << "(sp)" << std::endl;
+    dst << AST_INDENT << "lw s0, " << s0_location << "(sp)" << std::endl;
+    dst << AST_INDENT << "addi sp, sp, " << AST_STACK_ALLOCATE << std::endl;
 }
 
 
@@ -415,7 +416,7 @@ void Context::add_string_data(std::string label, std::string value)
 
 void Context::gen_memory_asm(std::ostream& dst)
 {
-    std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
 
     dst << ".section .rodata" << std::endl;
 
@@ -429,7 +430,7 @@ void Context::gen_memory_asm(std::ostream& dst)
         dst << "." << id << ":" << std::endl;
 
         // Necessary for floating point representations.
-        dst << indent << ".word " << val << std::endl;
+        dst << AST_INDENT << ".word " << val << std::endl;
     }
 
     for (const auto& [id, val] : string_map)
@@ -439,7 +440,7 @@ void Context::gen_memory_asm(std::ostream& dst)
         dst << "." << id << ":" << std::endl;
 
         // Necessary for floating point representations.
-        dst << indent << ".string " << val << std::endl;
+        dst << AST_INDENT << ".string " << val << std::endl;
     }
 }
 
@@ -651,4 +652,26 @@ std::string Context::get_store_instruction(Types type)
     }
 
     return instruction;
+}
+
+
+/**
+ * Helper function to check if a mode is in mode_stack
+*/
+bool Context::has_mode(Mode mode) const
+{
+    // Take a copy of the stack
+    std::stack<Mode> mode_stack_copy = mode_stack;
+
+    // Keep popping
+    while (!mode_stack_copy.empty())
+    {
+        if (mode_stack_copy.top() == mode)
+        {
+            return true;
+        }
+        mode_stack_copy.pop();
+    }
+
+    return false;
 }

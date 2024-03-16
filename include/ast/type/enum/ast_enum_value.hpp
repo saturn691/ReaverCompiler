@@ -31,7 +31,7 @@ public:
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
         // Intentionally at the start. This is to do with commas
         dst << std::endl;
-        dst << indent << identifier;
+        dst << AST_INDENT << identifier;
         if (expression != NULL) {
             dst << " = ";
             expression->print(dst, 0);

@@ -30,18 +30,16 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-
-        if (context.mode == Context::Mode::SWITCH)
+        if (context.has_mode(Context::Mode::SWITCH))
         {
             // Break from default cases are ignored
-            context.switch_cases.second << indent << "j "
+            context.switch_cases.second << AST_INDENT << "j "
                 << context.end_label_stack.top() << std::endl;
             return;
         }
         else
         {
-            dst << indent << "j "
+            dst << AST_INDENT << "j "
                 << context.end_label_stack.top() << std::endl;
         }
     }

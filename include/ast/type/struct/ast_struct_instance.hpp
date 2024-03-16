@@ -16,7 +16,7 @@ public:
     void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
-        dst << indent << "struct " << identifier;
+        dst << AST_INDENT << "struct " << identifier;
         // Intentionally no std::endl
     }
 

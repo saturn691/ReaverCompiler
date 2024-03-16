@@ -43,15 +43,13 @@ public:
     ) const override {
         // Pass information about the type, down the AST tree
         context.current_declaration_type = declaration_specifiers;
-
         context.current_declaration_type->gen_asm(dst, dest_reg, context);
 
-        Context::Mode old_mode = context.mode;
-        context.mode = Context::Mode::DECLARATION;
+        context.mode_stack.push(Context::Mode::DECLARATION);
 
         // Will be an identifier list
         init_declarator_list->gen_asm(dst, dest_reg, context);
-        context.mode = old_mode;
+        context.mode_stack.pop();
     }
 
 private:

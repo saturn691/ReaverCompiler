@@ -56,7 +56,7 @@ public:
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
 
-        dst << indent << "sizeof(";
+        dst << AST_INDENT << "sizeof(";
         child->print(dst, 0);
         dst << ")" << std::endl;
     }
@@ -66,11 +66,9 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        Context::Mode old_mode = context.mode;
-        context.mode = Context::Mode::SIZEOF;
+        context.mode_stack.push(Context::Mode::SIZEOF);
         child->gen_asm(dst, dest_reg, context);
-        context.mode = old_mode;
+        context.mode_stack.pop();
     }
 
 private:

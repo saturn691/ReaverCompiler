@@ -52,9 +52,6 @@ public:
     ) const {
         // Don't question no_convert @booth-algo, it's a hack
         // Essentially some comparison operators work slightly differently
-
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-
         std::string float_move_ins = (type == Types::FLOAT) ? "fcvt.w.s" : "fcvt.w.d";
 
         switch (type)
@@ -70,23 +67,88 @@ public:
                         3. rtz = round to zero
                     */
 
-                    dst << indent << ins_map.at(type) << " " << temp_reg1
+                    dst << AST_INDENT << ins_map.at(type) << " " << temp_reg1
                         << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
 
-                    dst << indent << float_move_ins << " " << dest_reg
+                    dst << AST_INDENT << float_move_ins << " " << dest_reg
                         << ", " << temp_reg1 << ", rtz"<< std::endl;
                 }
                 else
                 {
-                    dst << indent << ins_map.at(type) << " " << dest_reg
+                    dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
                         << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
                 }
                 break;
 
             default:
-                dst << indent << ins_map.at(type) << " " << dest_reg
+                dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
                     << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
         }
+    }
+
+    /**
+     * Generate RISC-V assembly to move a value from one register to another.
+     * Takes into account the type of the source register and the destination,
+     * and performs the necessary conversion if required.
+    */
+    static void move_reg(
+        std::ostream &dst,
+        std::string src_reg,
+        std::string dest_reg,
+        Types src_type,
+        Types dest_type
+    ) {
+        // Floating move with conversion to INT
+        std::string fmv_conv_int;
+        fmv_conv_int = (src_type == Types::FLOAT) ? "fcvt.w.s" : "fcvt.w.d";
+
+        // Floating move with conversion to FLOAT
+        std::string fmv_conv_float;
+        fmv_conv_float = (dest_type == Types::FLOAT) ? "fcvt.s.w" : "fcvt.d.w";
+
+        // Floating move FLOAT TO FLOAT
+        std::string fmv;
+        if (src_type == Types::FLOAT)
+        {
+            fmv = (dest_type == Types::FLOAT) ? "fmv.s" : "fcvt.d.s";
+        }
+        else
+        {
+            fmv = (dest_type == Types::FLOAT) ? "fcvt.s.d" : "fmv.d";
+        }
+
+
+        switch (src_type)
+        {
+            case Types::FLOAT:
+            case Types::DOUBLE:
+            case Types::LONG_DOUBLE:
+                if (dest_reg[0] != 'f')
+                {
+                    dst << AST_INDENT << fmv_conv_int << " " << dest_reg
+                        << ", " << src_reg << ", rtz"<< std::endl;
+                }
+                else
+                {
+                    dst << AST_INDENT << fmv << " " << dest_reg
+                        << ", " << src_reg << std::endl;
+                }
+                break;
+
+            default:
+                if (dest_reg[0] == 'f')
+                {
+                    dst << AST_INDENT << fmv_conv_float << " " << dest_reg
+                        << ", " << src_reg << std::endl;
+                }
+                else
+                {
+                    dst << AST_INDENT << "mv " << dest_reg
+                        << ", " << src_reg << std::endl;
+                }
+        }
+
+        return;
     }
 
 private:

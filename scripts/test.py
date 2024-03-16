@@ -363,7 +363,7 @@ def simulate_and_check(to_assemble: Path,
         expected_return_code = results[relative_path.as_posix()]["return_code"]
 
         if return_code != expected_return_code:
-            msg = f"\t> Failed to simulate: \n\t {compiler_log_file_str} \n\t {relevant_files('simulation')}"
+            msg = f"\t> Failed to simulate (return code = {return_code}, expected {expected_return_code}): \n\t {compiler_log_file_str} \n\t {relevant_files('simulation')}"
             return Result(
                 test_case_name=test_name, return_code=return_code, passed=False,
                 timeout=timed_out, error_log=msg)
@@ -510,7 +510,6 @@ def run_tests(args, xml_file: JUnitXMLFile):
         drivers = sorted(drivers, key=lambda p: (p.parent.name, p.name))
         drivers = [driver.parent.joinpath(f"{driver.stem}_driver.c")
                    for driver in drivers]
-        print(drivers)
     else:
         drivers = list(Path(args.dir).rglob("*_driver.c"))
         drivers = sorted(drivers, key=lambda p: (p.parent.name, p.name))

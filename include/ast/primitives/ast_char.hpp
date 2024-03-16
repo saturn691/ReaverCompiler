@@ -47,8 +47,8 @@ public:
         Context &context
     ) const override {
         // TODO: make it work for strings larger than 8 chars
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-        dst << indent << "li " << dest_reg
+
+        dst << AST_INDENT << "li " << dest_reg
             << ", " << (int)string << std::endl;
     }
 

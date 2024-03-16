@@ -1,9 +1,10 @@
 {
     "files.associations": {
+        ".fantomasignore": "ignore",
+        "*.flex": "lex",
         "*.mqh": "cpp",
         "*.mq4": "cpp",
         "*.mq5": "cpp",
-        "*.flex": "lex",
         "array": "cpp",
         "atomic": "cpp",
         "bit": "cpp",
@@ -66,6 +67,7 @@
         "shared_mutex": "cpp",
         "sstream": "cpp",
         "stop_token": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "scoped_allocator": "cpp"
     }
 }

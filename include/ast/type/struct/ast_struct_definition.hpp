@@ -40,8 +40,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        Context::Mode old_mode = context.mode;
-        context.mode = Context::Mode::STRUCT;
+        context.mode_stack.push(Context::Mode::STRUCT);
 
         // Clear the cache of struct members
         context.struct_members.clear();
@@ -55,7 +54,7 @@ public:
             context.struct_members
         );
 
-        context.mode = old_mode;
+        context.mode_stack.pop();
     }
 
 private:

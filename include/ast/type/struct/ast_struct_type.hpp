@@ -29,7 +29,7 @@ public:
     void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
-        dst << indent << "struct " << identifier;
+        dst << AST_INDENT << "struct " << identifier;
         // Intentionally no std::endl
     }
 
@@ -41,8 +41,7 @@ public:
     void allocate_stack(
         Context &context,
         std::string id
-    ) const override {
-        // Allocate space for each member
+    ) const override {        // Allocate space for each member
         for (auto member : members)
         {
             std::string new_id = id + "." + member.first;

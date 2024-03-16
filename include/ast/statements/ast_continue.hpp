@@ -34,9 +34,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-
-        dst << indent << "j "
+        dst << AST_INDENT << "j "
             << context.continue_label_stack.top() << std::endl;
     }
 };

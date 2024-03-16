@@ -33,7 +33,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         Types type;
         int stack_loc;
         std::string store, load;
@@ -43,14 +42,14 @@ public:
         int enum_value = context.get_enum_value(id);
         if (enum_value != -1)
         {
-            dst << indent << "li " << dest_reg << ", "
+            dst << AST_INDENT << "li " << dest_reg << ", "
                 << enum_value << std::endl;
 
             return;
         }
 
         // Find the id on the stack - will throw exception if not found.
-        switch (context.mode)
+        switch (context.mode_stack.top())
         {
             case Context::Mode::DECLARATION:
                 context.current_declaration_type->allocate_stack(context, id);
@@ -60,7 +59,7 @@ public:
             case Context::Mode::SIZEOF:
                 type = context.current_declaration_type->get_type();
                 size = context.get_size(id);
-                dst << indent << "li " << dest_reg << ", " << size << std::endl;
+                dst << AST_INDENT << "li " << dest_reg << ", " << size << std::endl;
                 break;
 
             case Context::Mode::STRUCT:
@@ -80,7 +79,7 @@ public:
                     context.set_is_pointer(id, true);
                 }
                 store = Context::get_store_instruction(type);
-                dst << indent << store << " " << dest_reg << ", "
+                dst << AST_INDENT << store << " " << dest_reg << ", "
                     << stack_loc << "(s0)" << std::endl;
                 break;
 
@@ -96,7 +95,7 @@ public:
                 }
                 stack_loc = context.get_stack_location(id);
                 load = Context::get_load_instruction(type);
-                dst << indent << load << " " << dest_reg << ", "
+                dst << AST_INDENT << load << " " << dest_reg << ", "
                     << stack_loc << "(s0)" << std::endl;
                 break;
         }

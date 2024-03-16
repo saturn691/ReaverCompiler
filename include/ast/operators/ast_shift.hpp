@@ -30,21 +30,19 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string temp_reg1 = context.allocate_register(get_type(context));
         std::string temp_reg2 = context.allocate_register(get_type(context));
-        Context::Mode mode = context.mode;
-        context.mode = Context::Mode::GLOBAL;
+        context.mode_stack.push(Context::Mode::OPERATOR);
 
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);
 
         /* Note that shifts are undefined for floating point types in C. */
 
-        dst << indent << "sll " << dest_reg
+        dst << AST_INDENT << "sll " << dest_reg
             << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
 
-        context.mode = mode;
+        context.mode_stack.pop();
         context.deallocate_register(temp_reg1);
         context.deallocate_register(temp_reg2);
     }
@@ -76,7 +74,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
         std::string temp_reg1 = context.allocate_register(get_type(context));
         std::string temp_reg2 = context.allocate_register(get_type(context));
 
@@ -85,7 +82,7 @@ public:
 
         /* Note that shifts are undefined for floating point types in C. */
 
-        dst << indent << "srl " << dest_reg
+        dst << AST_INDENT << "srl " << dest_reg
             << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
 
         context.deallocate_register(temp_reg1);

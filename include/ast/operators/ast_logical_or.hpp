@@ -49,10 +49,9 @@ public:
         floating point numbers.
         */
 
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
         Types type = get_type(context);
-        Context::Mode mode = context.mode;
-        context.mode = Context::Mode::GLOBAL;
+        context.mode_stack.push(Context::Mode::OPERATOR);
 
         std::string temp_reg = context.allocate_register(Types::INT);
         std::string float_temp_reg = context.allocate_register(Types::FLOAT);
@@ -68,18 +67,18 @@ public:
             case Types::DOUBLE:
             case Types::LONG_DOUBLE:
                 get_left()->gen_asm(dst, float_temp_reg, context);
-                dst << indent << "fmv.w.x " << float_zero_reg
+                dst << AST_INDENT << "fmv.w.x " << float_zero_reg
                     << ", zero" << std::endl;
-                dst << indent << "feq.s " << temp_reg
+                dst << AST_INDENT << "feq.s " << temp_reg
                     << ", " << float_temp_reg
                     << ", " << float_zero_reg << std::endl;
-                dst << indent << "beq " << temp_reg
+                dst << AST_INDENT << "beq " << temp_reg
                     << ", zero, " << label1 << std::endl;
                 break;
 
             default:
             get_left()->gen_asm(dst, temp_reg, context);
-                dst << indent << "bne " << temp_reg
+                dst << AST_INDENT << "bne " << temp_reg
                     << ", zero, " << label1 << std::endl;
         }
 
@@ -89,31 +88,31 @@ public:
             case Types::DOUBLE:
             case Types::LONG_DOUBLE:
                 get_right()->gen_asm(dst, float_temp_reg, context);
-                dst << indent << "feq.s " << temp_reg
+                dst << AST_INDENT << "feq.s " << temp_reg
                     << ", " << float_temp_reg
                     << ", " << float_zero_reg << std::endl;
-                dst << indent << "bne " << temp_reg
+                dst << AST_INDENT << "bne " << temp_reg
                     << ", zero, " << label2 << std::endl;
                 break;
 
             default:
                 get_right()->gen_asm(dst, temp_reg, context);
-                dst << indent << "beq " << temp_reg
+                dst << AST_INDENT << "beq " << temp_reg
                     << ", zero, " << label2 << std::endl;
         }
 
         dst << label1 << ":" << std::endl;
-        dst << indent << "li " << temp_reg << ", 1" << std::endl;
-        dst << indent << "j " << label_end << std::endl;
+        dst << AST_INDENT << "li " << temp_reg << ", 1" << std::endl;
+        dst << AST_INDENT << "j " << label_end << std::endl;
 
         dst << label2 << ":" << std::endl;
-        dst << indent << "li " << temp_reg << ", 0" << std::endl;
+        dst << AST_INDENT << "li " << temp_reg << ", 0" << std::endl;
 
         dst << label_end << ":" << std::endl;
-        dst << indent << "mv " << dest_reg << ", "
+        dst << AST_INDENT << "mv " << dest_reg << ", "
             << temp_reg << std::endl;
 
-        context.mode = mode;
+        context.mode_stack.pop();
         context.deallocate_register(temp_reg);
         context.deallocate_register(float_temp_reg);
         context.deallocate_register(float_zero_reg);

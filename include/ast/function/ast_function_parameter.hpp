@@ -44,16 +44,10 @@ public:
         std::string id = declarator->get_id();
         context.add_function_declaration_type(type);
 
-        if (dest_reg == "MAGIC CODE")
-        {
-            context.mode = Context::Mode::FUNCTION_DEFINITION;
-            std::string indent(AST_PRINT_INDENT_SPACES, ' ');
-            std::string arg_reg = context.allocate_arg_register(type);
-            int _ = context.allocate_stack(type, id);
+        std::string arg_reg = context.allocate_arg_register(type);
+        int _ = context.allocate_stack(type, id);
 
-            declarator->gen_asm(dst, arg_reg, context);
-            context.mode = Context::Mode::GLOBAL;
-        }
+        declarator->gen_asm(dst, arg_reg, context);
     }
 
 private:
