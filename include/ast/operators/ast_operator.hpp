@@ -1,8 +1,22 @@
-#ifndef ast_operator_hpp
-#define ast_operator_hpp
+#ifndef AST_OPERATOR_HPP
+#define AST_OPERATOR_HPP
 
 #include "../ast_node.hpp"
 
+
+enum class OperatorType
+{
+    ADD,
+    SUB,
+    MOD,
+    MUL,
+    DIV,
+    BITWISE_AND,
+    BITWISE_OR,
+    BITWISE_XOR,
+    LEFT_SHIFT,
+    RIGHT_SHIFT
+};
 
 /*
  *  Base class for all operators (e.g. + - * / << >> & |)
@@ -15,9 +29,25 @@ public:
         right(_right)
     {}
 
+    Operator(
+        Expression* _left,
+        Expression* _right,
+        OperatorType _otype
+    ) :
+        left(_left),
+        right(_right),
+        otype(_otype)
+    {}
+
     void print(std::ostream &dst, int indent_level) const override
     {
-        throw std::runtime_error("Operator::print() not implemented");
+        std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');
+
+        dst << indent;
+        get_left()->print(dst, indent_level);
+        dst << " " << symbol_map.at(otype) << " ";
+        get_right()->print(dst, indent_level);
+        dst << std::endl;
     }
 
     std::string get_id() const override
@@ -39,6 +69,30 @@ public:
     Expression* get_right() const
     {
         return right;
+    }
+
+    virtual void gen_asm(
+        std::ostream &dst,
+        std::string &dest_reg,
+        Context &context
+    ) const override
+    {
+        Types type = get_left()->get_type(context);
+        context.mode_stack.push(Context::Mode::OPERATOR);
+        context.multiply_pointer = true;
+
+        std::string temp_reg1 = context.allocate_register(type);
+        get_left()->gen_asm(dst, temp_reg1, context);
+
+        std::string temp_reg2 = context.allocate_register(type);
+        get_right()->gen_asm(dst, temp_reg2, context);
+
+        gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map.at(otype));
+
+        context.deallocate_register(temp_reg1);
+        context.deallocate_register(temp_reg2);
+        context.multiply_pointer = false;
+        context.mode_stack.pop();
     }
 
     void gen_ins(
@@ -154,7 +208,136 @@ public:
 private:
     Expression* left;
     Expression* right;
+    OperatorType otype;
+
+    const std::unordered_map<OperatorType, std::string> symbol_map = {
+        {OperatorType::ADD, "+"},
+        {OperatorType::SUB, "-"},
+        {OperatorType::MOD, "%"},
+        {OperatorType::MUL, "*"},
+        {OperatorType::DIV, "/"},
+        {OperatorType::BITWISE_AND, "&"},
+        {OperatorType::BITWISE_OR, "|"},
+        {OperatorType::BITWISE_XOR, "^"},
+        {OperatorType::LEFT_SHIFT, "<<"},
+        {OperatorType::RIGHT_SHIFT, ">>"},
+    };
+
+    const std::unordered_map<OperatorType, std::unordered_map<Types, std::string>> ins_map = {
+        {OperatorType::ADD, {
+            {Types::UNSIGNED_CHAR, "add"},
+            {Types::CHAR, "add"},
+            {Types::UNSIGNED_SHORT, "add"},
+            {Types::SHORT, "add"},
+            {Types::INT, "add"},
+            {Types::UNSIGNED_INT, "add"},
+            {Types::UNSIGNED_LONG, "add"},
+            {Types::LONG, "add"},
+            {Types::FLOAT, "fadd.s"},
+            {Types::DOUBLE, "fadd.d"},
+            {Types::LONG_DOUBLE, "fadd.d"}
+        }},
+        {OperatorType::SUB, {
+            {Types::UNSIGNED_CHAR, "sub"},
+            {Types::CHAR, "sub"},
+            {Types::UNSIGNED_SHORT, "sub"},
+            {Types::SHORT, "sub"},
+            {Types::INT, "sub"},
+            {Types::UNSIGNED_INT, "sub"},
+            {Types::UNSIGNED_LONG, "sub"},
+            {Types::LONG, "sub"},
+            {Types::FLOAT, "fsub.s"},
+            {Types::DOUBLE, "fsub.d"},
+            {Types::LONG_DOUBLE, "fsub.d"}
+        }},
+        {OperatorType::MOD, {
+            {Types::UNSIGNED_CHAR, "remu"},
+            {Types::CHAR, "rem"},
+            {Types::UNSIGNED_SHORT, "remu"},
+            {Types::SHORT, "rem"},
+            {Types::INT, "rem"},
+            {Types::UNSIGNED_INT, "remu"},
+            {Types::LONG, "rem"},
+            {Types::UNSIGNED_LONG, "remu"},
+        }},
+        {OperatorType::MUL, {
+            {Types::UNSIGNED_CHAR, "mul"},
+            {Types::CHAR, "mul"},
+            {Types::UNSIGNED_SHORT, "mul"},
+            {Types::SHORT, "mul"},
+            {Types::INT, "mul"},
+            {Types::UNSIGNED_INT, "mul"},
+            {Types::UNSIGNED_LONG, "mul"},
+            {Types::LONG, "mul"},
+            {Types::FLOAT, "fmul.s"},
+            {Types::DOUBLE, "fmul.d"},
+            {Types::LONG_DOUBLE, "fmul.d"}
+        }},
+        {OperatorType::DIV, {
+            {Types::UNSIGNED_CHAR, "div"},
+            {Types::CHAR, "div"},
+            {Types::UNSIGNED_SHORT, "div"},
+            {Types::SHORT, "div"},
+            {Types::INT, "div"},
+            {Types::UNSIGNED_INT, "div"},
+            {Types::UNSIGNED_LONG, "div"},
+            {Types::LONG, "div"},
+            {Types::FLOAT, "fdiv.s"},
+            {Types::DOUBLE, "fdiv.d"},
+            {Types::LONG_DOUBLE, "fdiv.d"}
+        }},
+        {OperatorType::BITWISE_AND, {
+            {Types::UNSIGNED_CHAR, "and"},
+            {Types::CHAR, "and"},
+            {Types::UNSIGNED_SHORT, "and"},
+            {Types::SHORT, "and"},
+            {Types::INT, "and"},
+            {Types::UNSIGNED_INT, "and"},
+            {Types::UNSIGNED_LONG, "and"},
+            {Types::LONG, "and"},
+        }},
+        {OperatorType::BITWISE_OR, {
+            {Types::UNSIGNED_CHAR, "or"},
+            {Types::CHAR, "or"},
+            {Types::UNSIGNED_SHORT, "or"},
+            {Types::SHORT, "or"},
+            {Types::INT, "or"},
+            {Types::UNSIGNED_INT, "or"},
+            {Types::UNSIGNED_LONG, "or"},
+            {Types::LONG, "or"},
+        }},
+        {OperatorType::BITWISE_XOR, {
+            {Types::UNSIGNED_CHAR, "xor"},
+            {Types::CHAR, "xor"},
+            {Types::UNSIGNED_SHORT, "xor"},
+            {Types::SHORT, "xor"},
+            {Types::INT, "xor"},
+            {Types::UNSIGNED_INT, "xor"},
+            {Types::UNSIGNED_LONG, "xor"},
+            {Types::LONG, "xor"},
+        }},
+        {OperatorType::LEFT_SHIFT, {
+            {Types::UNSIGNED_CHAR, "sll"},
+            {Types::CHAR, "sll"},
+            {Types::UNSIGNED_SHORT, "sll"},
+            {Types::SHORT, "sll"},
+            {Types::INT, "sll"},
+            {Types::UNSIGNED_INT, "sll"},
+            {Types::UNSIGNED_LONG, "sll"},
+            {Types::LONG, "sll"},
+        }},
+        {OperatorType::RIGHT_SHIFT, {
+            {Types::UNSIGNED_CHAR, "srl"},
+            {Types::CHAR, "sra"},
+            {Types::UNSIGNED_SHORT, "srl"},
+            {Types::SHORT, "sra"},
+            {Types::INT, "sra"},
+            {Types::UNSIGNED_INT, "srl"},
+            {Types::UNSIGNED_LONG, "srl"},
+            {Types::LONG, "sra"},
+        }}
+    };
 };
 
 
-#endif /* ast_operator_hpp */
+#endif /* AST_OPERATOR_HPP */

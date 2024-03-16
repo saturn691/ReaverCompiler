@@ -169,29 +169,29 @@ multiplicative_expression
     : cast_expression
         { $$ = $1; }
     | multiplicative_expression '*' cast_expression
-        { $$ = new Mul($1, $3); }
+        { $$ = new Operator($1, $3, OperatorType::MUL); }
     | multiplicative_expression '/' cast_expression
-        { $$ = new Divide($1, $3); }
+        { $$ = new Operator($1, $3, OperatorType::DIV); }
     | multiplicative_expression '%' cast_expression
-        { $$ = new Modulo($1, $3); }
+        { $$ = new Operator($1, $3, OperatorType::MOD); }
     ;
 
 additive_expression
     : multiplicative_expression
         { $$ = $1; }
     | additive_expression '+' multiplicative_expression
-        { $$ = new Add($1, $3); }
+        { $$ = new Operator($1, $3, OperatorType::ADD); }
     | additive_expression '-' multiplicative_expression
-        { $$ = new Sub($1, $3); }
+        { $$ = new Operator($1, $3, OperatorType::SUB); }
     ;
 
 shift_expression
     : additive_expression
         { $$ = $1; }
     | shift_expression LEFT_OP additive_expression
-        { $$ = new LeftShift($1, $3); }
+        { $$ = new Operator($1, $3, OperatorType::LEFT_SHIFT); }
     | shift_expression RIGHT_OP additive_expression
-        { $$ = new RightShift($1, $3); }
+        { $$ = new Operator($1, $3, OperatorType::RIGHT_SHIFT); }
     ;
 
 relational_expression
@@ -220,21 +220,21 @@ and_expression
     : equality_expression
         { $$ = $1; }
     | and_expression '&' equality_expression
-        { $$ = new BitwiseAnd($1, $3); }
+        { $$ = new Operator($1, $3, OperatorType::BITWISE_AND); }
     ;
 
 exclusive_or_expression
     : and_expression
         { $$ = $1; }
     | exclusive_or_expression '^' and_expression
-        { $$ = new BitwiseXor($1, $3);}
+        { $$ = new Operator($1, $3, OperatorType::BITWISE_XOR);}
     ;
 
 inclusive_or_expression
     : exclusive_or_expression
         { $$ = $1; }
     | inclusive_or_expression '|' exclusive_or_expression
-        { $$ = new BitwiseOr($1, $3); }
+        { $$ = new Operator($1, $3, OperatorType::BITWISE_OR); }
     ;
 
 logical_and_expression
