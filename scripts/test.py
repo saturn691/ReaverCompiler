@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 
 """
+Not recommended version for the coursework. Use the stable 0.2.0 version on the
+coursework spec.
+
 A wrapper script to run all the compiler tests. This script will call the
 Makefile, run the tests and store the outputs in bin/output.
+
+This script can also run the tests in writing-a-c-compiler-tests submodule.
 
 This script will also generate a JUnit XML file, which can be used to integrate
 with CI/CD pipelines.
@@ -18,7 +23,7 @@ For more information, run scripts/test.py --help
 """
 
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __author__ = "William Huynh (@saturn691), Filip Wojcicki, James Nock"
 
 
@@ -27,6 +32,7 @@ import sys
 import argparse
 import shutil
 import subprocess
+import json
 from dataclasses import dataclass
 from xml.sax.saxutils import escape as xmlescape, quoteattr as xmlquoteattr
 from pathlib import Path
@@ -50,8 +56,11 @@ OUTPUT_FOLDER = PROJECT_LOCATION.joinpath("bin/output").resolve()
 J_UNIT_OUTPUT_FILE = PROJECT_LOCATION.joinpath(
     "bin/junit_results.xml").resolve()
 COMPILER_TEST_FOLDER = PROJECT_LOCATION.joinpath("compiler_tests").resolve()
+ADD_TEST_FOLDER = PROJECT_LOCATION.joinpath(
+    "writing-a-c-compiler-tests/tests").resolve()
 COMPILER_FILE = PROJECT_LOCATION.joinpath("bin/c_compiler").resolve()
 COVERAGE_FOLDER = PROJECT_LOCATION.joinpath("coverage").resolve()
+RESULTS_FILE = ADD_TEST_FOLDER.joinpath("../expected_results.json").resolve()
 
 BUILD_TIMEOUT_SECONDS = 60
 RUN_TIMEOUT_SECONDS = 15
@@ -200,7 +209,10 @@ def run_test(driver: Path) -> Result:
     test_name = to_assemble.relative_to(PROJECT_LOCATION)
 
     # Determine the relative path to the file wrt. COMPILER_TEST_FOLDER.
-    relative_path = to_assemble.relative_to(COMPILER_TEST_FOLDER)
+    if ADD_TEST_FOLDER.resolve() in to_assemble.resolve().parents:
+        relative_path = to_assemble.relative_to(ADD_TEST_FOLDER)
+    else:
+        relative_path = to_assemble.relative_to(COMPILER_TEST_FOLDER)
 
     # Construct the path where logs would be stored, without the suffix
     # e.g. .../bin/output/_example/example/example
@@ -264,6 +276,25 @@ def run_test(driver: Path) -> Result:
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)
 
+    # If the test is in the ADD_TEST_FOLDER, we need to simulate and check
+    if ADD_TEST_FOLDER.resolve() in to_assemble.resolve().parents:
+        return simulate_and_check(to_assemble, log_path, compiler_log_file_str,
+                                  relevant_files, test_name)
+
+    # Link and simulate
+    return link_and_simulate(log_path, compiler_log_file_str, driver,
+                             relevant_files, test_name)
+
+
+def link_and_simulate(log_path: Path,
+                      compiler_log_file_str: str,
+                      driver: Path,
+                      relevant_files,
+                      test_name
+                      ) -> Result:
+    """
+    The normal link and simulate for the compiler tests.
+    """
     # Link
     return_code, _, timed_out = run_subprocess(
         cmd=["riscv64-unknown-elf-gcc", "-march=rv32imfd", "-mabi=ilp32d",
@@ -286,6 +317,55 @@ def run_test(driver: Path) -> Result:
         return Result(
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)
+
+    return Result(test_case_name=test_name, return_code=return_code,
+                  passed=True, timeout=False, error_log="")
+
+
+def simulate_and_check(to_assemble: Path,
+                       log_path: Path,
+                       compiler_log_file_str: str,
+                       relevant_files,
+                       test_name: str
+                       ) -> Result:
+    """
+    Jankiest code known to man.
+    Don't you dare even try reading this code.
+
+    Use the stable 0.2.0 version on the coursework spec.
+
+    This functions simulates the assembly file and checks the return code
+    against the JSON in the expected_results.json file.
+    """
+    # Link
+    return_code, _, timed_out = run_subprocess(
+        cmd=["riscv64-unknown-elf-gcc", "-march=rv32imfd", "-mabi=ilp32d",
+             "-static", "-o", f"{log_path}", f"{log_path}.o"],
+        timeout=RUN_TIMEOUT_SECONDS, log_path=f"{log_path}.linker",)
+    if return_code != 0:
+        msg = f"\t> Failed to link driver: \n\t {compiler_log_file_str} \n\t {relevant_files('linker')}"
+        return Result(
+            test_case_name=test_name, return_code=return_code, passed=False,
+            timeout=timed_out, error_log=msg)
+
+    # Simulate
+    return_code, _, timed_out = run_subprocess(
+        cmd=["spike", "pk", log_path],
+        timeout=RUN_TIMEOUT_SECONDS,
+        log_path=f"{log_path}.simulation",
+    )
+
+    # Use the JSON library to read the expected return code from the file
+    with open(RESULTS_FILE, "r") as file:
+        results = json.load(file)
+        relative_path = to_assemble.relative_to(ADD_TEST_FOLDER)
+        expected_return_code = results[relative_path.as_posix()]["return_code"]
+
+        if return_code != expected_return_code:
+            msg = f"\t> Failed to simulate: \n\t {compiler_log_file_str} \n\t {relevant_files('simulation')}"
+            return Result(
+                test_case_name=test_name, return_code=return_code, passed=False,
+                timeout=timed_out, error_log=msg)
 
     return Result(test_case_name=test_name, return_code=return_code,
                   passed=True, timeout=False, error_log="")
@@ -422,8 +502,17 @@ def run_tests(args, xml_file: JUnitXMLFile):
     """
     Runs tests against compiler.
     """
-    drivers = list(Path(args.dir).rglob("*_driver.c"))
-    drivers = sorted(drivers, key=lambda p: (p.parent.name, p.name))
+    if ADD_TEST_FOLDER.resolve() in Path(args.dir).resolve().parents:
+        # Hack to get around the fact that the ADD_TEST_FOLDER is a submodule
+        # and the compiler_tests folder is not.
+        drivers = list(Path(args.dir).rglob("*.c"))
+        drivers = sorted(drivers, key=lambda p: (p.parent.name, p.name))
+        drivers = [driver.parent.joinpath(f"{driver.stem}_driver.c")
+                   for driver in drivers]
+        print(drivers)
+    else:
+        drivers = list(Path(args.dir).rglob("*_driver.c"))
+        drivers = sorted(drivers, key=lambda p: (p.parent.name, p.name))
     results = []
 
     progress_bar = None
