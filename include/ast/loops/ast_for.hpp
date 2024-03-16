@@ -52,16 +52,20 @@ public:
         initiation->print(dst, indent_level + 1); // initiation
         condition->print(dst, indent_level + 1); // condition
         dst << indent << ";" << std::endl;
+
         if (iteration != nullptr)
         {
             iteration->print(dst, indent_level + 1); // iteration
         }
+
         dst << indent << ")" << std::endl;
         dst << indent << "{" << std::endl;
+
         if (statement != nullptr)
         {
             statement->print(dst, indent_level + 1); // statement
         }
+
         dst << indent << "}" << std::endl;
     }
 
@@ -70,12 +74,17 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string start_label = context.get_unique_label("for");
-        std::string end_label = context.get_unique_label("for");
+        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+
+        std::string start_label = context.get_unique_label("for_start");
+        std::string end_label = context.get_unique_label("for_end");
+
+        // "The continue statement used anywhere within the loop-statement
+        //  transfers control to iteration-expression"
+        context.continue_label_stack.push(start_label);
+        context.end_label_stack.push(end_label);
 
         std::string loop_reg = context.allocate_register(Types::INT);
-
-        std::string indent(AST_PRINT_INDENT_SPACES, ' ');
 
         // Loop initialization
         if (initiation)
@@ -107,6 +116,9 @@ public:
         dst << indent << "j " << start_label << std::endl;
         dst << end_label << ":" << std::endl;
 
+        // Clean up
+        context.end_label_stack.pop();
+        context.continue_label_stack.pop();
         context.deallocate_register(loop_reg);
     }
 

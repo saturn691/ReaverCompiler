@@ -12,18 +12,11 @@ class Declarator : public Node
 {
 public:
     Declarator() {}
-    Declarator(std::string _id) : id(_id) {}
 
     virtual ~Declarator()
     {}
 
-    virtual std::string get_id() const
-    {
-        return id;
-    }
-
-protected:
-    std::string id;
+    virtual std::string get_id() const = 0;
 };
 
 

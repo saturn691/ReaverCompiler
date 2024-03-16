@@ -65,7 +65,8 @@ auto check_type_map(std::string id)
 
 %%
 
-"/*"			{ ; }
+\/\/(.*?)\n		{ ; }
+\/\*(.|[\r\n])*?\*\/	{ ; }
 
 "auto"			{ return(AUTO); }
 "break"			{ return(BREAK); }

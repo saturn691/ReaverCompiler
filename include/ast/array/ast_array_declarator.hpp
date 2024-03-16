@@ -37,12 +37,18 @@ public:
         dst << "]";
     }
 
+    std::string get_id() const override
+    {
+        return direct_declarator->get_id();
+    }
+
     void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
     ) const override {
         std::string indent(AST_PRINT_INDENT_SPACES, ' ');
+        int arr_size;
 
         /*
             If we are defining function parameters, e.g. f(int x[]), we
@@ -56,19 +62,20 @@ public:
             context.is_pointer = true;
             direct_declarator->gen_asm(dst, dest_reg, context);
             context.is_pointer = false;
+            arr_size = 1;
         }
         else
         {
             direct_declarator->gen_asm(dst, dest_reg, context);
+            // TODO Maybe don't expression is a number? It works however.
+            // Downcast to number and evaluate
+            arr_size = dynamic_cast<Number*>(array_size)->evaluate();
+            std::string id = direct_declarator->get_id();
+            Types type = context.get_type(id);
+            int _ = context.allocate_array_stack(type, arr_size, id);
         }
 
-        std::string id = direct_declarator->get_id();
-        Types type = context.get_type(id);
-
-        // TODO Maybe don't expression is a number? It works however.
-        // Downcast to number and evaluate
-        int arr_size = dynamic_cast<Number*>(array_size)->evaluate();
-        int stack_loc = context.allocate_array_stack(type, arr_size, id);
+        return;
     }
 
 private:

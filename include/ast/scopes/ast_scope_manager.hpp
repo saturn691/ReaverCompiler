@@ -29,7 +29,6 @@ public:
     {
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
-        dst << indent;
         dst << "{" << std::endl;
         if (statement_list != NULL)
         {

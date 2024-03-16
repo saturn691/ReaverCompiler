@@ -38,9 +38,7 @@ public:
         declarator->print(dst, 0);
         dst << std::endl;
 
-        dst << "{" << std::endl;
         compound_statement->print(dst, indent_level + 1);
-        dst << "}";
     }
 
     void gen_asm(

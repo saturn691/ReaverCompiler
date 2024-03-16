@@ -49,7 +49,7 @@ public:
             context.mode = Context::Mode::FUNCTION_DEFINITION;
             std::string indent(AST_PRINT_INDENT_SPACES, ' ');
             std::string arg_reg = context.allocate_arg_register(type);
-            int stack_loc = context.allocate_stack(type, id);
+            int _ = context.allocate_stack(type, id);
 
             declarator->gen_asm(dst, arg_reg, context);
             context.mode = Context::Mode::GLOBAL;

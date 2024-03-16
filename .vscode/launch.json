@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/struct/sizeof.c",
+                "compiler_tests/custom/504-dot_product.c",
                 "-o",
                 "bin/debug.s",
             ],
