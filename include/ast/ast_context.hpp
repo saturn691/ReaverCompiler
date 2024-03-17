@@ -52,7 +52,7 @@ public:
 
     std::string allocate_register(Types type);
 
-    std::string allocate_arg_register(Types type);
+    std::string allocate_arg_register(Types type, std::string id = "");
 
     void deallocate_register(std::string register_name);
 
@@ -66,9 +66,9 @@ public:
 
     void end_stack(std::ostream& dst);
 
-    int allocate_stack(Types type, std::string id = "");
+    int allocate_stack(Types type, std::string id);
 
-    int allocate_array_stack(Types type, int size, std::string id = "");
+    int allocate_array_stack(Types type, int size, std::string id);
 
     int push_identifier_map();
 
@@ -176,13 +176,13 @@ public:
     // Boolean for pointer multiplier
     bool multiply_pointer = false;
 
+    // Stack of maps
+    std::stack<id_map_t> map_stack;
+
     // Static Constants --------------------------------------------------------
 
     // Map from type to size in bytes
     static const std::unordered_map<Types, unsigned int> type_size_map;
-
-    // Stack of maps
-    std::stack<id_map_t> map_stack;
 
 private:
 
@@ -222,8 +222,10 @@ private:
     // Points to the bottom of the data in the frame
     int frame_pointer_offset = 0;
 
+    // Function call w.r.t sp, function definition w.r.t s0
+    int stack_pointer_offset = 0;
+
     std::unordered_map<std::string, int> label_map;
-    unsigned int tag_next_id = 0;
 
     // Constants --------------------------------------------------------------
 

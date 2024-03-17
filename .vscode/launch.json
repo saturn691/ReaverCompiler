@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/custom/109-while_scope.c",
+                "compiler_tests/custom/111-func16.c",
                 // "writing-a-c-compiler-tests/tests/chapter_8/valid/extra_credit/switch_break.c",
                 "-o",
                 "bin/debug.s",

@@ -53,6 +53,7 @@ std::string Context::allocate_register(Types type)
             }
             break;
 
+        // TODO this
         case Types::LONG_DOUBLE:
             throw std::runtime_error(
                 "Context::allocate_register() - unrecognised type"
@@ -96,7 +97,20 @@ std::string Context::allocate_register(Types type)
 }
 
 
-std::string Context::allocate_arg_register(Types type)
+/**
+ *  Allocate a register for an argument. To be used in function calls and
+ *  function definitions.
+ *
+ *  According to the RVG ABI, the first 8 arguments are passed in registers
+ *  a0-a7 and fa0-fa7. This function will allocate a register for the argument
+ *  and return the register name.
+ *
+ *  If no registers are available, it will return a stack location to where to
+ *  place or find the argument.
+ *
+ *  @param type The type of the argument
+*/
+std::string Context::allocate_arg_register(Types type, std::string id)
 {
     switch (type)
     {
@@ -116,6 +130,7 @@ std::string Context::allocate_arg_register(Types type)
             }
             break;
 
+        // TODO - take two registers that are aligned.
         case Types::LONG_DOUBLE:
             throw std::runtime_error(
                 "Context::allocate_arg_register() - not implemented"
@@ -137,9 +152,13 @@ std::string Context::allocate_arg_register(Types type)
             break;
     }
 
-    throw std::runtime_error(
-        "Context::allocate_arg_register() - no free registers"
-    );
+    // If no registers are available, return a stack location
+    int stack_loc = stack_pointer_offset;
+    stack_pointer_offset += type_size_map.at(type);
+    map_stack.top()[id] = {stack_loc, type};
+    map_stack.top()[id].is_pointer = is_pointer;
+
+    return std::to_string(stack_loc);
 }
 
 
@@ -167,8 +186,6 @@ void Context::deallocate_register(std::string register_name)
 
 void Context::push_registers(std::ostream& dst)
 {
-
-
     dst << "# Pushing registers onto stack (if any)" << std::endl;
 
     // Search temporary registers (fa0-fa7)
@@ -266,6 +283,9 @@ void Context::deallocate_arg_registers()
         int reg_index = register_map.at(register_name);
         registers[reg_index] = 0;
     }
+
+    // Reset the stack pointer
+    stack_pointer_offset = 0;
 }
 
 
@@ -309,54 +329,37 @@ void Context::end_stack(std::ostream& dst)
 }
 
 
+/**
+ *  Allocate a stack location for a variable according to its type and adds it
+ *  to the lookup table.
+ *
+ *  @param type The type of the variable
+ *  @param id The identifier of the variable
+*/
 int Context::allocate_stack(Types type, std::string id)
 {
-    unsigned int bytes;
-    if (is_pointer)
-    {
-        bytes = 4;
-    }
-    else
-    {
-        bytes = type_size_map.at(type);
-    }
+    unsigned int bytes = (is_pointer) ? 4 : type_size_map.at(type);
 
     int stack_loc = push_stack(bytes);
 
-    if (!id.empty())
-    {
-        map_stack.top()[id] = {stack_loc, type};
-        map_stack.top()[id].is_pointer = is_pointer;
-    }
-    else
-    {
-        throw std::runtime_error(
-            "Context::allocate_stack() - id is empty"
-        );
-    }
+    map_stack.top()[id] = {stack_loc, type};
+    map_stack.top()[id].is_pointer = is_pointer;
 
     return stack_loc;
 }
+
 
 int Context::allocate_array_stack(Types type, int size, std::string id)
 {
-    unsigned int bytes = type_size_map.at(type)*size;
+    unsigned int bytes = type_size_map.at(type) * size;
     int stack_loc = push_stack(bytes);
 
-    if (!id.empty())
-    {
-        map_stack.top()[id] = {stack_loc, type};
-        map_stack.top()[id].is_pointer = is_pointer;
-    }
-    else
-    {
-        throw std::runtime_error(
-            "Context::allocate_array_stack() - id is empty"
-        );
-    }
+    map_stack.top()[id] = {stack_loc, type};
+    map_stack.top()[id].is_pointer = is_pointer;
 
     return stack_loc;
 }
+
 
 int Context::push_identifier_map()
 {
@@ -364,11 +367,13 @@ int Context::push_identifier_map()
     return map_stack.size() - 1;
 }
 
+
 int Context::pop_identifier_map()
 {
     map_stack.pop();
     return map_stack.size() - 1;
 }
+
 
 int Context::push_stack(int bytes)
 {

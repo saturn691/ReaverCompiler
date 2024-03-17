@@ -30,6 +30,7 @@ public:
     ) const override {
         context.deallocate_arg_registers();
 
+        // Cast to Expression (assignment_expression)
         for (auto &node : nodes)
         {
             Expression* n = dynamic_cast<Expression*>(node);

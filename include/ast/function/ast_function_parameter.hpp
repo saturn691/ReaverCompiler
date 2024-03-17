@@ -44,10 +44,14 @@ public:
         std::string id = declarator->get_id();
         context.add_function_declaration_type(type);
 
-        std::string arg_reg = context.allocate_arg_register(type);
-        int _ = context.allocate_stack(type, id);
+        std::string arg_reg = context.allocate_arg_register(type, id);
 
-        declarator->gen_asm(dst, arg_reg, context);
+        // If the argument is a register, then we need to store it
+        if (arg_reg[0] == 'a' || arg_reg[0] == 'f')
+        {
+            context.allocate_stack(type, id);
+            declarator->gen_asm(dst, arg_reg, context);
+        }
     }
 
 private:

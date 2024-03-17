@@ -81,16 +81,14 @@ public:
         context.mode_stack.push(Context::Mode::OPERATOR);
         context.multiply_pointer = true;
 
+        get_left()->gen_asm(dst, dest_reg, context);
+
         std::string temp_reg1 = context.allocate_register(type);
-        get_left()->gen_asm(dst, temp_reg1, context);
+        get_right()->gen_asm(dst, temp_reg1, context);
 
-        std::string temp_reg2 = context.allocate_register(type);
-        get_right()->gen_asm(dst, temp_reg2, context);
-
-        gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map.at(otype));
+        gen_ins(dst, type, dest_reg, temp_reg1, dest_reg, ins_map.at(otype));
 
         context.deallocate_register(temp_reg1);
-        context.deallocate_register(temp_reg2);
         context.multiply_pointer = false;
         context.mode_stack.pop();
     }
