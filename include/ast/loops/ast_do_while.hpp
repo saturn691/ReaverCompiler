@@ -20,8 +20,8 @@ public:
     {}
 
     ~DoWhile() {
-        delete condition;
         delete statement;
+        delete condition;
     }
 
     void print(std::ostream &dst, int indent_level) const override
@@ -43,10 +43,11 @@ public:
         Context &context
     ) const override {
         std::string start_label = context.get_unique_label("do_while");
+        std::string condition_label = context.get_unique_label("do_while_condition");
         std::string end_label = context.get_unique_label("do_while_end");
         std::string condition_reg = context.allocate_register(Types::INT);
 
-        context.continue_label_stack.push(start_label);
+        context.continue_label_stack.push(condition_label);
         context.end_label_stack.push(end_label);
 
         // START
@@ -57,6 +58,7 @@ public:
         }
 
         // CONDITION (continue points to here)
+        dst << condition_label << ":" << std::endl;
         condition->gen_asm(dst, condition_reg, context);
         dst << AST_INDENT << "bnez " << condition_reg
             << ", " << start_label << std::endl;
@@ -69,8 +71,8 @@ public:
         context.deallocate_register(condition_reg);
     }
 private:
-    Node* condition;
     Node* statement;
+    Node* condition;
 };
 
 

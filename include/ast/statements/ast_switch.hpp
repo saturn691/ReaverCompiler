@@ -59,6 +59,15 @@ public:
         context.mode_stack.push(Context::Mode::SWITCH);
         std::string end_label = context.get_unique_label("switch_end");
 
+        // Save the outer switch context and clean the inner switch context
+        std::string outer_switch_reg = context.switch_reg;
+        std::stringstream outer_switch_cases_expr;
+        outer_switch_cases_expr << context.switch_cases_expr.str();
+        std::stringstream outer_switch_default;
+        outer_switch_default << context.switch_default.str();
+        context.switch_cases_expr.str("");
+        context.switch_default.str("");
+
         // Imperative for breaking out of the statement
         context.end_label_stack.push(end_label);
 
@@ -96,7 +105,11 @@ public:
 
         // Cleanup
         context.deallocate_register(switch_reg);
-        context.switch_reg = "";
+        context.switch_reg = outer_switch_reg;
+        context.switch_cases_expr.str("");
+        context.switch_cases_expr << outer_switch_cases_expr.str();
+        context.switch_default.str("");
+        context.switch_default << outer_switch_default.str();
         context.mode_stack.pop();
         context.end_label_stack.pop();
     }

@@ -147,6 +147,7 @@ public:
 
         ASSIGN,                     // Used for pointers
         DECLARATION,                // Used for declarations
+        INIT_DECLARATION,           // Used for initialising declarations
         SIZEOF,                     // Used for sizeof()
         OPERATOR,                   // Used for operators
         FUNCTION_DEFINITION,        // Duh

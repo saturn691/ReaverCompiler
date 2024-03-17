@@ -84,6 +84,7 @@ public:
                 break;
 
             // Mode 1: LOAD
+            case Context::Mode::INIT_DECLARATION:
             default:
                 if (context.is_pointer || context.get_is_pointer(id))
                 {

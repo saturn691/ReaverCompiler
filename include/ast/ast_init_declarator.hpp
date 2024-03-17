@@ -63,7 +63,11 @@ public:
         }
 
         std::string temp_reg = context.allocate_register(type);
+
+        // This mode must occur AFTER the declarator->gen_asm()
+        context.mode_stack.push(Context::Mode::INIT_DECLARATION);
         initializer->gen_asm(dst, temp_reg, context);
+        context.mode_stack.pop();
 
         // Store the value in the stack
         int stack_loc = context.get_stack_location(id);
