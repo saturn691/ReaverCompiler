@@ -66,7 +66,8 @@ public:
         return value.
         */
 
-        gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map, true);
+        dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
+            << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
 
         std::string set_ins;
         if (((type == Types::FLOAT ||

@@ -54,9 +54,7 @@ public:
         context.current_declaration_type = (TypePtr)declaration_specifier;
         Types type = context.current_declaration_type->get_type();
 
-        std::string return_reg = (type == Types::FLOAT ||
-                                 type == Types::DOUBLE ||
-                                 type == Types::LONG_DOUBLE) ? "fa0" : "a0";
+        std::string return_reg = context.allocate_return_register(type);
 
         std::string end_label = id + "_end";
         context.end_label_stack.push(end_label);

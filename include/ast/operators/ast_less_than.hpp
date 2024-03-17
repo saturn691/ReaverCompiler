@@ -55,11 +55,13 @@ public:
 
         if (invert)
         {
-            gen_ins(dst, type, temp_reg2, temp_reg1, dest_reg, ins_map, true);
+            dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
+                << ", " << temp_reg2 << ", " << temp_reg1 << std::endl;
         }
         else
         {
-            gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map, true);
+            dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
+                << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
         }
 
         context.mode_stack.pop();

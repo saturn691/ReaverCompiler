@@ -52,11 +52,13 @@ public:
 
     std::string allocate_register(Types type);
 
+    std::string allocate_return_register(Types type);
+
     std::string allocate_arg_register(Types type, std::string id = "");
 
     void deallocate_register(std::string register_name);
 
-    void push_registers(std::ostream& dst);
+    void push_registers(std::ostream& dst, std::string exclude = "");
 
     void pop_registers(std::ostream& dst);
 

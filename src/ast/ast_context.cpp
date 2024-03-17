@@ -97,6 +97,35 @@ std::string Context::allocate_register(Types type)
 }
 
 
+
+/**
+ *  Gets the return register for a given type and marks it as being used.
+ *
+ *  @param type The type of the return value
+ *  @return a0 or fa0
+*/
+std::string Context::allocate_return_register(Types type)
+{
+    std::string return_register;
+
+    switch (type)
+    {
+        case Types::FLOAT:
+        case Types::DOUBLE:
+        case Types::LONG_DOUBLE:
+            return_register = "fa0";
+            registers_f[register_map_f.at(return_register)] = 1;
+            break;
+
+        default:
+            return_register = "a0";
+            registers[register_map.at(return_register)] = 1;
+            break;
+    }
+
+    return return_register;
+}
+
 /**
  *  Allocate a register for an argument. To be used in function calls and
  *  function definitions.
@@ -184,16 +213,20 @@ void Context::deallocate_register(std::string register_name)
 }
 
 
-void Context::push_registers(std::ostream& dst)
+/**
+ *  Checks if a register is in use, and if so, pushes it to the stack.
+ *  Should call the pop_registers() function after the function call.
+*/
+void Context::push_registers(std::ostream& dst, std::string exclude)
 {
     dst << "# Pushing registers onto stack (if any)" << std::endl;
 
-    // Search temporary registers (fa0-fa7)
+    // Search temporary registers (ft0-ft7)
     for (int i = 0; i <= 11; ++i)
     {
         std::string register_name = "ft" + std::to_string(i);
         int reg_index = register_map_f.at(register_name);
-        if (registers_f[reg_index] == 1)
+        if (registers_f[reg_index] == 1 && register_name != exclude)
         {
             registers_f[reg_index] = 0;
             // 32-bit registers
@@ -206,12 +239,30 @@ void Context::push_registers(std::ostream& dst)
         }
     }
 
-    // Search temporary registers (a0-a7)
+    // Search temporary registers (t0-t6)
     for (int i = 0; i <= 6; ++i)
     {
         std::string register_name = "t" + std::to_string(i);
         int reg_index = register_map.at(register_name);
-        if (registers[reg_index] == 1)
+        if (registers[reg_index] == 1 && register_name != exclude)
+        {
+            registers[reg_index] = 0;
+            // 32-bit registers
+            int stack_loc = allocate_stack(
+                Types::LONG,
+                "!" + register_name
+            );
+            dst << AST_INDENT << "sw " << register_name
+                << ", " << stack_loc << "(s0)" << std::endl;
+        }
+    }
+
+    // Search argument registers (a1-a7)
+    for (int i = 0; i <= 7; ++i)
+    {
+        std::string register_name = "a" + std::to_string(i);
+        int reg_index = register_map.at(register_name);
+        if (registers[reg_index] == 1 && register_name != exclude)
         {
             registers[reg_index] = 0;
             // 32-bit registers

@@ -59,30 +59,51 @@ public:
         // Triggers the generation of assembly for the function parameters.
         std::string input_reg = "don't care";
 
+        // Spill all registers, including a0
+        context.push_registers(dst, dest_reg);
+
         // First argument goes into a0
         if (argument_expression_list)
         {
             argument_expression_list->gen_asm(dst, input_reg, context);
         }
 
-        context.push_registers(dst);
         dst << AST_INDENT << "call " << id << std::endl;
-        context.pop_registers(dst);
 
         switch (type)
         {
             case Types::FLOAT:
             case Types::DOUBLE:
             case Types::LONG_DOUBLE:
-                dst << AST_INDENT << "fmv.s " << dest_reg
-                    << ", " << "fa0" << std::endl;
+                if (dest_reg != "fa0")
+                {
+                    dst << AST_INDENT << "fmv.s " << dest_reg
+                        << ", " << "fa0" << std::endl;
+                }
+                else
+                {
+                    // Reallocate the return register
+                    context.allocate_return_register(type);
+                }
+
                 break;
 
             default:
-                dst << AST_INDENT << "mv " << dest_reg
-                    << ", " << "a0" << std::endl;
+                if (dest_reg != "a0")
+                {
+                    dst << AST_INDENT << "mv " << dest_reg
+                        << ", " << "a0" << std::endl;
+                }
+                else
+                {
+                    // Reallocate the return register
+                    context.allocate_return_register(type);
+                }
                 break;
         }
+
+        // Restore the registers, after moving a0 to dest_reg
+        context.pop_registers(dst);
     }
 
 private:
