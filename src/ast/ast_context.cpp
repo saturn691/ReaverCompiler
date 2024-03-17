@@ -393,12 +393,7 @@ void Context::pop_stack(int bytes)
 
 std::string Context::get_unique_label(std::string prefix)
 {
-    unsigned int id = tag_next_id;
-    tag_next_id++;
-
-    std::string tag = prefix + std::to_string(id);
-
-    return tag;
+    return prefix + std::to_string(label_map[prefix]++);
 }
 
 

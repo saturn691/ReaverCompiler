@@ -30,18 +30,8 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        if (context.has_mode(Context::Mode::SWITCH))
-        {
-            // Break from default cases are ignored
-            context.switch_cases.second << AST_INDENT << "j "
-                << context.end_label_stack.top() << std::endl;
-            return;
-        }
-        else
-        {
-            dst << AST_INDENT << "j "
-                << context.end_label_stack.top() << std::endl;
-        }
+        dst << AST_INDENT << "j "
+            << context.end_label_stack.top() << std::endl;
     }
 };
 

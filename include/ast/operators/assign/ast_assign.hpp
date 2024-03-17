@@ -3,16 +3,8 @@
 
 #include "../../ast_node.hpp"
 #include "../../ast_context.hpp"
-#include "../ast_add.hpp"
-#include "../ast_bitwise_and.hpp"
-#include "../ast_bitwise_or.hpp"
-#include "../ast_bitwise_xor.hpp"
-#include "../ast_subtract.hpp"
-#include "../ast_multiply.hpp"
-#include "../ast_divide.hpp"
-#include "../ast_modulo.hpp"
-#include "../ast_shift.hpp"
 #include "./../../array/ast_array_access.hpp"
+#include "../ast_operator.hpp"
 #include "../ast_unary_expression.hpp"
 
 /*
@@ -152,53 +144,83 @@ private:
                 break;
 
             case AssignOpType::MUL_ASSIGN:
-                Mul(unary_expression, assignment_expression)
-                    .gen_asm(dst, dest_reg, context);
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    OperatorType::MUL
+                ).gen_asm(dst, dest_reg, context);
                 break;
 
             case AssignOpType::DIV_ASSIGN:
-                Divide(unary_expression, assignment_expression)
-                    .gen_asm(dst, dest_reg, context);
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    OperatorType::DIV
+                ).gen_asm(dst, dest_reg, context);
                 break;
 
             case AssignOpType::MOD_ASSIGN:
-                Modulo(unary_expression, assignment_expression)
-                    .gen_asm(dst, dest_reg, context);
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    OperatorType::MOD
+                ).gen_asm(dst, dest_reg, context);
                 break;
 
             case AssignOpType::ADD_ASSIGN:
-                Add(unary_expression, assignment_expression)
-                    .gen_asm(dst, dest_reg, context);
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    OperatorType::ADD
+                ).gen_asm(dst, dest_reg, context);
                 break;
 
             case AssignOpType::SUB_ASSIGN:
-                Sub(unary_expression, assignment_expression)
-                    .gen_asm(dst, dest_reg, context);
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    OperatorType::SUB
+                ).gen_asm(dst, dest_reg, context);
                 break;
 
             case AssignOpType::LEFT_ASSIGN:
-                LeftShift(unary_expression, assignment_expression)
-                    .gen_asm(dst, dest_reg, context);
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    OperatorType::LEFT_SHIFT
+                ).gen_asm(dst, dest_reg, context);
                 break;
 
             case AssignOpType::RIGHT_ASSIGN:
-                RightShift(unary_expression, assignment_expression)
-                    .gen_asm(dst, dest_reg, context);
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    OperatorType::RIGHT_SHIFT
+                ).gen_asm(dst, dest_reg, context);
                 break;
 
             case AssignOpType::AND_ASSIGN:
-                BitwiseAnd(unary_expression, assignment_expression)
-                    .gen_asm(dst, dest_reg, context);
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    OperatorType::BITWISE_AND
+                ).gen_asm(dst, dest_reg, context);
                 break;
 
             case AssignOpType::XOR_ASSIGN:
-                BitwiseXor(unary_expression, assignment_expression)
-                    .gen_asm(dst, dest_reg, context);
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    OperatorType::BITWISE_XOR
+                ).gen_asm(dst, dest_reg, context);
                 break;
 
             case AssignOpType::OR_ASSIGN:
-                BitwiseOr(unary_expression, assignment_expression)
-                    .gen_asm(dst, dest_reg, context);
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    OperatorType::BITWISE_OR
+                ).gen_asm(dst, dest_reg, context);
                 break;
 
             default:

@@ -338,10 +338,18 @@ def simulate_and_check(to_assemble: Path,
     This functions simulates the assembly file and checks the return code
     against the JSON in the expected_results.json file.
     """
+    command = ["riscv64-unknown-elf-gcc", "-march=rv32imfd", "-mabi=ilp32d",
+               "-static", "-o", f"{log_path}", f"{log_path}.o"]
+
+    # Try find the driver (for some reason called client)
+    client = Path(f"{to_assemble.parent / to_assemble.stem}_client.c")
+    if client.exists():
+        command.append(str(client))
+
     # Link
+
     return_code, _, timed_out = run_subprocess(
-        cmd=["riscv64-unknown-elf-gcc", "-march=rv32imfd", "-mabi=ilp32d",
-             "-static", "-o", f"{log_path}", f"{log_path}.o"],
+        cmd=command,
         timeout=RUN_TIMEOUT_SECONDS, log_path=f"{log_path}.linker",)
     if return_code != 0:
         msg = f"\t> Failed to link driver: \n\t {compiler_log_file_str} \n\t {relevant_files('linker')}"
@@ -507,6 +515,11 @@ def run_tests(args, xml_file: JUnitXMLFile):
         # Hack to get around the fact that the ADD_TEST_FOLDER is a submodule
         # and the compiler_tests folder is not.
         drivers = list(Path(args.dir).rglob("*.c"))
+        # if they end in _client.c, remove it
+        drivers = [
+            driver for driver in drivers
+            if "_client.c" not in str(driver)]
+
         drivers = sorted(drivers, key=lambda p: (p.parent.name, p.name))
         drivers = [driver.parent.joinpath(f"{driver.stem}_driver.c")
                    for driver in drivers]

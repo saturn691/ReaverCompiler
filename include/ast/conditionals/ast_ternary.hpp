@@ -13,6 +13,11 @@
 class Ternary : public Expression
 {
 public:
+    /**
+     * We don't have access to C++ pointers (flex only allows C pointers), so
+     * transfer control of the deletion of the if_else object to the Ternary.
+     * Still need the pointers for the "overwritten" print() function
+    */
     Ternary(
         Expression* _condition,
         Expression* _then_statement,
@@ -21,12 +26,13 @@ public:
         condition(_condition),
         then_statement(_then_statement),
         else_statement(_else_statement)
-    {}
+    {
+        if_else = new IfElse(_condition, _then_statement, _else_statement);
+    }
 
-    virtual ~Ternary(){
-        delete condition;
-        delete then_statement;
-        delete else_statement;
+    virtual ~Ternary()
+    {
+        delete if_else;
     }
 
     std::string get_id() const override
@@ -60,14 +66,14 @@ public:
         Context &context
     ) const override {
         // Use the if-else code generation
-        IfElse if_else = IfElse(condition, then_statement, else_statement);
-        if_else.gen_asm(dst, dest_reg, context);
+        if_else->gen_asm(dst, dest_reg, context);
     }
 
 private:
     Expression* condition;
     Expression* then_statement;
     Expression* else_statement;
+    IfElse* if_else;
 };
 
 #endif // AST_TERNARY_HPP
