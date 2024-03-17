@@ -40,25 +40,40 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string start_label = context.get_unique_label("while");
-        std::string end_label = context.get_unique_label("while");
+        std::string start_label = context.get_unique_label("while_start");
+        std::string condition_label = context.get_unique_label("while_condition");
+        std::string end_label = context.get_unique_label("while_end");
+
+        context.continue_label_stack.push(start_label);
+        context.end_label_stack.push(end_label);
 
         std::string condition_reg = context.allocate_register(Types::INT);
 
-        dst << AST_INDENT << "j" << AST_INDENT << end_label << std::endl;
+        // Jump to condition
+        dst << AST_INDENT << "j" << AST_INDENT << condition_label << std::endl;
+
+        // STATEMENT
         dst << start_label << ":" << std::endl;
         if (statement)
         {
             statement->gen_asm(dst, dest_reg, context);
         }
-        dst << end_label << ":" << std::endl;
+
+        // CONDITION
+        dst << condition_label << ":" << std::endl;
         if (condition)
         {
             condition->gen_asm(dst, condition_reg, context);
         }
         // This is unoptimised, but who cares :) just SSA it bro
-        dst << AST_INDENT << "bnez " << condition_reg << ", " << start_label << std::endl;
+        dst << AST_INDENT << "bnez " << condition_reg
+            << ", " << start_label << std::endl;
 
+        // END
+        dst << end_label << ":" << std::endl;
+
+        context.continue_label_stack.pop();
+        context.end_label_stack.pop();
         context.deallocate_register(condition_reg);
     }
 

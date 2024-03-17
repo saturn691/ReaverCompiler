@@ -166,8 +166,8 @@ public:
     std::string switch_reg;
 
     // Holds the conditions and statements for switch-case statements
-    std::pair<std::stringstream, std::stringstream> switch_cases;
-    std::pair<std::stringstream, std::stringstream> switch_default;
+    std::stringstream switch_cases_expr;
+    std::stringstream switch_default;
 
     // Multiplier for pointers (only applies to + and - AND is a number)
     unsigned int pointer_multiplier = 1;
@@ -221,6 +221,7 @@ private:
     // Points to the bottom of the data in the frame
     int frame_pointer_offset = 0;
 
+    std::unordered_map<std::string, int> label_map;
     unsigned int tag_next_id = 0;
 
     // Constants --------------------------------------------------------------

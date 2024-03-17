@@ -64,6 +64,8 @@ public:
         // END (break points to here)
         dst << end_label << ":" << std::endl;
 
+        context.continue_label_stack.pop();
+        context.end_label_stack.pop();
         context.deallocate_register(condition_reg);
     }
 private:

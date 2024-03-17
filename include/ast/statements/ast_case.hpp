@@ -49,16 +49,15 @@ public:
         );
 
         // Redirect into stringstream to be outputted later
-        std::stringstream &expression_ss = context.switch_cases.first;
-        std::stringstream &statement_ss = context.switch_cases.second;
+        std::stringstream &expression_ss = context.switch_cases_expr;
 
         expression->gen_asm(expression_ss, case_reg, context);
         expression_ss << AST_INDENT << "beq " << context.switch_reg
             << ", " << case_reg << ", "
             << case_label << std::endl;
 
-        statement_ss << case_label << ":" << std::endl;
-        statement->gen_asm(statement_ss, dest_reg, context);
+        dst << case_label << ":" << std::endl;
+        statement->gen_asm(dst, dest_reg, context);
 
         context.deallocate_register(case_reg);
     }
@@ -101,13 +100,12 @@ public:
         std::string default_label = context.get_unique_label("switch_default");
 
         // Redirect into stringstream to be outputted later
-        std::stringstream &expression_ss = context.switch_default.first;
-        std::stringstream &statement_ss = context.switch_default.second;
+        std::stringstream &expression_ss = context.switch_default;
 
         expression_ss << AST_INDENT << "j " << default_label << std::endl;
 
-        statement_ss << default_label << ":" << std::endl;
-        statement->gen_asm(statement_ss, dest_reg, context);
+        dst << default_label << ":" << std::endl;
+        statement->gen_asm(dst, dest_reg, context);
     }
 
 private:

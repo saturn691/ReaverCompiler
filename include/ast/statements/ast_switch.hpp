@@ -55,6 +55,7 @@ public:
         end_label
         */
 
+        std::stringstream statement_ss;
         context.mode_stack.push(Context::Mode::SWITCH);
         std::string end_label = context.get_unique_label("switch_end");
 
@@ -67,13 +68,29 @@ public:
         context.switch_reg = switch_reg;
 
         expression->gen_asm(dst, switch_reg, context);
-        statement->gen_asm(dst, dest_reg, context);
+
+        // Does not print anything yet, we need do some reordering
+        statement->gen_asm(statement_ss, dest_reg, context);
 
         // Output the switch cases
-        dst << context.switch_cases.first.str();
-        dst << context.switch_default.first.str();
-        dst << context.switch_cases.second.str();
-        dst << context.switch_default.second.str();
+        dst << context.switch_cases_expr.str();
+
+        /**
+         * Section 6.8.4.2, Paragraph 5
+         * "If no converted case constant expression matches and there is
+         * no default label, no part of the switch body is executed."
+        */
+        if (context.switch_default.str() != "")
+        {
+            dst << context.switch_default.str();
+        }
+        else
+        {
+            dst << AST_INDENT << "j " << end_label << std::endl;
+        }
+
+        dst << context.switch_default.str();
+        dst << statement_ss.str();
 
         dst << end_label << ":" << std::endl;
 

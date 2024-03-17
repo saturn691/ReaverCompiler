@@ -2,4 +2,4 @@
 
 ## References
 
-ANSI C90 standard: http://port70.net/~nsz/c/c89/c89-draft.txt
+ANSI C90 standard: https://www.dii.uchile.cl/~daespino/files/Iso_C_1999_definition.pdf

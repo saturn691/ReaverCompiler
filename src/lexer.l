@@ -1,5 +1,5 @@
 %option noyywrap
-
+%x C_COMMENT
 
 D			[0-9]
 L			[a-zA-Z_]
@@ -65,8 +65,11 @@ auto check_type_map(std::string id)
 
 %%
 
+"/*"			{ BEGIN(C_COMMENT); }
+<C_COMMENT>"*/"		{ BEGIN(INITIAL); }
+<C_COMMENT>.		{ ; }
+
 \/\/(.*?)\n		{ ; }
-\/\*(.|[\r\n])*?\*\/	{ ; }
 
 "#define"(.*?)\n	{ /* Ignore #define lines */ }
 "#include"(.*?)\n	{ /* Ignore #include lines */ }

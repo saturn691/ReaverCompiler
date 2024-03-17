@@ -12,7 +12,7 @@
             "args": [
                 "-S",
                 // "compiler_tests/misc/switch2.c",
-                "writing-a-c-compiler-tests/tests/chapter_7/valid/empty_blocks.c",
+                "writing-a-c-compiler-tests/tests/chapter_8/valid/extra_credit/switch_break.c",
                 "-o",
                 "bin/debug.s",
             ],
