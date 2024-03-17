@@ -47,7 +47,8 @@ public:
         context.continue_label_stack.push(condition_label);
         context.end_label_stack.push(end_label);
 
-        std::string condition_reg = context.allocate_register(Types::INT);
+        std::string condition_reg = context.allocate_register(
+            dst, Types::INT, {dest_reg});
 
         // Jump to condition
         dst << AST_INDENT << "j" << AST_INDENT << condition_label << std::endl;
@@ -74,7 +75,7 @@ public:
 
         context.continue_label_stack.pop();
         context.end_label_stack.pop();
-        context.deallocate_register(condition_reg);
+        context.deallocate_register(dst, condition_reg);
     }
 
 private:

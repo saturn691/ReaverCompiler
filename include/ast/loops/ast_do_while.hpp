@@ -45,7 +45,8 @@ public:
         std::string start_label = context.get_unique_label("do_while");
         std::string condition_label = context.get_unique_label("do_while_condition");
         std::string end_label = context.get_unique_label("do_while_end");
-        std::string condition_reg = context.allocate_register(Types::INT);
+        std::string condition_reg = context.allocate_register(
+            dst, Types::INT, {dest_reg});
 
         context.continue_label_stack.push(condition_label);
         context.end_label_stack.push(end_label);
@@ -68,7 +69,7 @@ public:
 
         context.continue_label_stack.pop();
         context.end_label_stack.pop();
-        context.deallocate_register(condition_reg);
+        context.deallocate_register(dst, condition_reg);
     }
 private:
     Node* statement;

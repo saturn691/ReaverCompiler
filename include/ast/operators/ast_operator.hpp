@@ -83,13 +83,13 @@ public:
 
         get_left()->gen_asm(dst, dest_reg, context);
 
-        std::string temp_reg1 = context.allocate_register(ltype);
+        std::string temp_reg1 = context.allocate_register(dst, ltype, {dest_reg});
         get_right()->gen_asm(dst, temp_reg1, context);
 
         dst << AST_INDENT << ins_map.at(otype).at(ltype) << " " << dest_reg
             << ", " << dest_reg << ", " << temp_reg1 << std::endl;
 
-        context.deallocate_register(temp_reg1);
+        context.deallocate_register(dst, temp_reg1);
         context.multiply_pointer = false;
         context.mode_stack.pop();
     }

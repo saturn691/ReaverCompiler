@@ -36,7 +36,8 @@ public:
     ) const override {
         context.mode_stack.push(Context::Mode::RETURN);
 
-        // Hack to reallocate the return register
+        // Hack to reallocate the return register - the correct return
+        // register will be in dest_reg (i.e. return_reg = dest_reg)
         Types type = (dest_reg == "a0") ? Types::INT : Types::FLOAT;
         std::string return_reg = context.allocate_return_register(type);
 

@@ -72,7 +72,7 @@ public:
         context.end_label_stack.push(end_label);
 
         std::string switch_reg = context.allocate_register(
-            expression->get_type(context)
+            dst, expression->get_type(context), {dest_reg}
         );
         context.switch_reg = switch_reg;
 
@@ -104,7 +104,7 @@ public:
         dst << end_label << ":" << std::endl;
 
         // Cleanup
-        context.deallocate_register(switch_reg);
+        context.deallocate_register(dst, switch_reg);
         context.switch_reg = outer_switch_reg;
         context.switch_cases_expr.str("");
         context.switch_cases_expr << outer_switch_cases_expr.str();

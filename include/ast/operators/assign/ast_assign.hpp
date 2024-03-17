@@ -67,7 +67,7 @@ public:
         unary_expression->gen_asm(dst, dest_reg, context);
 
         // Put the assignment expression into a temporary register
-        std::string reg = context.allocate_register(type);
+        std::string reg = context.allocate_register(dst, type, {dest_reg});
         std::string store = Context::get_store_instruction(type);
 
         gen_assignment_asm(dst, reg, context);
@@ -78,7 +78,7 @@ public:
 
             dst << AST_INDENT << store << " " << reg
                 << ", 0(" << arr_reg << ")" << std::endl;
-            context.deallocate_register(arr_reg);
+            context.deallocate_register(dst, arr_reg);
         }
         /*
             Pointer dereference
@@ -122,7 +122,7 @@ public:
         // Restore the mode
         context.pointer_multiplier = 1;
         context.mode_stack.pop();
-        context.deallocate_register(reg);
+        context.deallocate_register(dst, reg);
     }
 
 private:

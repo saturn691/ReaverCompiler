@@ -45,8 +45,7 @@ public:
     ) const override {
         std::string case_label = context.get_unique_label("switch_case");
         std::string case_reg = context.allocate_register(
-            expression->get_type(context)
-        );
+            dst, expression->get_type(context), {dest_reg});
 
         // Redirect into stringstream to be outputted later
         std::stringstream &expression_ss = context.switch_cases_expr;
@@ -59,7 +58,7 @@ public:
         dst << case_label << ":" << std::endl;
         statement->gen_asm(dst, dest_reg, context);
 
-        context.deallocate_register(case_reg);
+        context.deallocate_register(dst, case_reg);
     }
 
 private:

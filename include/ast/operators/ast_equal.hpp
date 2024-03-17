@@ -45,8 +45,10 @@ public:
         Types type = get_type(context);
         context.mode_stack.push(Context::Mode::OPERATOR);
 
-        std::string temp_reg1 = context.allocate_register(type);
-        std::string temp_reg2 = context.allocate_register(type);
+        std::string temp_reg1 = context.allocate_register(
+            dst, type, {dest_reg});
+        std::string temp_reg2 = context.allocate_register(
+            dst, type, {dest_reg, temp_reg1});
 
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);
@@ -88,8 +90,8 @@ public:
             << ", " << dest_reg << std::endl;
 
         context.mode_stack.pop();
-        context.deallocate_register(temp_reg1);
-        context.deallocate_register(temp_reg2);
+        context.deallocate_register(dst, temp_reg1);
+        context.deallocate_register(dst, temp_reg2);
     }
 
 private:

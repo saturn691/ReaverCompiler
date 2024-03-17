@@ -32,9 +32,20 @@ Context::Context() :
 }
 
 
-// TODO need smarter algorithm for this
-std::string Context::allocate_register(Types type)
-{
+/**
+ *  Finds an empty register and marks it as being used. If there are no empty
+ *  registers, it will try to spill a register onto the stack.
+ *
+ *
+ *  @param type The type of the register
+ *  @return The name of the register
+*/
+std::string Context::allocate_register(
+    std::ostream &dst,
+    Types type,
+    std::vector<std::string> exclude
+) {
+    std::string allocated_register;
     switch (type)
     {
         case Types::FLOAT:
@@ -48,7 +59,8 @@ std::string Context::allocate_register(Types type)
                 if (registers_f[reg_index] == 0)
                 {
                     registers_f[reg_index] = 1;
-                    return register_name;
+                    allocated_register = register_name;
+                    break;
                 }
             }
             break;
@@ -70,8 +82,14 @@ std::string Context::allocate_register(Types type)
                 if (registers[reg_index] == 0)
                 {
                     registers[reg_index] = 1;
-                    return register_name;
+                    allocated_register = register_name;
+                    break;
                 }
+            }
+
+            if (allocated_register != "")
+            {
+                break;
             }
 
             // Search temporary registers (a1-a7)
@@ -84,18 +102,148 @@ std::string Context::allocate_register(Types type)
                 if (registers[reg_index] == 0)
                 {
                     registers[reg_index] = 1;
-                    return register_name;
+                    allocated_register = register_name;
+                    break;
                 }
             }
 
             break;
     }
 
+    if (allocated_register == "")
+    {
+        // Spill into stack location, if possible
+        allocated_register = spill_register(dst, type, exclude);
+    }
+
+    used_registers.push_back(allocated_register);
+
+    return allocated_register;
+}
+
+
+/**
+ *  Spills a register onto the stack. Uses a queue and attempts to find a
+ *  suitable register at the front of the queue to spill.
+*/
+std::string Context::spill_register(
+    std::ostream &dst,
+    Types type,
+    std::vector<std::string> exclude
+){
+    // Search the queue from the front
+    for (std::string register_name : used_registers)
+    {
+        if (std::find(exclude.begin(), exclude.end(), register_name)
+            != exclude.end()
+        ) {
+            continue;
+        }
+
+        // Mark is as being spillt
+        spilled_registers.emplace(register_name);
+
+        switch (type)
+        {
+            // Search for any register_name that begins with a 'f'
+            case Types::FLOAT:
+            case Types::DOUBLE:
+            // TODO support long doubles properly
+            case Types::LONG_DOUBLE:
+                if (register_name[0] == 'f')
+                {
+                    // Spill the register onto the stack
+                    int stack_loc = allocate_stack(type, "!" + register_name);
+                    dst << AST_INDENT << "fsw " << register_name
+                        << ", " << stack_loc << "(s0)" << std::endl;
+
+                    // Mark the register as being free
+                    registers_f[register_map_f.at(register_name)] = 0;
+
+                    return register_name;
+                }
+
+            default:
+                if (register_name[0] != 'f')
+                {
+                    // Spill the register onto the stack
+                    int stack_loc = allocate_stack(type, "!" + register_name);
+                    dst << AST_INDENT << "sw " << register_name
+                        << ", " << stack_loc << "(s0)" << std::endl;
+
+                    // Mark the register as being free
+                    registers[register_map.at(register_name)] = 0;
+
+                    return register_name;
+                }
+        }
+    }
+
+    // If we cannot pop any registers, we are out of options
     throw std::runtime_error(
-        "Context::allocate_register() - no free registers"
+        "Context::spill_register() - out of registers"
     );
 }
 
+
+/**
+ *  Unspills a register by restoring the spillt register from the stack and
+ *  doing some housekeeping.
+ *
+ *  @param dst The output stream
+ *  @param spilled_register The register to unspill
+*/
+void Context::unspill_register(
+    std::ostream &dst,
+    std::string spilled_register
+) {
+    // Search the stack for the spilled register
+    for (const auto& pair : map_stack.top())
+    {
+        if (pair.first[0] == '!')
+        {
+            std::string dest_reg = pair.first.substr(1);
+            if (dest_reg == spilled_register)
+            {
+                int stack_loc = pair.second.stack_location;
+                Types type = pair.second.type;
+
+                switch (type)
+                {
+                    case Types::FLOAT:
+                        dst << AST_INDENT << "flw " << dest_reg << ", "
+                            << stack_loc << "(s0)" << std::endl;
+                        break;
+                    default:
+                        dst << AST_INDENT << "lw " << dest_reg << ", "
+                            << stack_loc << "(s0)" << std::endl;
+                        break;
+                }
+
+                // Mark the register as being used
+                registers[register_map.at(dest_reg)] = 1;
+
+                // Mark it as being free
+                spilled_registers.erase(
+                    std::find(
+                        spilled_registers.begin(),
+                        spilled_registers.end(),
+                        dest_reg
+                    )
+                );
+
+                map_stack.top().erase("!" + dest_reg);
+                pop_stack(type_size_map.at(type));
+                return;
+            }
+        }
+    }
+
+    // If we cannot find the spilled register, we are out of options
+    throw std::runtime_error(
+        "Context::unspill_register() - register not found"
+    );
+}
 
 
 /**
@@ -126,6 +274,7 @@ std::string Context::allocate_return_register(Types type)
     return return_register;
 }
 
+
 /**
  *  Allocate a register for an argument. To be used in function calls and
  *  function definitions.
@@ -138,6 +287,9 @@ std::string Context::allocate_return_register(Types type)
  *  place or find the argument.
  *
  *  @param type The type of the argument
+ *  @param id The identifier of the argument
+ *
+ *  @return The register name or stack location
 */
 std::string Context::allocate_arg_register(Types type, std::string id)
 {
@@ -191,7 +343,7 @@ std::string Context::allocate_arg_register(Types type, std::string id)
 }
 
 
-void Context::deallocate_register(std::string register_name)
+void Context::deallocate_register(std::ostream &dst, std::string register_name)
 {
     auto it = register_map.find(register_name);
     auto it_f = register_map_f.find(register_name);
@@ -210,6 +362,23 @@ void Context::deallocate_register(std::string register_name)
             "Context::deallocate_register() - unrecognised register"
         );
     }
+
+    // Remove it from the deque
+    used_registers.erase(
+        std::find(
+            used_registers.begin(),
+            used_registers.end(),
+            register_name
+        )
+    );
+
+    // If it has been spillt, unspill
+    if (spilled_registers.find(register_name) != spilled_registers.end())
+    {
+        unspill_register(dst, register_name);
+    }
+
+    return;
 }
 
 

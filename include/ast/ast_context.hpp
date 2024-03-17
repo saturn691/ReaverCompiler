@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <vector>
 #include <stack>
+#include <deque>
+#include <set>
 #include <sstream>
 
 
@@ -50,13 +52,25 @@ class Context
 public:
     Context();
 
-    std::string allocate_register(Types type);
+    std::string allocate_register(
+        std::ostream &dst,
+        Types type,
+        std::vector<std::string> exclude
+    );
+
+    std::string spill_register(
+        std::ostream &dst,
+        Types type,
+        std::vector<std::string> exclude
+    );
+
+    void unspill_register(std::ostream &dst, std::string spilled_register);
 
     std::string allocate_return_register(Types type);
 
     std::string allocate_arg_register(Types type, std::string id = "");
 
-    void deallocate_register(std::string register_name);
+    void deallocate_register(std::ostream &dst, std::string register_name);
 
     void push_registers(std::ostream& dst, std::string exclude = "");
 
@@ -187,6 +201,9 @@ public:
     static const std::unordered_map<Types, unsigned int> type_size_map;
 
 private:
+    // For register spilling
+    std::deque<std::string> used_registers;
+    std::set<std::string> spilled_registers;
 
     // Contains the map of labels to word values
     std::unordered_map<std::string, int> memory_map;

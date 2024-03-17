@@ -55,12 +55,11 @@ public:
         // if (condition_code) then (then_code) else (else_code)
         // if (condition) { then } else { else }
 
-
-
         std::string else_label = context.get_unique_label("if");
         std::string end_label = context.get_unique_label("if");
 
-        std::string condition_reg = context.allocate_register(Types::INT);
+        std::string condition_reg = context.allocate_register(
+            dst, Types::INT, {dest_reg});
 
         condition->gen_asm(dst, condition_reg, context);
 
@@ -75,7 +74,7 @@ public:
                 << ", zero, " << end_label << std::endl;
         }
 
-        context.deallocate_register(condition_reg);
+        context.deallocate_register(dst, condition_reg);
 
         then_statement->gen_asm(dst, dest_reg, context);
         dst << AST_INDENT << "j " << end_label << std::endl;
