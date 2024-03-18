@@ -3,6 +3,7 @@
 
 #include "../ast_node.hpp"
 #include "../type/ast_type.hpp"
+#include "../type/struct/ast_struct_type.hpp"
 #include "../ast_declarator.hpp"
 
 
@@ -36,6 +37,12 @@ public:
         declarator->print(dst, 0);
     }
 
+    /**
+     *  For full detail on implementation, refer to section 18.2 of the RISC-V
+     *  specification (titled RVG calling convention).
+     *
+     *  Essentiatlly this figures out where it has been passed in.
+    */
     void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -45,13 +52,34 @@ public:
         std::string id = declarator->get_id();
         context.add_function_declaration_type(type);
 
-        std::string arg_reg = context.allocate_arg_register(type, id);
-
-        // If the argument is a register, then we need to store it
-        if (arg_reg[0] == 'a' || arg_reg[0] == 'f')
+        if (type == Types::STRUCT)
         {
-            context.allocate_stack(type, id);
-            declarator->gen_asm(dst, arg_reg, context);
+            // TODO there is a cleaner way to do this. Do you wanna try?
+
+            // Get the struct ID
+            const StructType* struct_type
+                = dynamic_cast<StructType*>(declaration_specifiers);
+            std::string struct_id = struct_type->get_id();
+
+            // Now this node has the correct members, we can allocate the stack
+            struct_type = dynamic_cast<const StructType*>(
+                context.struct_map[struct_id]);
+
+            struct_type->function_parameter_gen_asm(dst, context, id);
+        }
+        // Normal operation
+        else
+        {
+            std::string arg_reg = context.allocate_arg_register(type, id);
+
+            // If the argument is a register, then we need to store it
+            if (arg_reg[0] == 'a' || arg_reg[0] == 'f')
+            {
+                {
+                    context.allocate_stack(type, id);
+                    declarator->gen_asm(dst, arg_reg, context);
+                }
+            }
         }
     }
 

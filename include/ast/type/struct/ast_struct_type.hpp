@@ -33,15 +33,33 @@ public:
         // Intentionally no std::endl
     }
 
+    std::string get_id() const
+    {
+        return identifier;
+    }
+
     Types get_type() const override
     {
         return Types::STRUCT;
     }
 
+    unsigned int get_size(Context &context) const override
+    {
+        unsigned size = 0;
+
+        for (auto member : members)
+        {
+            size += member.second->get_size(context);
+        }
+
+        return size;
+    }
+
     void allocate_stack(
         Context &context,
         std::string id
-    ) const override {        // Allocate space for each member
+    ) const override {
+        // Allocate space for each member
         for (auto member : members)
         {
             std::string new_id = id + "." + member.first;
@@ -65,6 +83,78 @@ public:
         Context &context
     ) const override {
         context.current_declaration_type = context.struct_map[identifier];
+    }
+
+    /**
+     *  TODO there is a cleaner way to do this? Do you wanna try?
+     *
+     *  Essentially handles everything with respect to a function definition.
+     *  Checks whether it should be passed in a register or on the stack.
+     *  Handles all of the context problems.
+     *
+     *  For full details, refer to the RVG calling convention in the RISC-V spec.
+    */
+    void function_parameter_gen_asm(
+        std::ostream &dst,
+        Context &context,
+        std::string id
+    ) const {
+        bool invert = (get_size(context) > AST_ARG_MAX_SIZE);
+        std::string temp_reg;
+
+        // By convention, if the sizeof(struct) <= 8, it is passed through
+        // a0-a7, otherwise it is passed through the stack.
+        if (invert)
+        {
+            // There is only arg register here - it's a pointer
+            std::string arg_reg = context.allocate_arg_register(Types::INT, id);
+            temp_reg = context.allocate_register(dst, Types::INT, {arg_reg});
+
+            // Move the address into a temporary register
+            dst << AST_INDENT << "mv " << temp_reg << ", "
+                << arg_reg << std::endl;
+        }
+
+        for (const auto &member : members)
+        {
+            std::string new_id = id + "." + member.first;
+            Types type = member.second->get_type();
+            if (type == Types::STRUCT)
+            {
+                // TODO Recurse (warning: untested code)
+                const StructType* st
+                    = dynamic_cast<const StructType*>(member.second);
+                st->function_parameter_gen_asm(dst, context, new_id);
+            }
+            else
+            {
+                if (invert)
+                {
+                    // Allocate space for the member
+                    std::string store = context.get_store_instruction(type);
+                    // Remember its location, but don't actually store it
+                    context.allocate_bottom_stack(type, new_id);
+                }
+                else
+                {
+                    // Allocate space for the member
+                    std::string arg_reg = context.allocate_arg_register(type);
+                    std::string store = context.get_store_instruction(type);
+                    int stack_loc = context.allocate_stack(type, new_id);
+
+                    // Store the argument in the stack (same as Identifier)
+                    dst << AST_INDENT << store << " " << arg_reg << ", "
+                        << stack_loc << "(s0)" << std::endl;
+                }
+            }
+        }
+
+        if (invert)
+        {
+            context.deallocate_register(dst, temp_reg);
+        }
+
+        return;
     }
 
 private:

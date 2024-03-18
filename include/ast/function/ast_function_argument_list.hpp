@@ -60,14 +60,14 @@ public:
 
                 assignment_expression->gen_asm(dst, temp_reg, context);
 
-                dst << AST_INDENT << "sw " << temp_reg << ", "
+                std::string store = context.get_store_instruction(type);
+                dst << AST_INDENT << store << " "<< temp_reg << ", "
                     << arg_reg_or_location << "(sp)" << std::endl;
 
                 context.deallocate_register(dst, temp_reg);
             }
         }
     }
-
 };
 
 

@@ -18,6 +18,7 @@
 #define AST_STACK_ALIGN             16
 #define AST_STACK_ALLOCATE          128
 #define AST_PRINT_INDENT_SPACES     4
+#define AST_ARG_MAX_SIZE            8
 #define AST_INDENT                  std::string(AST_PRINT_INDENT_SPACES, ' ')
 
 
@@ -84,6 +85,8 @@ public:
 
     int allocate_stack(Types type, std::string id);
 
+    int allocate_bottom_stack(Types type, std::string id);
+
     int allocate_array_stack(Types type, int size, std::string id);
 
     int push_identifier_map();
@@ -93,6 +96,10 @@ public:
     int push_stack(int bytes);
 
     void pop_stack(int bytes);
+
+    void reset_frame_pointer();
+
+    void reset_stack_pointer();
 
     std::string get_unique_label(std::string prefix = "");
 

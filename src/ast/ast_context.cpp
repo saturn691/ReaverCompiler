@@ -334,10 +334,7 @@ std::string Context::allocate_arg_register(Types type, std::string id)
     }
 
     // If no registers are available, return a stack location
-    int stack_loc = stack_pointer_offset;
-    stack_pointer_offset += type_size_map.at(type);
-    map_stack.top()[id] = {stack_loc, type};
-    map_stack.top()[id].is_pointer = is_pointer;
+    int stack_loc = allocate_bottom_stack(type, id);
 
     return std::to_string(stack_loc);
 }
@@ -593,6 +590,21 @@ int Context::allocate_stack(Types type, std::string id)
 }
 
 
+/**
+ *  Same as allocate_stack() but goes upwards.
+*/
+int Context::allocate_bottom_stack(Types type, std::string id)
+{
+    // If no registers are available, return a stack location
+    int stack_loc = stack_pointer_offset;
+    stack_pointer_offset += type_size_map.at(type);
+    map_stack.top()[id] = {stack_loc, type};
+    map_stack.top()[id].is_pointer = is_pointer;
+
+    return stack_loc;
+}
+
+
 int Context::allocate_array_stack(Types type, int size, std::string id)
 {
     unsigned int bytes = type_size_map.at(type) * size;
@@ -637,6 +649,25 @@ int Context::push_stack(int bytes)
 void Context::pop_stack(int bytes)
 {
     frame_pointer_offset += bytes;
+}
+
+
+/**
+ *  Sets the frame pointer to 0.
+*/
+void Context::reset_frame_pointer()
+{
+    frame_pointer_offset = 0;
+}
+
+
+/**
+ *  Sets the stack pointer to 0.
+ *  Should be called before a function defintion and before a function call.
+*/
+void Context::reset_stack_pointer()
+{
+    stack_pointer_offset = 0;
 }
 
 
@@ -724,6 +755,9 @@ void Context::set_is_pointer(std::string id, bool is_pointer)
 }
 
 
+/**
+ *  Works for enums, identifiers and registers
+*/
 Types Context::get_type(std::string id) const
 {
     // First, try to find the id in the identifier_map
@@ -740,6 +774,16 @@ Types Context::get_type(std::string id) const
                 return Types::INT;
             }
         }
+    }
+
+    // Search the register maps
+    if (register_map.find(id) != register_map.end())
+    {
+        return Types::INT;
+    }
+    else if (register_map_f.find(id) != register_map_f.end())
+    {
+        return Types::FLOAT;
     }
 
     // If the id is not in the identifier_map or the enum_map, throw an exception

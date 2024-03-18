@@ -52,28 +52,10 @@ public:
         int stack_loc = context.get_stack_location(id);
         Types type = get_type(context);
 
-        switch (type)
-        {
-            case Types::INT:
-            case Types::UNSIGNED_INT:
-                dst << AST_INDENT << "lw " << dest_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
+        std::string load = context.get_load_instruction(type);
 
-            case Types::FLOAT:
-                dst << AST_INDENT << "flw " << dest_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
-
-            case Types::DOUBLE:
-                dst << AST_INDENT << "fld " << dest_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
-                break;
-
-            // TODO- deal with other types
-            default:
-                throw std::runtime_error("gen_asm() not implemented");
-        }
+        dst << AST_INDENT << load << " " << dest_reg << ", "
+            << stack_loc << "(s0)" << std::endl;
 
     }
 

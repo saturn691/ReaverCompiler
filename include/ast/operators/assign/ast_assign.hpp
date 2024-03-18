@@ -47,6 +47,12 @@ public:
     }
 
     // TODO clean up this function
+    /**
+     *  dest_reg has to be used here as this is apparently valid syntax:
+     *
+     *  a = (b = 5).
+     *  This means b = 5 is evaluated, so a = 5.
+    */
     void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -64,7 +70,15 @@ public:
         context.mode_stack.push(Context::Mode::ASSIGN);
 
         // Start of assembly generation
-        unary_expression->gen_asm(dst, dest_reg, context);
+        std::string temp_reg = context.allocate_register(dst, type, {dest_reg});
+        unary_expression->gen_asm(dst, temp_reg, context);
+        Operator::move_reg(
+            dst,
+            temp_reg,
+            dest_reg,
+            type,
+            context.get_type(dest_reg)
+        );
 
         // Put the assignment expression into a temporary register
         std::string reg = context.allocate_register(dst, type, {dest_reg});
@@ -122,6 +136,7 @@ public:
         // Restore the mode
         context.pointer_multiplier = 1;
         context.mode_stack.pop();
+        context.deallocate_register(dst, temp_reg);
         context.deallocate_register(dst, reg);
     }
 
