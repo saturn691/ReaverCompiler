@@ -36,7 +36,6 @@ Context::Context() :
  *  Finds an empty register and marks it as being used. If there are no empty
  *  registers, it will try to spill a register onto the stack.
  *
- *
  *  @param type The type of the register
  *  @return The name of the register
 */
@@ -162,6 +161,7 @@ std::string Context::spill_register(
 
                     return register_name;
                 }
+                break;
 
             default:
                 if (register_name[0] != 'f')
@@ -343,6 +343,15 @@ std::string Context::allocate_arg_register(Types type, std::string id)
 }
 
 
+/**
+ *  Deallocates a register by marking it as being free and removing it from the
+ *  spill register queue.
+ *
+ *  If the register has previously been spilt, then it will unspill the register.
+ *
+ *  @param dst The output stream
+ *  @param register_name The register to deallocate (e.g. "t0")
+*/
 void Context::deallocate_register(std::ostream &dst, std::string register_name)
 {
     auto it = register_map.find(register_name);
@@ -486,6 +495,9 @@ void Context::pop_registers(std::ostream& dst)
 }
 
 
+/**
+ *  Deallocate all argument registers (a0-a7, fa0-fa7).
+*/
 void Context::deallocate_arg_registers()
 {
     // Search argument registers (fa0-fa7)
@@ -509,6 +521,11 @@ void Context::deallocate_arg_registers()
 }
 
 
+/**
+ *  Initialises the stack, should be called when entering a new function.
+ *
+ *  @param dst The output stream
+*/
 void Context::init_stack(std::ostream& dst)
 {
     /*
@@ -535,6 +552,11 @@ void Context::init_stack(std::ostream& dst)
 }
 
 
+/**
+ *  Closes the stack, must be called when exiting a function.
+ *
+ *  @param dst The output stream
+*/
 void Context::end_stack(std::ostream& dst)
 {
 
@@ -555,6 +577,8 @@ void Context::end_stack(std::ostream& dst)
  *
  *  @param type The type of the variable
  *  @param id The identifier of the variable
+ *
+ *  @return The bottom of the stack location that the variable is allocated.
 */
 int Context::allocate_stack(Types type, std::string id)
 {
@@ -634,10 +658,14 @@ void Context::add_string_data(std::string label, std::string value)
 }
 
 
+/**
+ *  Generates the memory data section of the assembly file. Must be called at
+ *  the end of the code generation process.
+ *
+ *  @param dst The output stream
+*/
 void Context::gen_memory_asm(std::ostream& dst)
 {
-
-
     dst << ".section .rodata" << std::endl;
 
     std::string id;
@@ -795,6 +823,12 @@ unsigned int Context::get_size(std::string id) const
 }
 
 
+/**
+ *  Gets the RISC-V load instruction for the type
+ *
+ *  @param type The type of the variable
+ *  @return The RISC-V load instruction (e.g. lw)
+*/
 std::string Context::get_load_instruction(Types type)
 {
     std::string instruction;
@@ -837,6 +871,12 @@ std::string Context::get_load_instruction(Types type)
 }
 
 
+/**
+ *  Gets the RISC-V store instruction for the type.
+ *
+ *  @param type The type of the variable
+ *  @return The RISC-V store instruction (e.g. sw)
+*/
 std::string Context::get_store_instruction(Types type)
 {
     std::string instruction;

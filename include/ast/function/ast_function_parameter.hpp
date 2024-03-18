@@ -9,6 +9,7 @@
 /*
  *  Node for defining function parameters
  *  Example: "int x" in f(int x) { return x; }
+ *  Used for function DEFINITIONS
 */
 class FunctionParameter : public Node
 {

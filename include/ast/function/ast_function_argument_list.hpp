@@ -30,21 +30,44 @@ public:
     ) const override {
         context.deallocate_arg_registers();
 
-        // Cast to Expression (assignment_expression)
         for (auto &node : nodes)
         {
-            Expression* n = dynamic_cast<Expression*>(node);
-            std::string arg_reg = context
-                .allocate_arg_register(n->get_type(context));
+            /*
+            Note on function calls:
 
-            node->gen_asm(dst, arg_reg, context);
+            The RISC-V convention for function calls involves storing the arguments
+            in the function argument registers (a0-a7). Then the call can be made,
+            but it is made in the ast_function_call.hpp file.
+            */
+
+            // Downcasting is safe here- check the parser.y file
+            Expression* assignment_expression = dynamic_cast<Expression*>(node);
+
+            Types type = assignment_expression->get_type(context);
+
+            // Generate an argument register (will be a0-a7 or a stack location)
+            std::string arg_reg_or_location = context.allocate_arg_register(type);
+            if (arg_reg_or_location[0] == 'a' || arg_reg_or_location[0] == 'f')
+            {
+                assignment_expression->gen_asm(dst, arg_reg_or_location, context);
+            }
+            // No more registers - store in a stack location
+            else
+            {
+                std::string temp_reg = context.allocate_register(
+                    dst, type, {"a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"}
+                );
+
+                assignment_expression->gen_asm(dst, temp_reg, context);
+
+                dst << AST_INDENT << "sw " << temp_reg << ", "
+                    << arg_reg_or_location << "(sp)" << std::endl;
+
+                context.deallocate_register(dst, temp_reg);
+            }
         }
     }
 
-    void push_back(Expression* _node)
-    {
-        nodes.push_back(_node);
-    }
 };
 
 
