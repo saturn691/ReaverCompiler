@@ -50,6 +50,10 @@ public:
         std::string id = declarator->get_id();
         context.mode_stack.push(Context::Mode::FUNCTION_DEFINITION);
 
+        context.reset_registers();
+        context.reset_frame_pointer();
+        context.reset_stack_pointer();
+
         // Let the children nodes know of the return type
         context.current_declaration_type = (TypePtr)declaration_specifier;
         Types type = context.current_declaration_type->get_type();

@@ -54,8 +54,24 @@ public:
 
         std::string load = context.get_load_instruction(type);
 
-        dst << AST_INDENT << load << " " << dest_reg << ", "
-            << stack_loc << "(s0)" << std::endl;
+        // If the type does not match, we need to move it to the correct type
+        if (!Operator::reg_type_match(dest_reg, type))
+        {
+            std::string temp_reg = context.allocate_register(dst, type, {dest_reg});
+
+            dst << AST_INDENT << load << " " << temp_reg << ", "
+                << stack_loc << "(s0)" << std::endl;
+
+            Operator::move_reg(dst, temp_reg, dest_reg, type,
+                                context.get_type("!" + dest_reg));
+            context.deallocate_register(dst, dest_reg);
+        }
+        // Normal operation
+        else
+        {
+            dst << AST_INDENT << load << " " << dest_reg << ", "
+                << stack_loc << "(s0)" << std::endl;
+        }
 
     }
 

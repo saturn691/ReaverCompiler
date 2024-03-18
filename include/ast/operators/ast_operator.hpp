@@ -77,16 +77,17 @@ public:
         Context &context
     ) const override
     {
-        Types ltype = get_left()->get_type(context);
+        Types type = std::max(get_left()->get_type(context),
+                              get_right()->get_type(context));
         context.mode_stack.push(Context::Mode::OPERATOR);
         context.multiply_pointer = true;
 
         get_left()->gen_asm(dst, dest_reg, context);
 
-        std::string temp_reg1 = context.allocate_register(dst, ltype, {dest_reg});
+        std::string temp_reg1 = context.allocate_register(dst, type, {dest_reg});
         get_right()->gen_asm(dst, temp_reg1, context);
 
-        dst << AST_INDENT << ins_map.at(otype).at(ltype) << " " << dest_reg
+        dst << AST_INDENT << ins_map.at(otype).at(type) << " " << dest_reg
             << ", " << dest_reg << ", " << temp_reg1 << std::endl;
 
         context.deallocate_register(dst, temp_reg1);
@@ -165,11 +166,10 @@ public:
         return;
     }
 
-private:
     /**
      *  Helper functon to determine if a move is needed
     */
-    bool reg_type_match(std::string reg, Types type) const
+    static bool reg_type_match(std::string reg, Types type)
     {
         if (reg[0] == 'f')
         {
@@ -184,6 +184,8 @@ private:
                     type != Types::LONG_DOUBLE);
         }
     }
+
+private:
 
     Expression* left;
     Expression* right;

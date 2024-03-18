@@ -25,6 +25,9 @@ Context::Context() :
     // Initialise the identifier map stack
     map_stack(
         std::stack<id_map_t>()
+    ),
+    used_registers(
+        std::deque<std::string>()
     )
 {
     map_stack.push(id_map_t());
@@ -370,13 +373,15 @@ void Context::deallocate_register(std::ostream &dst, std::string register_name)
     }
 
     // Remove it from the deque
-    used_registers.erase(
-        std::find(
-            used_registers.begin(),
-            used_registers.end(),
-            register_name
-        )
+    auto it_d = std::find(
+        used_registers.begin(),
+        used_registers.end(),
+        register_name
     );
+    if (it_d != used_registers.end())
+    {
+        used_registers.erase(it_d);
+    }
 
     // If it has been spillt, unspill
     if (spilled_registers.find(register_name) != spilled_registers.end())
@@ -670,6 +675,18 @@ void Context::reset_stack_pointer()
     stack_pointer_offset = 0;
 }
 
+/**
+ *  Resets the registers to their default values.
+ *  Should be called before a function defintion.
+*/
+void Context::reset_registers()
+{
+    registers = registers_default;
+    registers_f = registers_f_default;
+
+    return;
+}
+
 
 std::string Context::get_unique_label(std::string prefix)
 {
@@ -776,14 +793,25 @@ Types Context::get_type(std::string id) const
         }
     }
 
-    // Search the register maps
-    if (register_map.find(id) != register_map.end())
-    {
-        return Types::INT;
+    // Look if it matches a struct type
+    for (const auto& struct_type : id_to_struct) {
+        if (struct_type.first == id) {
+            return Types::STRUCT;
+        }
     }
-    else if (register_map_f.find(id) != register_map_f.end())
+
+    // Search the register maps
+    // Registers are passed as "!a0"
+    if (id[0] == '!')
     {
-        return Types::FLOAT;
+        if (id[1] == 'f')
+        {
+            return Types::FLOAT;
+        }
+        else
+        {
+            return Types::INT;
+        }
     }
 
     // If the id is not in the identifier_map or the enum_map, throw an exception

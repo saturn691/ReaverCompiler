@@ -101,6 +101,8 @@ public:
 
     void reset_stack_pointer();
 
+    void reset_registers();
+
     std::string get_unique_label(std::string prefix = "");
 
     void add_memory_data(std::string label, int value);
@@ -152,6 +154,7 @@ public:
 
     // Contains the map of identifiers to struct types
     std::unordered_map<std::string, TypePtr> struct_map;
+    std::unordered_map<std::string, TypePtr> id_to_struct;
 
     // Contains the enum classes. Vector to support anonymous enums
     std::vector<EnumType> enum_map;
@@ -222,7 +225,24 @@ private:
     unsigned int enum_next_value = 0;
 
     // Integer registers
-    std::array<int, 32> registers = {   // REG      ABI     DESCRIPTION
+    std::array<int, 32> registers;
+
+    // Floating point registers
+    std::array<int, 32> registers_f;
+
+    // Points to the bottom of the data in the frame
+    int frame_pointer_offset = 0;
+
+    // Function call w.r.t sp, function definition w.r.t s0
+    int stack_pointer_offset = 0;
+
+    std::unordered_map<std::string, int> label_map;
+
+    // Constants --------------------------------------------------------------
+
+    // Starting values for integer registers
+    const std::array<int, 32> registers_default = {
+                                        // REG      ABI     DESCRIPTION
         1,                              // x0       zero    zero constant
         1,                              // x1       ra      return address
         1,                              // x2       sp      stack pointer
@@ -235,8 +255,9 @@ private:
         0, 0, 0, 0,                     // x28-x31  t3-t6   temporary regs
     };
 
-    // Floating point registers
-    std::array<int, 32> registers_f = { // REG      ABI     DESCRIPTION
+    // Starting values for floating point registers
+    const std::array<int, 32> registers_f_default = {
+                                        // REG      ABI     DESCRIPTION
         0, 0, 0, 0, 0, 0, 0, 0,         // f0-7     ft0-7   temporaries
         1, 1,                           // f8-9     fs0-1   saved regs
         0, 0,                           // f10-11   fa0-1   arguments/return val
@@ -244,16 +265,6 @@ private:
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1,   // f18-27   fs2-11  saved regs
         0, 0, 0, 0                      // f28-31   ft8-11  temporaries
     };
-
-    // Points to the bottom of the data in the frame
-    int frame_pointer_offset = 0;
-
-    // Function call w.r.t sp, function definition w.r.t s0
-    int stack_pointer_offset = 0;
-
-    std::unordered_map<std::string, int> label_map;
-
-    // Constants --------------------------------------------------------------
 
     // Register map from name to index
     const std::unordered_map<std::string, int> register_map = {

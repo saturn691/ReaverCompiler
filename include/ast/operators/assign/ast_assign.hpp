@@ -71,14 +71,23 @@ public:
 
         // Start of assembly generation
         std::string temp_reg = context.allocate_register(dst, type, {dest_reg});
-        unary_expression->gen_asm(dst, temp_reg, context);
-        Operator::move_reg(
-            dst,
-            temp_reg,
-            dest_reg,
-            type,
-            context.get_type(dest_reg)
-        );
+
+        // If the types do not match we need to use the temp_reg
+        if (type != context.get_type("!" + dest_reg))
+        {
+            unary_expression->gen_asm(dst, temp_reg, context);
+            Operator::move_reg(
+                dst,
+                temp_reg,
+                dest_reg,
+                type,
+                context.get_type("!" + dest_reg)
+            );
+        }
+        else
+        {
+            unary_expression->gen_asm(dst, dest_reg, context);
+        }
 
         // Put the assignment expression into a temporary register
         std::string reg = context.allocate_register(dst, type, {dest_reg});
