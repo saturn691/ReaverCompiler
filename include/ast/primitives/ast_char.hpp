@@ -13,7 +13,19 @@ class Char : public Expression
 public:
     Char(std::string _string)
     {
-        if (_string.size() != 3)
+        if (_string[1] == '\\')
+        {
+            auto it = escape_sequences.find(_string[2]);
+            if (it != escape_sequences.end())
+            {
+                string = it->second;
+            }
+            else
+            {
+                throw std::runtime_error("Invalid escape sequence");
+            }
+        }
+        else if (_string.size() != 3)
         {
             throw std::runtime_error("Char literal must be a single character");
         }
@@ -54,6 +66,20 @@ public:
 
 private:
     char string;
+    const std::unordered_map<char, char> escape_sequences = {
+        {'a', '\a'},
+        {'b', '\b'},
+        {'f', '\f'},
+        {'n', '\n'},
+        {'r', '\r'},
+        {'t', '\t'},
+        {'v', '\v'},
+        {'0', '\0'},
+        {'\\', '\\'},
+        {'\'', '\''},
+        {'\"', '\"'},
+        {'?', '\?'}
+    };
 };
 
 

@@ -59,7 +59,6 @@ public:
         Context &context
     ) const override {
         std::string id = unary_expression->get_id();
-        int stack_loc = context.get_stack_location(id);
         Types type = context.get_type(id);
         unsigned int multiplier = Context::type_size_map.at(type);
         context.pointer_multiplier = context.get_is_pointer(id) ? multiplier : 1;
@@ -120,8 +119,8 @@ public:
         */
         else if (unary_expr)
         {
-            std::string unary_op = unary_expr->get_unary_operator();
-            if (unary_op == "*")
+            UnaryOperator unary_op = unary_expr->get_unary_operator();
+            if (unary_op == UnaryOperator::DEREFERENCE)
             {
                 dst << AST_INDENT << store << " " << reg << ", 0("
                     << dest_reg << ")" << std::endl;
@@ -129,8 +128,7 @@ public:
         }
         else
         {
-            dst << AST_INDENT << store << " " << reg << ", "
-                << stack_loc << "(s0)" << std::endl;
+            context.store(dst, reg, id, type);
 
             // Move the result to the destination register
             Operator::move_reg(

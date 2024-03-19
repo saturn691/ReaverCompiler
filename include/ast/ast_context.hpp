@@ -11,15 +11,22 @@
 #include <set>
 #include <sstream>
 
-
 #include "ast_types.hpp"
 #include "type/ast_type.hpp"
+#include "operators/ast_unary_expression.hpp"
 
 #define AST_STACK_ALIGN             16
 #define AST_STACK_ALLOCATE          128
 #define AST_PRINT_INDENT_SPACES     4
 #define AST_ARG_MAX_SIZE            8
 #define AST_INDENT                  std::string(AST_PRINT_INDENT_SPACES, ' ')
+
+
+enum class Scope
+{
+    GLOBAL,
+    LOCAL
+};
 
 
 /*
@@ -33,6 +40,7 @@ struct FunctionVariable
     Types type;
     std::vector<Types> parameter_types;
     bool is_pointer = false;
+    Scope scope;
 };
 
 typedef std::unordered_map<std::string, FunctionVariable> id_map_t;
@@ -59,14 +67,6 @@ public:
         std::vector<std::string> exclude
     );
 
-    std::string spill_register(
-        std::ostream &dst,
-        Types type,
-        std::vector<std::string> exclude
-    );
-
-    void unspill_register(std::ostream &dst, std::string spilled_register);
-
     std::string allocate_return_register(Types type);
 
     std::string allocate_arg_register(Types type, std::string id = "");
@@ -83,11 +83,9 @@ public:
 
     void end_stack(std::ostream& dst);
 
-    int allocate_stack(Types type, std::string id);
+    int allocate_stack(Types type, std::string id, int arr_size = -1);
 
     int allocate_bottom_stack(Types type, std::string id);
-
-    int allocate_array_stack(Types type, int size, std::string id);
 
     int push_identifier_map();
 
@@ -104,8 +102,6 @@ public:
     void reset_registers();
 
     std::string get_unique_label(std::string prefix = "");
-
-    void add_memory_data(std::string label, int value);
 
     void add_string_data(std::string label, std::string value);
 
@@ -134,6 +130,16 @@ public:
     static std::string get_load_instruction(Types type);
 
     static std::string get_store_instruction(Types type);
+
+    void store(std::ostream &dst, std::string reg, std::string id, Types type);
+
+    void load(
+        std::ostream &dst,
+        std::string reg,
+        std::string id,
+        Types type,
+        std::string label = ""
+    );
 
     /*
     When declaring a variable or a function, say int x, y, z;, we need to know
@@ -172,7 +178,8 @@ public:
         LOCAL,
 
         ASSIGN,                     // Used for pointers
-        DECLARATION,                // Used for declarations
+        LOCAL_DECLARATION,          // Used for declarations
+        GLOBAL_DECLARATION,         // Used for global declarations
         INIT_DECLARATION,           // Used for initialising declarations
         SIZEOF,                     // Used for sizeof()
         OPERATOR,                   // Used for operators
@@ -202,8 +209,14 @@ public:
     // Boolean for pointer multiplier
     bool multiply_pointer = false;
 
+    // Used for global variables
+    UnaryOperator unary_operator;
+
     // Stack of maps
     std::stack<id_map_t> map_stack;
+
+    // Contains the .rodata section to be spit out at the end
+    std::stringstream memory_map;
 
     // Static Constants --------------------------------------------------------
 
@@ -211,12 +224,18 @@ public:
     static const std::unordered_map<Types, unsigned int> type_size_map;
 
 private:
+
+    std::string spill_register(
+        std::ostream &dst,
+        Types type,
+        std::vector<std::string> exclude
+    );
+
+    void unspill_register(std::ostream &dst, std::string spilled_register);
+
     // For register spilling
     std::deque<std::string> used_registers;
     std::set<std::string> spilled_registers;
-
-    // Contains the map of labels to word values
-    std::unordered_map<std::string, int> memory_map;
 
     // Contains the map of labels to string values
     std::unordered_map<std::string, std::string> string_map;

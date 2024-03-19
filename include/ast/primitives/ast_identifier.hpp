@@ -3,6 +3,7 @@
 
 #include "../ast_node.hpp"
 #include "../ast_declarator.hpp"
+#include <cmath>
 
 /*
  *  Leaf node for variables / function names.
@@ -34,9 +35,8 @@ public:
         Context &context
     ) const override {
         Types type;
-        int stack_loc;
         std::string store, load;
-        unsigned int size;
+        unsigned int size, log_size;
 
         // Check if it's the variable is an enum
         int enum_value = context.get_enum_value(id);
@@ -51,7 +51,21 @@ public:
         // Find the id on the stack - will throw exception if not found.
         switch (context.mode_stack.top())
         {
-            case Context::Mode::DECLARATION:
+            case Context::Mode::GLOBAL_DECLARATION:
+                context.current_declaration_type->allocate_stack(context, id);
+                type = context.current_declaration_type->get_type();
+                size = context.get_size(id);
+                log_size = log2(size);
+
+                // Let the compiler know the existence of the variable
+                dst << AST_INDENT << ".globl " << id << std::endl;
+                dst << AST_INDENT << ".section .sdata, \"aw\"" << std::endl;
+                dst << AST_INDENT << ".align " << log_size << std::endl;
+                dst << AST_INDENT << ".type " << id << ", @object" << std::endl;
+                dst << AST_INDENT << ".size " << id << ", " << size << std::endl;
+                break;
+
+            case Context::Mode::LOCAL_DECLARATION:
                 context.current_declaration_type->allocate_stack(context, id);
                 break;
 
@@ -71,16 +85,13 @@ public:
 
             // STORE
             case Context::Mode::FUNCTION_DEFINITION:
-                stack_loc = context.get_stack_location(id);
                 type = context.get_type(id);
                 if (context.is_pointer)
                 {
                     type = Types::INT;
                     context.set_is_pointer(id, true);
                 }
-                store = Context::get_store_instruction(type);
-                dst << AST_INDENT << store << " " << dest_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
+                context.store(dst, dest_reg, id, type);
                 break;
 
             // Mode 1: LOAD
@@ -94,10 +105,7 @@ public:
                 {
                     type = context.get_type(id);
                 }
-                stack_loc = context.get_stack_location(id);
-                load = Context::get_load_instruction(type);
-                dst << AST_INDENT << load << " " << dest_reg << ", "
-                    << stack_loc << "(s0)" << std::endl;
+                context.load(dst, dest_reg, id, type);
                 break;
         }
 

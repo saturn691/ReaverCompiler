@@ -3,6 +3,7 @@
 
 #include "../ast_expression.hpp"
 #include <cstring>
+#include <iomanip>
 
 
 /*
@@ -11,7 +12,7 @@
 class Number : public Expression
 {
 public:
-    Number(double _value) : value(_value) {}
+    Number(std::string _value) : value(_value) {}
 
     virtual ~Number()
     {}
@@ -23,25 +24,50 @@ public:
 
     double evaluate() const
     {
-        return value;
+        return std::stod(value);
     }
 
+
+    /**
+     *  Refer to sections 6.4.4.1 and 6.4.4.2 of the ISO C90 standard
+    */
     Types get_type(Context &context) const override
     {
-        // Here return the lowest priority type
-        if (value == (int)value)
+        char suffix = value.back();
+        if (suffix == 'u' || suffix == 'U')
         {
-            return Types::INT;
+            return Types::UNSIGNED_INT;
         }
-        else
+        else if (suffix == 'l' || suffix == 'L')
+        {
+            return Types::LONG;
+        }
+        else if (suffix == 'f' || suffix == 'F')
         {
             return Types::FLOAT;
         }
+
+        /*
+            We need more information. If there is a decimal point, it is a
+            double. Why?
+
+            Section 6.4.4.2, paragraph 4:
+            "An unsuffixed floating constant has type double. If suffixed by the
+            letter f or F, it has type float. If suffixed by the letter l or L,
+            it has type long double."
+        */
+        if (value.find('.') != std::string::npos)
+        {
+            return Types::DOUBLE;
+        }
+
+        // Make an educated guess
+        return Types::INT;
     }
 
     std::string get_id() const override
     {
-        return std::to_string(value);
+        return value;
     }
 
     void gen_asm(
@@ -49,44 +75,155 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-
-        if (dest_reg[0] == 'f')
+        // Could come from a unary expression (e.g. int x = -1;)
+        // Therefore use the method has_mode()
+        if (context.has_mode(Context::Mode::GLOBAL_DECLARATION))
         {
-            float float_value = (float)value;
-            uint32_t ieee754_value;
-            std::memcpy(&ieee754_value, &float_value, sizeof(uint32_t));
-
-            std::string label = context.get_unique_label("constant");
-            context.add_memory_data(label, ieee754_value);
-            std::string lui_reg = context.allocate_register(dst, Types::INT, {dest_reg});
-
-            // Accessing main memory to fetch constant value
-            dst << AST_INDENT << "lui " << lui_reg
-                << ", %hi(." << label << ")" << std::endl;
-
-            dst << AST_INDENT << "flw " << dest_reg
-                << ", %lo(." << label << ")"
-                << "(" << lui_reg << ")" << std::endl;
-
-            context.deallocate_register(dst, lui_reg);
-        }
-        else
-        {
-            int val;
-            if (context.multiply_pointer)
+            Types type = context.current_declaration_type->get_type();
+            if (type == Types::DOUBLE)
             {
-                val = value * context.pointer_multiplier ;
+                std::string value = get_value(type);
+                std::string lower_value = value.substr(0, value.find(" "));
+                std::string upper_value = value.substr(value.find(" ") + 1);
+
+                dst << AST_INDENT << ".word " << lower_value << std::endl;
+                dst << AST_INDENT << ".word " << upper_value << std::endl;
             }
             else
             {
-                val = value;
+                dst << AST_INDENT << assembler_directive.at(type)
+                    << " " << get_value(type) << std::endl;
             }
-            dst << AST_INDENT << "li " << dest_reg << ", " << val << std::endl;
+        }
+        else if (dest_reg[0] == 'f')
+        {
+            // Must be a float or a double
+            Types type = std::max(get_type(context), Types::FLOAT);
+            std::string label = context.get_unique_label(".constant");
+            std::string ieee754_value = get_value(type);
+
+            if (type == Types::FLOAT)
+            {
+                context.memory_map << AST_INDENT << ".align 2" << std::endl;
+                context.memory_map << label << ": " << std::endl;
+                context.memory_map << AST_INDENT << ".word"
+                    << " " << ieee754_value << std::endl;
+            }
+            else
+            {
+                context.memory_map << AST_INDENT << ".align 3" << std::endl;
+                context.memory_map << label << ": " << std::endl;
+                context.memory_map << AST_INDENT << ".word"
+                    << " " << ieee754_value.substr(0, ieee754_value.find(" "))
+                    << std::endl;
+                context.memory_map << AST_INDENT << ".word"
+                    << " " << ieee754_value.substr(ieee754_value.find(" ") + 1)
+                    << std::endl;
+            }
+
+            context.load(dst, dest_reg, "", type, label);
+        }
+        else
+        {
+            // value is an integer
+            long val;
+            if (context.multiply_pointer)
+            {
+                val = std::stol(value) * context.pointer_multiplier;
+            }
+            else
+            {
+                val = std::stol(value);
+            }
+
+            dst << AST_INDENT << "li " << dest_reg << ", "
+                << val << std::endl;
         }
     }
 
 private:
-    double value;
+    std::string value;
+
+    /**
+     *  Converts the value into the correct type, according to the ANSI C90
+     *  standard.
+     *
+     *  Refer to sections 6.4.4.1 (integer constants) and 6.4.4.2 (floating
+     *  constants)
+     *
+     *  @param type The type to convert the value to
+     *
+     *  @return The value as a string. If the type is a double it will return
+     *  two values separated by a space.
+    */
+    std::string get_value(Types type) const
+    {
+        float float_value;
+        double double_value;
+        uint32_t ieee754_value;
+        int32_t lower_part, upper_part;
+        uint64_t ieee754_double_value;
+
+        long long val = std::stoll(value);
+        std::string val_str = "";
+
+        switch (type)
+        {
+            case Types::UNSIGNED_CHAR:
+            case Types::CHAR:
+                val_str = std::to_string((int)val);
+                break;
+
+            case Types::UNSIGNED_SHORT:
+            case Types::SHORT:
+                val_str = std::to_string((int)val);
+                break;
+
+            case Types::UNSIGNED_INT:
+            case Types::INT:
+                val_str = std::to_string((int)val);
+                break;
+
+            case Types::UNSIGNED_LONG:
+                break;
+
+            case Types::LONG:
+                val_str = std::to_string(val);
+                break;
+
+            case Types::FLOAT:
+                float_value = std::stof(value);
+                std::memcpy(&ieee754_value, &float_value, sizeof(uint32_t));
+                val_str = std::to_string(ieee754_value);
+                break;
+
+            case Types::DOUBLE:
+                double_value = std::stod(value);
+                std::memcpy(&ieee754_double_value, &double_value, sizeof(uint64_t));
+                lower_part = static_cast<int32_t>(ieee754_double_value & 0xFFFFFFFF);
+                upper_part = static_cast<int32_t>(ieee754_double_value >> 32);
+                val_str = std::to_string(lower_part) + " " + std::to_string(upper_part);
+                break;
+
+            default:
+                throw std::runtime_error("Invalid type for number");
+        }
+
+        return val_str;
+    }
+
+    const std::unordered_map<Types, std::string> assembler_directive = {
+        {Types::UNSIGNED_CHAR, ".byte"},
+        {Types::CHAR, ".byte"},
+        {Types::UNSIGNED_SHORT, ".half"},
+        {Types::SHORT, ".half"},
+        {Types::UNSIGNED_INT, ".word"},
+        {Types::INT, ".word"},
+        {Types::UNSIGNED_LONG, ".word"},
+        {Types::LONG, ".word"},
+        {Types::FLOAT, ".word"},
+        {Types::DOUBLE, ".word"}
+    };
 };
 
 

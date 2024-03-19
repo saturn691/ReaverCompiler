@@ -8,8 +8,8 @@ const std::unordered_map<Types, unsigned int> Context::type_size_map = {
         {Types::SHORT,              2},
         {Types::UNSIGNED_INT,       4},
         {Types::INT,                4},
-        {Types::UNSIGNED_LONG,      8},
-        {Types::LONG,               8},
+        {Types::UNSIGNED_LONG,      4},
+        {Types::LONG,               4},
         {Types::FLOAT,              4},
         {Types::DOUBLE,             8},
         {Types::LONG_DOUBLE,        8}
@@ -457,6 +457,9 @@ void Context::push_registers(std::ostream& dst, std::string exclude)
 }
 
 
+/**
+ *  Called after a function call, after push_registers().
+*/
 void Context::pop_registers(std::ostream& dst)
 {
 
@@ -579,44 +582,52 @@ void Context::end_stack(std::ostream& dst)
  *
  *  @param type The type of the variable
  *  @param id The identifier of the variable
+ *  @param arr_size The size of the array, if it's an array (default -1)
  *
  *  @return The bottom of the stack location that the variable is allocated.
+ *          If it's a global declaration, it will return -1.
 */
-int Context::allocate_stack(Types type, std::string id)
+int Context::allocate_stack(Types type, std::string id, int arr_size)
 {
-    unsigned int bytes = (is_pointer) ? 4 : type_size_map.at(type);
+    int stack_loc = -1;
+    unsigned int bytes;
 
-    int stack_loc = push_stack(bytes);
+    if (arr_size == -1)
+    {
+        bytes = (is_pointer) ? 4 : type_size_map.at(type);
+    }
+    else
+    {
+        // Array declaration
+        bytes = type_size_map.at(type) * arr_size;
+    }
 
-    map_stack.top()[id] = {stack_loc, type};
-    map_stack.top()[id].is_pointer = is_pointer;
+    if (mode_stack.top() == Mode::GLOBAL_DECLARATION)
+    {
+        map_stack.top()[id] = {stack_loc, type, {}, is_pointer, Scope::GLOBAL};
+    }
+    else
+    {
+        stack_loc = push_stack(bytes);
+        map_stack.top()[id] = {stack_loc, type, {}, is_pointer, Scope::LOCAL};
+    }
 
     return stack_loc;
 }
 
 
 /**
- *  Same as allocate_stack() but goes upwards.
+ *  Same as allocate_stack() but goes upwards. Only used for function calls
+ *  and function definitions
 */
 int Context::allocate_bottom_stack(Types type, std::string id)
 {
     // If no registers are available, return a stack location
     int stack_loc = stack_pointer_offset;
     stack_pointer_offset += type_size_map.at(type);
-    map_stack.top()[id] = {stack_loc, type};
-    map_stack.top()[id].is_pointer = is_pointer;
 
-    return stack_loc;
-}
-
-
-int Context::allocate_array_stack(Types type, int size, std::string id)
-{
-    unsigned int bytes = type_size_map.at(type) * size;
-    int stack_loc = push_stack(bytes);
-
-    map_stack.top()[id] = {stack_loc, type};
-    map_stack.top()[id].is_pointer = is_pointer;
+    // Must be LOCAL for the store/load to function correctly
+    map_stack.top()[id] = {stack_loc, type, {}, is_pointer, Scope::LOCAL};
 
     return stack_loc;
 }
@@ -694,12 +705,6 @@ std::string Context::get_unique_label(std::string prefix)
 }
 
 
-void Context::add_memory_data(std::string label, int value)
-{
-    memory_map.insert(std::make_pair(label, value));
-}
-
-
 void Context::add_string_data(std::string label, std::string value)
 {
     string_map.insert(std::make_pair(label, value));
@@ -719,21 +724,13 @@ void Context::gen_memory_asm(std::ostream& dst)
     std::string id;
     int val;
 
-    for (const auto& [id, val] : memory_map)
-    {
-        // This is what GCC does.
-        dst << ".align 2" << std::endl;
-        dst << "." << id << ":" << std::endl;
-
-        // Necessary for floating point representations.
-        dst << AST_INDENT << ".word " << val << std::endl;
-    }
+    dst << memory_map.str();
 
     for (const auto& [id, val] : string_map)
     {
         // This is what GCC does.
         dst << ".align 2" << std::endl;
-        dst << "." << id << ":" << std::endl;
+        dst << id << ":" << std::endl;
 
         // Necessary for floating point representations.
         dst << AST_INDENT << ".string " << val << std::endl;
@@ -748,6 +745,9 @@ void Context::add_function_declaration(std::string id)
     function.type = current_declaration_type->get_type();
     function.parameter_types.clear();
     function.is_pointer = is_pointer;
+
+    // Local functions are not allowed in C
+    function.scope = Scope::GLOBAL;
 
     map_stack.top().insert({id, function});
     current_id = id;
@@ -823,6 +823,7 @@ int Context::get_stack_location(std::string id) const
 {
     return map_stack.top().at(id).stack_location;
 }
+
 
 void Context::add_enum_value(std::string id, int val)
 {
@@ -984,6 +985,96 @@ std::string Context::get_store_instruction(Types type)
     }
 
     return instruction;
+}
+
+
+/**
+ *  Helper function to generate assembly for a store instruction
+ *  e.g. a = 3 -> sw a0, -20(s0)
+ *
+ *  @param dst The output stream
+ *  @param reg The register to store from
+ *  @param id The identifier to look up the stack location
+ *  @param type The type of the variable for the store instruction
+*/
+void Context::store(
+    std::ostream &dst,
+    std::string reg,
+    std::string id,
+    Types type
+) {
+    std::string store_ins = get_store_instruction(type);
+
+    // Checks if it's a local or global variable
+    if (map_stack.top().at(id).scope == Scope::GLOBAL)
+    {
+        dst << AST_INDENT << store_ins << " " << reg << ", "
+            << id << std::endl;
+    }
+    else
+    {
+        dst << AST_INDENT << store_ins << " " << reg << ", "
+            << get_stack_location(id) << "(s0)" << std::endl;
+    }
+
+    return;
+}
+
+
+/**
+ *  Helper function to generate assembly for a load instruction
+ *  e.g. a = 3 -> lw a0, -20(s0)
+ *
+ *  @param dst The output stream
+ *  @param reg The register to load into
+ *  @param id The identifier to look up the stack location
+ *  @param type The type of the variable for the load instruction
+ *  @param label The label to load from (for floating points).
+ *              Should be left blank for all except in `ast_number.hpp`
+*/
+void Context::load(
+    std::ostream &dst,
+    std::string reg,
+    std::string id,
+    Types type,
+    std::string label
+) {
+    std::string load_ins = get_load_instruction(type);
+    std::string lui_reg = reg;
+    std::string load_id = id;
+
+    // Checks if it's a local or global variable
+    if ((label != "") | map_stack.top()[id].scope == Scope::GLOBAL)
+    {
+        if (label != "")
+        {
+            load_id = label;
+        }
+
+        // lui must use an integer register
+        if (reg[0] == 'f')
+        {
+            lui_reg = allocate_register(dst, Types::INT, {reg});
+        }
+
+        // Always use the lui instruction
+        dst << AST_INDENT << "lui " << lui_reg
+            << ", %hi(" << load_id << ")" << std::endl;
+
+        // Now use the load instruction
+        dst << AST_INDENT << load_ins << " " << reg << ", "
+            << "%lo(" << load_id << ")(" << lui_reg << ")" << std::endl;
+
+        if (reg[0] == 'f')
+        {
+            deallocate_register(dst, lui_reg);
+        }
+    }
+    else
+    {
+        dst << AST_INDENT << load_ins << " " << reg << ", "
+            << get_stack_location(id) << "(s0)" << std::endl;
+    }
 }
 
 

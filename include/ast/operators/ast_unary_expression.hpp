@@ -1,8 +1,21 @@
 #ifndef ast_unary_expression_hpp
 #define ast_unary_expression_hpp
 
+enum class UnaryOperator
+{
+    ADDRESS,
+    DEREFERENCE,
+    ADD,
+    SUB,
+    LOGICAL_NOT,
+    BITWISE_NOT,
+};
+
+
 #include "../ast_expression.hpp"
 #include "../ast_context.hpp"
+
+
 
 
 /*
@@ -13,89 +26,41 @@ class UnaryExpression : public Expression
 {
 public:
     UnaryExpression(
-        std::string _unary_operator,
+        UnaryOperator _unary_operator,
         Expression* _cast_expression
     ) :
         unary_operator(_unary_operator),
         cast_expression(_cast_expression)
     {}
 
-    virtual ~UnaryExpression()
-    {
-        delete cast_expression;
-    }
+    virtual ~UnaryExpression();
 
-    void print(std::ostream &dst, int indent_level) const override
-    {
-        std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
+    void print(std::ostream &dst, int indent_level) const override;
 
-        dst << AST_INDENT << unary_operator;
-        cast_expression->print(dst, 0);
-    }
+    std::string get_id() const override;
 
-    std::string get_id() const override
-    {
-        return cast_expression->get_id();
-    }
+    Types get_type(Context &context) const override;
 
-    Types get_type(Context &context) const override
-    {
-        return cast_expression->get_type(context);
-    }
-
-    std::string get_unary_operator() const
-    {
-        return unary_operator;
-    }
+    UnaryOperator get_unary_operator() const;
 
     void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
         Context &context
-    ) const override {
-        Context::Mode mode = context.mode_stack.top();
-        context.mode_stack.push(Context::Mode::OPERATOR);
-
-        if (unary_operator == "*")
-        {
-            context.is_pointer = true;
-        }
-        cast_expression->gen_asm(dst, dest_reg, context);
-
-        if (unary_operator == "-")
-        {
-            dst << AST_INDENT << "neg " << dest_reg << ", " << dest_reg << std::endl;
-        }
-        else if (unary_operator == "~")
-        {
-            dst << AST_INDENT << "not " << dest_reg << ", " << dest_reg << std::endl;
-        }
-        else if (unary_operator == "!")
-        {
-            dst << AST_INDENT << "seqz " << dest_reg << ", " << dest_reg << std::endl;
-        }
-        else if (unary_operator == "&") // for pointers -> address of
-        {
-            // TODO pass this onto cast_expression->gen_asm()
-            std::string id = cast_expression->get_id();
-            int address = context.get_stack_location(id);
-            dst << AST_INDENT << "addi " << dest_reg << ", s0, " << address << std::endl;
-        }
-        // for pointers -> dereference
-        else if (unary_operator == "*" && mode != Context::Mode::ASSIGN)
-        {
-            std::string load = Context::get_load_instruction(get_type(context));
-            dst << AST_INDENT << load << " " << dest_reg
-                << ", 0(" << dest_reg << ")" << std::endl;
-        }
-
-        context.mode_stack.pop();
-        context.is_pointer = false;
-    }
+    ) const override;
 
 private:
-    std::string unary_operator;
+    UnaryOperator unary_operator;
     Expression* cast_expression;
+
+    const std::unordered_map<UnaryOperator, std::string> unary_operator_map = {
+        {UnaryOperator::ADDRESS, "&"},
+        {UnaryOperator::DEREFERENCE, "*"},
+        {UnaryOperator::ADD, "+"},
+        {UnaryOperator::SUB, "-"},
+        {UnaryOperator::LOGICAL_NOT, "!"},
+        {UnaryOperator::BITWISE_NOT, "~"},
+    };
 };
 
 

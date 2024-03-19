@@ -57,15 +57,15 @@ public:
             0x1004         | .LC0 + 4     | 'o'
         */
 
-        std::string label = context.get_unique_label("string");
+        std::string label = context.get_unique_label(".string");
         context.add_string_data(label, string);
 
         // Accessing main memory to fetch string
         dst << AST_INDENT << "lui " << dest_reg
-            << ", %hi(." << label << ")" << std::endl;
+            << ", %hi(" << label << ")" << std::endl;
 
         dst << AST_INDENT << "addi " << dest_reg << ", "
-            << dest_reg << ", %lo(." << label << ")" << std::endl;
+            << dest_reg << ", %lo(" << label << ")" << std::endl;
     }
 
 private:

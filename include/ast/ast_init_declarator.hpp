@@ -44,11 +44,12 @@ public:
         Context &context
     ) const override
     {
-        std::string id  = declarator->get_id();
-
         // Assign some stack space to the variable
         // This will put the information into the context
         declarator->gen_asm(dst, dest_reg, context);
+
+        // Must occur after declarator->gen_asm()
+        std::string id = declarator->get_id();
 
         // Initialise it with the value
         // If it's a PointerDeclarator, then it's an INT type
@@ -62,20 +63,28 @@ public:
             type = context.get_type(id);
         }
 
-        std::string temp_reg = context.allocate_register(dst, type, {});
+        // Global variables are handled differently
+        if (context.mode_stack.top() == Context::Mode::GLOBAL_DECLARATION)
+        {
+            // Initialise
+            dst << id << ":" << std::endl;
+            // Reg does not matter
+            initializer->gen_asm(dst, dest_reg, context);
+        }
+        else
+        {
+            std::string temp_reg = context.allocate_register(dst, type, {});
 
-        // This mode must occur AFTER the declarator->gen_asm()
-        context.mode_stack.push(Context::Mode::INIT_DECLARATION);
-        initializer->gen_asm(dst, temp_reg, context);
-        context.mode_stack.pop();
+            // This mode must occur AFTER the declarator->gen_asm()
+            context.mode_stack.push(Context::Mode::INIT_DECLARATION);
+            initializer->gen_asm(dst, temp_reg, context);
+            context.mode_stack.pop();
 
-        // Store the value in the stack
-        int stack_loc = context.get_stack_location(id);
-        std::string store = context.get_store_instruction(type);
-        dst << AST_INDENT << store << " " << temp_reg
-            << ", " << stack_loc << "(s0)" << std::endl;
+            // Store the value in the stack
+            context.store(dst, temp_reg, id, type);
 
-        context.deallocate_register(dst, temp_reg);
+            context.deallocate_register(dst, temp_reg);
+        }
     }
 private:
     Declarator* declarator;

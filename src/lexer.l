@@ -118,15 +118,15 @@ auto check_type_map(std::string id)
 
 {L}({L}|{D})*		{ yylval.string = new std::string(yytext); return(check_type_map(yytext)); }
 
-0[xX]{H}+{IS}?		{ yylval.number = std::stod(yytext); return(CONSTANT); }
-0{D}+{IS}?		{ yylval.number = std::stod(yytext); return(CONSTANT); }
-{D}+{IS}?		{ yylval.number = std::stod(yytext); return(CONSTANT); }
+0[xX]{H}+{IS}?		{ yylval.string = new std::string(yytext); return(CONSTANT); }
+0{D}+{IS}?		{ yylval.string = new std::string(yytext); return(CONSTANT); }
+{D}+{IS}?		{ yylval.string = new std::string(yytext); return(CONSTANT); }
 
 L?'(\\.|[^\\'])+'	{ yylval.string = new std::string(yytext); return(CHAR_LITERAL); }
 
-{D}+{E}{FS}?		{ yylval.number = std::stod(yytext); return(CONSTANT); }
-{D}*"."{D}+({E})?{FS}?	{ yylval.number = std::stod(yytext); return(CONSTANT); }
-{D}+"."{D}*({E})?{FS}?	{ yylval.number = std::stod(yytext); return(CONSTANT); }
+{D}+{E}{FS}?		{ yylval.string = new std::string(yytext); return(CONSTANT); }
+{D}*"."{D}+({E})?{FS}?	{ yylval.string = new std::string(yytext); return(CONSTANT); }
+{D}+"."{D}*({E})?{FS}?	{ yylval.string = new std::string(yytext); return(CONSTANT); }
 
 L?\"(\\.|[^\\"])*\"	{ yylval.string = new std::string(yytext); return(STRING_LITERAL); }
 

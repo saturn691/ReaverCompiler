@@ -26,7 +26,7 @@
     ScopeManager        *scope_manager;
     AssignOp            *assign_op;
     Expression          *expr;
-    double              number;
+    UnaryOperator       unary_op;
     std::string         *string;
     yytokentype         token;
 }
@@ -44,8 +44,7 @@
 %token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
 
 
-%type <number> CONSTANT
-%type <string> IDENTIFIER STRING_LITERAL CHAR_LITERAL unary_operator
+%type <string> IDENTIFIER STRING_LITERAL CHAR_LITERAL CONSTANT
 
 %type <expr> primary_expression postfix_expression unary_expression
 %type <expr> assignment_expression
@@ -86,6 +85,7 @@
 %type <assign_op> assignment_operator
 %type <declarator> declarator direct_declarator init_declarator
 %type <scope_manager> compound_statement
+%type <unary_op> unary_operator
 
 %start root
 %%
@@ -95,7 +95,7 @@ root
 
 primary_expression
     : IDENTIFIER                    { $$ = new Identifier(*$1); }
-    | CONSTANT                      { $$ = new Number($1); }
+    | CONSTANT                      { $$ = new Number(*$1); }
     | STRING_LITERAL                { $$ = new String(*$1); }
     | CHAR_LITERAL                  { $$ = new Char(*$1); }
     | '(' expression ')'            { $$ = static_cast<Expression*>($2); }
@@ -144,7 +144,7 @@ unary_expression
     | DEC_OP unary_expression
         { $$ = new PostIncrement($2, true, true);}
     | unary_operator cast_expression
-        { $$ = new UnaryExpression(*$1, $2); }
+        { $$ = new UnaryExpression($1, $2); }
     | SIZEOF unary_expression
         { $$ = new SizeOf(static_cast<Node*>($2)); }
     | SIZEOF '(' type_name ')'
@@ -152,12 +152,12 @@ unary_expression
     ;
 
 unary_operator
-    : '&'                           { $$ = new std::string("&"); }
-    | '*'                           { $$ = new std::string("*"); }
-    | '+'                           { $$ = new std::string("+"); }
-    | '-'                           { $$ = new std::string("-"); }
-    | '~'                           { $$ = new std::string("~"); }
-    | '!'                           { $$ = new std::string("!"); }
+    : '&'                           { $$ = UnaryOperator::ADDRESS; }
+    | '*'                           { $$ = UnaryOperator::DEREFERENCE; }
+    | '+'                           { $$ = UnaryOperator::ADD; }
+    | '-'                           { $$ = UnaryOperator::SUB; }
+    | '~'                           { $$ = UnaryOperator::BITWISE_NOT; }
+    | '!'                           { $$ = UnaryOperator::LOGICAL_NOT; }
     ;
 
 cast_expression
