@@ -58,7 +58,7 @@ public:
 
             std::string label = context.get_unique_label("constant");
             context.add_memory_data(label, ieee754_value);
-            std::string lui_reg = context.allocate_register(Types::INT);
+            std::string lui_reg = context.allocate_register(dst, Types::INT, {dest_reg});
 
             // Accessing main memory to fetch constant value
             dst << AST_INDENT << "lui " << lui_reg
@@ -68,7 +68,7 @@ public:
                 << ", %lo(." << label << ")"
                 << "(" << lui_reg << ")" << std::endl;
 
-            context.deallocate_register(lui_reg);
+            context.deallocate_register(dst, lui_reg);
         }
         else
         {

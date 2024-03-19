@@ -34,8 +34,14 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        context.mode_stack.push(Context::Mode::RETURN);;
-        return_node->gen_asm(dst, dest_reg, context);
+        context.mode_stack.push(Context::Mode::RETURN);
+
+        // Hack to reallocate the return register - the correct return
+        // register will be in dest_reg (i.e. return_reg = dest_reg)
+        Types type = (dest_reg == "a0") ? Types::INT : Types::FLOAT;
+        std::string return_reg = context.allocate_return_register(type);
+
+        return_node->gen_asm(dst, return_reg, context);
         context.mode_stack.pop();
 
         dst << AST_INDENT << "j " << context.current_id << "_end" << std::endl;

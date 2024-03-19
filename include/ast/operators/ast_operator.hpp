@@ -77,67 +77,22 @@ public:
         Context &context
     ) const override
     {
-        Types type = get_left()->get_type(context);
+        Types type = std::max(get_left()->get_type(context),
+                              get_right()->get_type(context));
         context.mode_stack.push(Context::Mode::OPERATOR);
         context.multiply_pointer = true;
 
-        std::string temp_reg1 = context.allocate_register(type);
-        get_left()->gen_asm(dst, temp_reg1, context);
+        get_left()->gen_asm(dst, dest_reg, context);
 
-        std::string temp_reg2 = context.allocate_register(type);
-        get_right()->gen_asm(dst, temp_reg2, context);
+        std::string temp_reg1 = context.allocate_register(dst, type, {dest_reg});
+        get_right()->gen_asm(dst, temp_reg1, context);
 
-        gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map.at(otype));
+        dst << AST_INDENT << ins_map.at(otype).at(type) << " " << dest_reg
+            << ", " << dest_reg << ", " << temp_reg1 << std::endl;
 
-        context.deallocate_register(temp_reg1);
-        context.deallocate_register(temp_reg2);
+        context.deallocate_register(dst, temp_reg1);
         context.multiply_pointer = false;
         context.mode_stack.pop();
-    }
-
-    void gen_ins(
-        std::ostream &dst,
-        Types type,
-        std::string temp_reg1,
-        std::string temp_reg2,
-        std::string dest_reg,
-        const std::unordered_map<Types, std::string> ins_map,
-        bool no_convert = false
-    ) const {
-        // Don't question no_convert @booth-algo, it's a hack
-        // Essentially some comparison operators work slightly differently
-        std::string float_move_ins = (type == Types::FLOAT) ? "fcvt.w.s" : "fcvt.w.d";
-
-        switch (type)
-        {
-            case Types::FLOAT:
-            case Types::DOUBLE:
-            case Types::LONG_DOUBLE:
-                if (dest_reg[0] != 'f' && !no_convert)
-                {
-                    /*
-                        1. Put into floating point register
-                        2. Move to dest register
-                        3. rtz = round to zero
-                    */
-
-                    dst << AST_INDENT << ins_map.at(type) << " " << temp_reg1
-                        << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
-
-                    dst << AST_INDENT << float_move_ins << " " << dest_reg
-                        << ", " << temp_reg1 << ", rtz"<< std::endl;
-                }
-                else
-                {
-                    dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
-                        << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
-                }
-                break;
-
-            default:
-                dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
-                    << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
-        }
     }
 
     /**
@@ -152,6 +107,12 @@ public:
         Types src_type,
         Types dest_type
     ) {
+        // Redundant move
+        if (src_reg == dest_reg)
+        {
+            return;
+        }
+
         // Floating move with conversion to INT
         std::string fmv_conv_int;
         fmv_conv_int = (src_type == Types::FLOAT) ? "fcvt.w.s" : "fcvt.w.d";
@@ -205,7 +166,27 @@ public:
         return;
     }
 
+    /**
+     *  Helper functon to determine if a move is needed
+    */
+    static bool reg_type_match(std::string reg, Types type)
+    {
+        if (reg[0] == 'f')
+        {
+            return (type == Types::FLOAT ||
+                    type == Types::DOUBLE ||
+                    type == Types::LONG_DOUBLE);
+        }
+        else
+        {
+            return (type != Types::FLOAT &&
+                    type != Types::DOUBLE &&
+                    type != Types::LONG_DOUBLE);
+        }
+    }
+
 private:
+
     Expression* left;
     Expression* right;
     OperatorType otype;

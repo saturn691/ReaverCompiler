@@ -84,7 +84,8 @@ public:
         context.continue_label_stack.push(iteration_label);
         context.end_label_stack.push(end_label);
 
-        std::string loop_reg = context.allocate_register(Types::INT);
+        std::string loop_reg = context.allocate_register(
+            dst, Types::INT, {dest_reg});
 
         // Loop initialization
         if (initiation)
@@ -121,7 +122,7 @@ public:
         // Clean up
         context.end_label_stack.pop();
         context.continue_label_stack.pop();
-        context.deallocate_register(loop_reg);
+        context.deallocate_register(dst, loop_reg);
     }
 
 private:

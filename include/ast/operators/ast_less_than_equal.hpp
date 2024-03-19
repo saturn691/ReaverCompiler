@@ -45,8 +45,8 @@ public:
         Types type = get_type(context);
         context.mode_stack.push(Context::Mode::OPERATOR);
 
-        std::string temp_reg1 = context.allocate_register(type);
-        std::string temp_reg2 = context.allocate_register(type);
+        std::string temp_reg1 = context.allocate_register(dst, type, {dest_reg});
+        std::string temp_reg2 = context.allocate_register(dst, type, {dest_reg, temp_reg1});
 
         get_left()->gen_asm(dst, temp_reg1, context);
         get_right()->gen_asm(dst, temp_reg2, context);
@@ -54,11 +54,13 @@ public:
         /* See note in ast_equal.hpp for information about 'andi' */
         if (invert)
         {
-            gen_ins(dst, type, temp_reg2, temp_reg1, dest_reg, ins_map, true);
+            dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
+                << ", " << temp_reg2 << ", " << temp_reg1 << std::endl;
         }
         else
         {
-            gen_ins(dst, type, temp_reg1, temp_reg2, dest_reg, ins_map, true);
+            dst << AST_INDENT << ins_map.at(type) << " " << dest_reg
+                << ", " << temp_reg1 << ", " << temp_reg2 << std::endl;
         }
 
         // Invert the result
@@ -77,8 +79,8 @@ public:
         }
 
         context.mode_stack.pop();
-        context.deallocate_register(temp_reg1);
-        context.deallocate_register(temp_reg2);
+        context.deallocate_register(dst, temp_reg1);
+        context.deallocate_register(dst, temp_reg2);
     }
 
 private:

@@ -59,7 +59,7 @@ public:
     ) const override {
         std::string id = identifier->get_id();
         Types type = context.get_type(id);
-        std::string reg = context.allocate_register(type);
+        std::string reg = context.allocate_register(dst, type, {dest_reg});
 
         index->gen_asm(dst, reg, context);
         index_register = reg;
@@ -76,7 +76,8 @@ public:
         */
         if (context.get_is_pointer(id))
         {
-            std::string addr_reg = context.allocate_register(Types::INT);
+            std::string addr_reg = context.allocate_register(
+                dst, Types::INT, {dest_reg, reg});
 
             // Dereference the pointer to get the base address
             dst << AST_INDENT << "lw " << addr_reg << ", "
@@ -86,7 +87,7 @@ public:
             dst << AST_INDENT << "add " << reg << ", " << reg
                 << ", " << addr_reg << std::endl;
 
-            context.deallocate_register(addr_reg);
+            context.deallocate_register(dst, addr_reg);
         }
         else
         {

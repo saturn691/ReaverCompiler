@@ -33,6 +33,11 @@ public:
         throw std::runtime_error("StructDefinition does not have a type");
     }
 
+    unsigned int get_size(Context &context) const override
+    {
+        throw std::runtime_error("StructDefinition does not have a size");
+    }
+
     void allocate_stack(Context &context, std::string id) const override {}
 
     void gen_asm(

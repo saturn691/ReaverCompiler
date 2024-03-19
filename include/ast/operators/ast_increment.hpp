@@ -66,7 +66,7 @@ public:
 
 
         Types type = get_type(context);
-        std::string temp_reg = context.allocate_register(type);
+        std::string temp_reg = context.allocate_register(dst, type, {dest_reg});
         Context::Mode mode = context.mode_stack.top();
         context.mode_stack.push(Context::Mode::OPERATOR);
 
@@ -92,7 +92,8 @@ public:
             case Types::FLOAT:
             case Types::DOUBLE:
             case Types::LONG_DOUBLE:
-                one_reg = context.allocate_register(Types::FLOAT);
+                one_reg = context.allocate_register(
+                    dst, Types::FLOAT, {dest_reg, temp_reg});
                 one_node.gen_asm(dst, one_reg, context);
 
                 dst << AST_INDENT << add << " " << temp_reg
@@ -117,7 +118,7 @@ public:
         }
 
         context.mode_stack.pop();
-        context.deallocate_register(temp_reg);
+        context.deallocate_register(dst, temp_reg);
     }
 
 private:

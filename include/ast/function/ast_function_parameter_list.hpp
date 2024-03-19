@@ -29,6 +29,9 @@ public:
         context.deallocate_arg_registers();
 
         NodeList::gen_asm(dst, dest_reg, context);
+
+        // Deallocate the arg registers after pushing to memory
+        context.deallocate_arg_registers();
     }
 };
 

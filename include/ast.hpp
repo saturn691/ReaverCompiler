@@ -9,7 +9,6 @@
 #include <ast/ast_expression.hpp>
 
 #include <ast/function/ast_function_argument_list.hpp>
-#include <ast/function/ast_function_argument.hpp>
 #include <ast/function/ast_function_call.hpp>
 #include <ast/function/ast_function_declarator.hpp>
 #include <ast/function/ast_function_definition.hpp>

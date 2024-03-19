@@ -71,7 +71,7 @@ public:
             arr_size = dynamic_cast<Number*>(array_size)->evaluate();
             std::string id = direct_declarator->get_id();
             Types type = context.get_type(id);
-            int _ = context.allocate_array_stack(type, arr_size, id);
+            context.allocate_array_stack(type, arr_size, id);
         }
 
         return;

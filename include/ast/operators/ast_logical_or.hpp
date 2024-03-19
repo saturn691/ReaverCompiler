@@ -53,9 +53,12 @@ public:
         Types type = get_type(context);
         context.mode_stack.push(Context::Mode::OPERATOR);
 
-        std::string temp_reg = context.allocate_register(Types::INT);
-        std::string float_temp_reg = context.allocate_register(Types::FLOAT);
-        std::string float_zero_reg = context.allocate_register(Types::FLOAT);
+        std::string temp_reg = context.allocate_register(
+            dst, Types::INT, {dest_reg});
+        std::string float_temp_reg = context.allocate_register(
+            dst, Types::FLOAT, {dest_reg});
+        std::string float_zero_reg = context.allocate_register(
+            dst, Types::FLOAT, {dest_reg, float_temp_reg});
 
         std::string label1 = context.get_unique_label("LOGICAL_OR");
         std::string label2 = context.get_unique_label("LOGICAL_OR");
@@ -113,9 +116,9 @@ public:
             << temp_reg << std::endl;
 
         context.mode_stack.pop();
-        context.deallocate_register(temp_reg);
-        context.deallocate_register(float_temp_reg);
-        context.deallocate_register(float_zero_reg);
+        context.deallocate_register(dst, temp_reg);
+        context.deallocate_register(dst, float_temp_reg);
+        context.deallocate_register(dst, float_zero_reg);
     }
 };
 

@@ -62,7 +62,7 @@ public:
             type = context.get_type(id);
         }
 
-        std::string temp_reg = context.allocate_register(type);
+        std::string temp_reg = context.allocate_register(dst, type, {});
 
         // This mode must occur AFTER the declarator->gen_asm()
         context.mode_stack.push(Context::Mode::INIT_DECLARATION);
@@ -75,7 +75,7 @@ public:
         dst << AST_INDENT << store << " " << temp_reg
             << ", " << stack_loc << "(s0)" << std::endl;
 
-        context.deallocate_register(temp_reg);
+        context.deallocate_register(dst, temp_reg);
     }
 private:
     Declarator* declarator;

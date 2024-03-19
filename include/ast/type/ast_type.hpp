@@ -18,6 +18,8 @@ public:
 
     virtual Types get_type() const = 0;
 
+    virtual unsigned int get_size(Context &context) const = 0;
+
     virtual void allocate_stack(Context &context, std::string id) const = 0;
 };
 

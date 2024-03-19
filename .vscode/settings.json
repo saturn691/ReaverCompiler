@@ -69,5 +69,6 @@
         "stop_token": "cpp",
         "thread": "cpp",
         "scoped_allocator": "cpp"
-    }
+    },
+    "C_Cpp.default.cppStandard": "c++20"
 }

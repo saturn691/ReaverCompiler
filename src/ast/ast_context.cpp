@@ -25,6 +25,9 @@ Context::Context() :
     // Initialise the identifier map stack
     map_stack(
         std::stack<id_map_t>()
+    ),
+    used_registers(
+        std::deque<std::string>()
     )
 {
     map_stack.push(id_map_t());
@@ -32,9 +35,19 @@ Context::Context() :
 }
 
 
-// TODO need smarter algorithm for this
-std::string Context::allocate_register(Types type)
-{
+/**
+ *  Finds an empty register and marks it as being used. If there are no empty
+ *  registers, it will try to spill a register onto the stack.
+ *
+ *  @param type The type of the register
+ *  @return The name of the register
+*/
+std::string Context::allocate_register(
+    std::ostream &dst,
+    Types type,
+    std::vector<std::string> exclude
+) {
+    std::string allocated_register;
     switch (type)
     {
         case Types::FLOAT:
@@ -48,11 +61,13 @@ std::string Context::allocate_register(Types type)
                 if (registers_f[reg_index] == 0)
                 {
                     registers_f[reg_index] = 1;
-                    return register_name;
+                    allocated_register = register_name;
+                    break;
                 }
             }
             break;
 
+        // TODO this
         case Types::LONG_DOUBLE:
             throw std::runtime_error(
                 "Context::allocate_register() - unrecognised type"
@@ -69,8 +84,14 @@ std::string Context::allocate_register(Types type)
                 if (registers[reg_index] == 0)
                 {
                     registers[reg_index] = 1;
-                    return register_name;
+                    allocated_register = register_name;
+                    break;
                 }
+            }
+
+            if (allocated_register != "")
+            {
+                break;
             }
 
             // Search temporary registers (a1-a7)
@@ -83,20 +104,197 @@ std::string Context::allocate_register(Types type)
                 if (registers[reg_index] == 0)
                 {
                     registers[reg_index] = 1;
-                    return register_name;
+                    allocated_register = register_name;
+                    break;
                 }
             }
 
             break;
     }
 
+    if (allocated_register == "")
+    {
+        // Spill into stack location, if possible
+        allocated_register = spill_register(dst, type, exclude);
+    }
+
+    used_registers.push_back(allocated_register);
+
+    return allocated_register;
+}
+
+
+/**
+ *  Spills a register onto the stack. Uses a queue and attempts to find a
+ *  suitable register at the front of the queue to spill.
+*/
+std::string Context::spill_register(
+    std::ostream &dst,
+    Types type,
+    std::vector<std::string> exclude
+){
+    // Search the queue from the front
+    for (std::string register_name : used_registers)
+    {
+        if (std::find(exclude.begin(), exclude.end(), register_name)
+            != exclude.end()
+        ) {
+            continue;
+        }
+
+        // Mark is as being spillt
+        spilled_registers.emplace(register_name);
+
+        switch (type)
+        {
+            // Search for any register_name that begins with a 'f'
+            case Types::FLOAT:
+            case Types::DOUBLE:
+            // TODO support long doubles properly
+            case Types::LONG_DOUBLE:
+                if (register_name[0] == 'f')
+                {
+                    // Spill the register onto the stack
+                    int stack_loc = allocate_stack(type, "!" + register_name);
+                    dst << AST_INDENT << "fsw " << register_name
+                        << ", " << stack_loc << "(s0)" << std::endl;
+
+                    // Mark the register as being free
+                    registers_f[register_map_f.at(register_name)] = 0;
+
+                    return register_name;
+                }
+                break;
+
+            default:
+                if (register_name[0] != 'f')
+                {
+                    // Spill the register onto the stack
+                    int stack_loc = allocate_stack(type, "!" + register_name);
+                    dst << AST_INDENT << "sw " << register_name
+                        << ", " << stack_loc << "(s0)" << std::endl;
+
+                    // Mark the register as being free
+                    registers[register_map.at(register_name)] = 0;
+
+                    return register_name;
+                }
+        }
+    }
+
+    // If we cannot pop any registers, we are out of options
     throw std::runtime_error(
-        "Context::allocate_register() - no free registers"
+        "Context::spill_register() - out of registers"
     );
 }
 
 
-std::string Context::allocate_arg_register(Types type)
+/**
+ *  Unspills a register by restoring the spillt register from the stack and
+ *  doing some housekeeping.
+ *
+ *  @param dst The output stream
+ *  @param spilled_register The register to unspill
+*/
+void Context::unspill_register(
+    std::ostream &dst,
+    std::string spilled_register
+) {
+    // Search the stack for the spilled register
+    for (const auto& pair : map_stack.top())
+    {
+        if (pair.first[0] == '!')
+        {
+            std::string dest_reg = pair.first.substr(1);
+            if (dest_reg == spilled_register)
+            {
+                int stack_loc = pair.second.stack_location;
+                Types type = pair.second.type;
+
+                switch (type)
+                {
+                    case Types::FLOAT:
+                        dst << AST_INDENT << "flw " << dest_reg << ", "
+                            << stack_loc << "(s0)" << std::endl;
+                        break;
+                    default:
+                        dst << AST_INDENT << "lw " << dest_reg << ", "
+                            << stack_loc << "(s0)" << std::endl;
+                        break;
+                }
+
+                // Mark the register as being used
+                registers[register_map.at(dest_reg)] = 1;
+
+                // Mark it as being free
+                spilled_registers.erase(
+                    std::find(
+                        spilled_registers.begin(),
+                        spilled_registers.end(),
+                        dest_reg
+                    )
+                );
+
+                map_stack.top().erase("!" + dest_reg);
+                pop_stack(type_size_map.at(type));
+                return;
+            }
+        }
+    }
+
+    // If we cannot find the spilled register, we are out of options
+    throw std::runtime_error(
+        "Context::unspill_register() - register not found"
+    );
+}
+
+
+/**
+ *  Gets the return register for a given type and marks it as being used.
+ *
+ *  @param type The type of the return value
+ *  @return a0 or fa0
+*/
+std::string Context::allocate_return_register(Types type)
+{
+    std::string return_register;
+
+    switch (type)
+    {
+        case Types::FLOAT:
+        case Types::DOUBLE:
+        case Types::LONG_DOUBLE:
+            return_register = "fa0";
+            registers_f[register_map_f.at(return_register)] = 1;
+            break;
+
+        default:
+            return_register = "a0";
+            registers[register_map.at(return_register)] = 1;
+            break;
+    }
+
+    return return_register;
+}
+
+
+/**
+ *  Allocate a register for an argument. To be used in function calls and
+ *  function definitions.
+ *
+ *  According to the RVG ABI, the first 8 arguments are passed in registers
+ *  a0-a7 and fa0-fa7. This function will allocate a register for the argument
+ *  and return the register name.
+ *
+ *  If no registers are available, it will return a stack location to where to
+ *  place or find the argument.
+ *
+ *  @param type The type of the argument
+ *  @param id The identifier of the argument
+ *
+ *  @return The register name or stack location
+*/
+std::string Context::allocate_arg_register(Types type, std::string id)
 {
     switch (type)
     {
@@ -116,6 +314,7 @@ std::string Context::allocate_arg_register(Types type)
             }
             break;
 
+        // TODO - take two registers that are aligned.
         case Types::LONG_DOUBLE:
             throw std::runtime_error(
                 "Context::allocate_arg_register() - not implemented"
@@ -137,13 +336,23 @@ std::string Context::allocate_arg_register(Types type)
             break;
     }
 
-    throw std::runtime_error(
-        "Context::allocate_arg_register() - no free registers"
-    );
+    // If no registers are available, return a stack location
+    int stack_loc = allocate_bottom_stack(type, id);
+
+    return std::to_string(stack_loc);
 }
 
 
-void Context::deallocate_register(std::string register_name)
+/**
+ *  Deallocates a register by marking it as being free and removing it from the
+ *  spill register queue.
+ *
+ *  If the register has previously been spilt, then it will unspill the register.
+ *
+ *  @param dst The output stream
+ *  @param register_name The register to deallocate (e.g. "t0")
+*/
+void Context::deallocate_register(std::ostream &dst, std::string register_name)
 {
     auto it = register_map.find(register_name);
     auto it_f = register_map_f.find(register_name);
@@ -162,21 +371,42 @@ void Context::deallocate_register(std::string register_name)
             "Context::deallocate_register() - unrecognised register"
         );
     }
+
+    // Remove it from the deque
+    auto it_d = std::find(
+        used_registers.begin(),
+        used_registers.end(),
+        register_name
+    );
+    if (it_d != used_registers.end())
+    {
+        used_registers.erase(it_d);
+    }
+
+    // If it has been spillt, unspill
+    if (spilled_registers.find(register_name) != spilled_registers.end())
+    {
+        unspill_register(dst, register_name);
+    }
+
+    return;
 }
 
 
-void Context::push_registers(std::ostream& dst)
+/**
+ *  Checks if a register is in use, and if so, pushes it to the stack.
+ *  Should call the pop_registers() function after the function call.
+*/
+void Context::push_registers(std::ostream& dst, std::string exclude)
 {
-
-
     dst << "# Pushing registers onto stack (if any)" << std::endl;
 
-    // Search temporary registers (fa0-fa7)
+    // Search temporary registers (ft0-ft7)
     for (int i = 0; i <= 11; ++i)
     {
         std::string register_name = "ft" + std::to_string(i);
         int reg_index = register_map_f.at(register_name);
-        if (registers_f[reg_index] == 1)
+        if (registers_f[reg_index] == 1 && register_name != exclude)
         {
             registers_f[reg_index] = 0;
             // 32-bit registers
@@ -189,12 +419,30 @@ void Context::push_registers(std::ostream& dst)
         }
     }
 
-    // Search temporary registers (a0-a7)
+    // Search temporary registers (t0-t6)
     for (int i = 0; i <= 6; ++i)
     {
         std::string register_name = "t" + std::to_string(i);
         int reg_index = register_map.at(register_name);
-        if (registers[reg_index] == 1)
+        if (registers[reg_index] == 1 && register_name != exclude)
+        {
+            registers[reg_index] = 0;
+            // 32-bit registers
+            int stack_loc = allocate_stack(
+                Types::LONG,
+                "!" + register_name
+            );
+            dst << AST_INDENT << "sw " << register_name
+                << ", " << stack_loc << "(s0)" << std::endl;
+        }
+    }
+
+    // Search argument registers (a1-a7)
+    for (int i = 0; i <= 7; ++i)
+    {
+        std::string register_name = "a" + std::to_string(i);
+        int reg_index = register_map.at(register_name);
+        if (registers[reg_index] == 1 && register_name != exclude)
         {
             registers[reg_index] = 0;
             // 32-bit registers
@@ -249,6 +497,9 @@ void Context::pop_registers(std::ostream& dst)
 }
 
 
+/**
+ *  Deallocate all argument registers (a0-a7, fa0-fa7).
+*/
 void Context::deallocate_arg_registers()
 {
     // Search argument registers (fa0-fa7)
@@ -266,9 +517,17 @@ void Context::deallocate_arg_registers()
         int reg_index = register_map.at(register_name);
         registers[reg_index] = 0;
     }
+
+    // Reset the stack pointer
+    stack_pointer_offset = 0;
 }
 
 
+/**
+ *  Initialises the stack, should be called when entering a new function.
+ *
+ *  @param dst The output stream
+*/
 void Context::init_stack(std::ostream& dst)
 {
     /*
@@ -295,6 +554,11 @@ void Context::init_stack(std::ostream& dst)
 }
 
 
+/**
+ *  Closes the stack, must be called when exiting a function.
+ *
+ *  @param dst The output stream
+*/
 void Context::end_stack(std::ostream& dst)
 {
 
@@ -309,54 +573,54 @@ void Context::end_stack(std::ostream& dst)
 }
 
 
+/**
+ *  Allocate a stack location for a variable according to its type and adds it
+ *  to the lookup table.
+ *
+ *  @param type The type of the variable
+ *  @param id The identifier of the variable
+ *
+ *  @return The bottom of the stack location that the variable is allocated.
+*/
 int Context::allocate_stack(Types type, std::string id)
 {
-    unsigned int bytes;
-    if (is_pointer)
-    {
-        bytes = 4;
-    }
-    else
-    {
-        bytes = type_size_map.at(type);
-    }
+    unsigned int bytes = (is_pointer) ? 4 : type_size_map.at(type);
 
     int stack_loc = push_stack(bytes);
 
-    if (!id.empty())
-    {
-        map_stack.top()[id] = {stack_loc, type};
-        map_stack.top()[id].is_pointer = is_pointer;
-    }
-    else
-    {
-        throw std::runtime_error(
-            "Context::allocate_stack() - id is empty"
-        );
-    }
+    map_stack.top()[id] = {stack_loc, type};
+    map_stack.top()[id].is_pointer = is_pointer;
 
     return stack_loc;
 }
+
+
+/**
+ *  Same as allocate_stack() but goes upwards.
+*/
+int Context::allocate_bottom_stack(Types type, std::string id)
+{
+    // If no registers are available, return a stack location
+    int stack_loc = stack_pointer_offset;
+    stack_pointer_offset += type_size_map.at(type);
+    map_stack.top()[id] = {stack_loc, type};
+    map_stack.top()[id].is_pointer = is_pointer;
+
+    return stack_loc;
+}
+
 
 int Context::allocate_array_stack(Types type, int size, std::string id)
 {
-    unsigned int bytes = type_size_map.at(type)*size;
+    unsigned int bytes = type_size_map.at(type) * size;
     int stack_loc = push_stack(bytes);
 
-    if (!id.empty())
-    {
-        map_stack.top()[id] = {stack_loc, type};
-        map_stack.top()[id].is_pointer = is_pointer;
-    }
-    else
-    {
-        throw std::runtime_error(
-            "Context::allocate_array_stack() - id is empty"
-        );
-    }
+    map_stack.top()[id] = {stack_loc, type};
+    map_stack.top()[id].is_pointer = is_pointer;
 
     return stack_loc;
 }
+
 
 int Context::push_identifier_map()
 {
@@ -364,11 +628,13 @@ int Context::push_identifier_map()
     return map_stack.size() - 1;
 }
 
+
 int Context::pop_identifier_map()
 {
     map_stack.pop();
     return map_stack.size() - 1;
 }
+
 
 int Context::push_stack(int bytes)
 {
@@ -391,6 +657,37 @@ void Context::pop_stack(int bytes)
 }
 
 
+/**
+ *  Sets the frame pointer to 0.
+*/
+void Context::reset_frame_pointer()
+{
+    frame_pointer_offset = 0;
+}
+
+
+/**
+ *  Sets the stack pointer to 0.
+ *  Should be called before a function defintion and before a function call.
+*/
+void Context::reset_stack_pointer()
+{
+    stack_pointer_offset = 0;
+}
+
+/**
+ *  Resets the registers to their default values.
+ *  Should be called before a function defintion.
+*/
+void Context::reset_registers()
+{
+    registers = registers_default;
+    registers_f = registers_f_default;
+
+    return;
+}
+
+
 std::string Context::get_unique_label(std::string prefix)
 {
     return prefix + std::to_string(label_map[prefix]++);
@@ -409,10 +706,14 @@ void Context::add_string_data(std::string label, std::string value)
 }
 
 
+/**
+ *  Generates the memory data section of the assembly file. Must be called at
+ *  the end of the code generation process.
+ *
+ *  @param dst The output stream
+*/
 void Context::gen_memory_asm(std::ostream& dst)
 {
-
-
     dst << ".section .rodata" << std::endl;
 
     std::string id;
@@ -471,6 +772,9 @@ void Context::set_is_pointer(std::string id, bool is_pointer)
 }
 
 
+/**
+ *  Works for enums, identifiers and registers
+*/
 Types Context::get_type(std::string id) const
 {
     // First, try to find the id in the identifier_map
@@ -486,6 +790,27 @@ Types Context::get_type(std::string id) const
             if (enum_id == id) {
                 return Types::INT;
             }
+        }
+    }
+
+    // Look if it matches a struct type
+    for (const auto& struct_type : id_to_struct) {
+        if (struct_type.first == id) {
+            return Types::STRUCT;
+        }
+    }
+
+    // Search the register maps
+    // Registers are passed as "!a0"
+    if (id[0] == '!')
+    {
+        if (id[1] == 'f')
+        {
+            return Types::FLOAT;
+        }
+        else
+        {
+            return Types::INT;
         }
     }
 
@@ -570,6 +895,12 @@ unsigned int Context::get_size(std::string id) const
 }
 
 
+/**
+ *  Gets the RISC-V load instruction for the type
+ *
+ *  @param type The type of the variable
+ *  @return The RISC-V load instruction (e.g. lw)
+*/
 std::string Context::get_load_instruction(Types type)
 {
     std::string instruction;
@@ -612,6 +943,12 @@ std::string Context::get_load_instruction(Types type)
 }
 
 
+/**
+ *  Gets the RISC-V store instruction for the type.
+ *
+ *  @param type The type of the variable
+ *  @return The RISC-V store instruction (e.g. sw)
+*/
 std::string Context::get_store_instruction(Types type)
 {
     std::string instruction;

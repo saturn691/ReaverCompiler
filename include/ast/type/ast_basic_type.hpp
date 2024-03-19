@@ -66,7 +66,7 @@ public:
         return type;
     }
 
-    virtual unsigned int get_size(Context &context) const
+    unsigned int get_size(Context &context) const override
     {
         return Context::type_size_map.at(type);
     }
