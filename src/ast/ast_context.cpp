@@ -629,9 +629,14 @@ int Context::allocate_stack(
         bytes = type_size_map.at(type) * multiplier;
         is_array = true;
     }
+    else
+    {
+        // Normal declaration
+        bytes = type_size_map.at(type);
+    }
 
     // Normal declaration
-    bytes = (is_ptr) ? 4 : type_size_map.at(type);
+    bytes = (is_ptr) ? 4 : bytes;
 
     fv.stack_location = -1;
     fv.type = type;

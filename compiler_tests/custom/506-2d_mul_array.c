@@ -1,6 +1,8 @@
 int array_mul(int arr1[][2], int arr2[][2]) {
     int result[2][2];
-    int i, j, k;
+    int i;
+    int j;
+    int k;
 
     for (i = 0; i < 2; i++) {
         for (j = 0; j < 2; j++) {

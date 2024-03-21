@@ -105,19 +105,20 @@ public:
     ) const {
         // Not good Leetcode, whatever bro
         std::string id = get_id();
+        auto dimensions = context.get_function_variable(id).array_dimensions;
 
         // Do we need to recurse?
         ArrayAccess *array_access = dynamic_cast<ArrayAccess*>(postfix_expression);
         if (array_access)
         {
             // Recurse
-            array_access->recurse_gen_asm(dst, dest_reg, context, multiplier, depth + 1);
+            array_access->recurse_gen_asm(
+                dst, dest_reg, context, multiplier, depth + 1);
 
             // Coming back up...
-            auto dimensions = context.get_function_variable(id).array_dimensions;
 
-            // Must start depth at 1, or this will not work as intended
-            multiplier *= dimensions[depth];
+            // Depth must start at 1
+            multiplier /= dimensions[dimensions.size() - depth];
 
             std::string index_reg = context.allocate_register(
                 dst, Types::INT, {dest_reg});
@@ -132,7 +133,6 @@ public:
             dst << AST_INDENT << "add " << dest_reg << ", "
                 << dest_reg << ", " << index_reg << std::endl;
 
-
             context.deallocate_register(dst, index_reg);
             context.deallocate_register(dst, mul_reg);
         }
@@ -141,11 +141,24 @@ public:
             // Bottom of the tree
             Types type = context.get_type(id);
             multiplier = context.type_size_map.at(type);
-            unsigned int log_size = log2(multiplier);
+
+            if (dimensions.size() > 1)
+            {
+                for (unsigned int i = 1; i < dimensions.size(); i++)
+                {
+                    multiplier *= dimensions[i];
+                }
+            }
 
             index->gen_asm(dst, dest_reg, context);
-            dst << AST_INDENT << "slli " << dest_reg << ", "
-                << dest_reg << ", " << log_size << std::endl;
+
+            std::string mul_reg = context.allocate_register(
+                dst, Types::INT, {dest_reg});
+            dst << AST_INDENT << "li " << mul_reg << ", "
+                << multiplier << std::endl;
+            dst << AST_INDENT << "mul " << dest_reg << ", "
+                << dest_reg << ", " << mul_reg << std::endl;
+            context.deallocate_register(dst, mul_reg);
         }
     }
 
