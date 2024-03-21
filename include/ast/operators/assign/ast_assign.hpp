@@ -63,7 +63,8 @@ public:
         std::string id = unary_expression->get_id();
         Types type = context.get_type(id);
         unsigned int multiplier = Context::type_size_map.at(type);
-        context.pointer_multiplier = context.get_is_pointer(id) ? multiplier : 1;
+        bool is_ptr = context.get_function_variable(id).is_pointer;
+        context.pointer_multiplier = (is_ptr) ? multiplier : 1;
 
         ArrayAccess* array_access = dynamic_cast<ArrayAccess*>(unary_expression);
         UnaryExpression* unary_expr = dynamic_cast<UnaryExpression*>(unary_expression);

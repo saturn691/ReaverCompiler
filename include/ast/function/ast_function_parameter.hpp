@@ -52,6 +52,9 @@ public:
         std::string id = declarator->get_id();
         context.add_function_declaration_type(type);
 
+        // Remember the function parameter type
+        context.current_sub_declaration_type = declaration_specifiers;
+
         if (type == Types::STRUCT)
         {
             // TODO there is a cleaner way to do this. Do you wanna try?
@@ -76,7 +79,6 @@ public:
             if (arg_reg[0] == 'a' || arg_reg[0] == 'f')
             {
                 {
-                    context.allocate_stack(type, id);
                     declarator->gen_asm(dst, arg_reg, context);
                 }
             }

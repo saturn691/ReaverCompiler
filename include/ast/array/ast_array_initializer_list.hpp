@@ -50,6 +50,8 @@ class ArrayInitializerList : public NodeList
 
                 dst << AST_INDENT << store << " " << reg << ", "
                     << index << "(" << dest_reg << ")" << std::endl;
+
+                context.deallocate_register(dst, reg);
             }
         }
     }

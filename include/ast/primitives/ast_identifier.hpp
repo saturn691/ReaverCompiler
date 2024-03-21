@@ -56,7 +56,7 @@ public:
                 context.current_declaration_type->allocate_stack(context, id);
                 type = context.current_declaration_type->get_type();
                 size = context.get_size(id);
-                ptr = context.get_is_pointer(id);
+                ptr = context.get_function_variable(id).is_pointer;
                 size = ptr ? 4 : size;
                 log_size = log2(size);
 
@@ -88,19 +88,22 @@ public:
 
             // STORE
             case Context::Mode::FUNCTION_DEFINITION:
-                type = context.get_type(id);
-                if (context.is_pointer)
-                {
-                    type = Types::INT;
-                    context.set_is_pointer(id, true);
-                }
+                type = context.current_sub_declaration_type->get_type();
+                context.allocate_stack(
+                    type,
+                    id,
+                    context.is_pointer,
+                    context.is_array,
+                    context.array_dimensions
+                );
                 context.store(dst, dest_reg, id, type);
                 break;
 
             // Mode 1: LOAD
             case Context::Mode::INIT_DECLARATION:
             default:
-                if (context.is_pointer || context.get_is_pointer(id))
+                if (context.is_pointer ||
+                    context.get_function_variable(id).is_pointer)
                 {
                     type = Types::INT;
                 }

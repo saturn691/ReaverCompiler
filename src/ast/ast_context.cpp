@@ -597,37 +597,62 @@ void Context::end_stack(std::ostream& dst)
  *
  *  @param type The type of the variable
  *  @param id The identifier of the variable
- *  @param arr_size The size of the array, if it's an array (default -1)
+ *  @param is_ptr Whether the variable is a pointer (default false)
+ *  @param is_array Whether the variable is an array (default false)
+ *  @param array_dimensions The dimensions of the array (default {})
  *
  *  @return The bottom of the stack location that the variable is allocated.
  *          If it's a global declaration, it will return -1.
 */
-int Context::allocate_stack(Types type, std::string id, int arr_size)
-{
-    int stack_loc = -1;
+int Context::allocate_stack(
+    Types type,
+    std::string id,
+    bool is_ptr,
+    bool is_array,
+    std::vector<int> array_dimensions
+) {
     unsigned int bytes;
+    FunctionVariable fv;
 
-    if (arr_size == -1)
-    {
-        bytes = (is_pointer) ? 4 : type_size_map.at(type);
-    }
-    else
+    if (is_array)
     {
         // Array declaration
-        bytes = type_size_map.at(type) * arr_size;
+        unsigned int multiplier = 1;
+        for (int dim : array_dimensions)
+        {
+            multiplier *= dim;
+        }
+
+        // Reverse the vector - this is due to how DFS works
+        std::reverse(array_dimensions.begin(), array_dimensions.end());
+
+        bytes = type_size_map.at(type) * multiplier;
+        is_array = true;
     }
+
+    // Normal declaration
+    bytes = (is_ptr) ? 4 : type_size_map.at(type);
+
+    fv.stack_location = -1;
+    fv.type = type;
+    fv.parameter_types = {};
+    fv.is_pointer = is_ptr;
+    fv.is_array = is_array;
+    fv.array_dimensions = array_dimensions;
 
     if (mode_stack.top() == Mode::GLOBAL_DECLARATION)
     {
-        map_stack.top()[id] = {stack_loc, type, {}, is_pointer, Scope::GLOBAL};
+        fv.scope = Scope::GLOBAL;
+        map_stack.top()[id] = fv;
     }
     else
     {
-        stack_loc = push_stack(bytes);
-        map_stack.top()[id] = {stack_loc, type, {}, is_pointer, Scope::LOCAL};
+        fv.stack_location = push_stack(bytes);
+        fv.scope = Scope::LOCAL;
+        map_stack.top()[id] = fv;
     }
 
-    return stack_loc;
+    return fv.stack_location;
 }
 
 
@@ -642,7 +667,13 @@ int Context::allocate_bottom_stack(Types type, std::string id)
     stack_pointer_offset += type_size_map.at(type);
 
     // Must be LOCAL for the store/load to function correctly
-    map_stack.top()[id] = {stack_loc, type, {}, is_pointer, Scope::LOCAL};
+    FunctionVariable fv;
+    fv.stack_location = stack_loc;
+    fv.type = type;
+    fv.parameter_types = {};
+    fv.is_pointer = is_pointer;
+    fv.scope = Scope::LOCAL;
+    map_stack.top()[id] = fv;
 
     return stack_loc;
 }
@@ -737,7 +768,6 @@ void Context::gen_memory_asm(std::ostream& dst)
     dst << ".section .rodata" << std::endl;
 
     std::string id;
-    int val;
 
     dst << memory_map.str();
 
@@ -775,15 +805,9 @@ void Context::add_function_declaration_type(Types type)
 }
 
 
-bool Context::get_is_pointer(std::string id) const
+FunctionVariable Context::get_function_variable(std::string id) const
 {
-    return map_stack.top().at(id).is_pointer;
-}
-
-
-void Context::set_is_pointer(std::string id, bool is_pointer)
-{
-    map_stack.top().at(id).is_pointer = is_pointer;
+    return map_stack.top().at(id);
 }
 
 
@@ -1020,7 +1044,8 @@ void Context::store(
     Types type,
     std::string addr_reg
 ) {
-    std::string store_ins = get_store_instruction(type);
+    Types _type = (get_function_variable(id).is_pointer) ? Types::INT : type;
+    std::string store_ins = get_store_instruction(_type);
 
     // Check if we need to store into an address
     if (!addr_reg.empty())
@@ -1067,7 +1092,7 @@ void Context::load(
     std::string load_id = id;
 
     // Checks if it's a local or global variable
-    if ((label != "") | map_stack.top()[id].scope == Scope::GLOBAL)
+    if ((label != "") || map_stack.top()[id].scope == Scope::GLOBAL)
     {
         if (label != "")
         {
@@ -1102,71 +1127,7 @@ void Context::load(
 }
 
 
-/**
- *  Same as load() but for arrays
-*/
-void Context::load_array_address(
-    std::ostream &dst,
-    std::string reg,
-    std::string id,
-    Types type,
-    std::string index_reg
-) {
-    std::string load_ins = get_load_instruction(type);
-    std::string lui_reg, base_ptr_reg;
-    std::string load_id;
-    int base_pointer = get_stack_location(id);
-    unsigned int size = get_size(id);
-    unsigned int log_size = log2(size);
 
-    // Find the correct offset for the array
-    if (log_size)
-    {
-        dst << AST_INDENT << "slli " << index_reg << ", "
-            << index_reg << ", " << log_size << std::endl;
-    }
-
-    if (map_stack.top()[id].scope == Scope::GLOBAL)
-    {
-        lui_reg = allocate_register(dst, Types::INT, {reg});
-
-        dst << AST_INDENT << "lui " << lui_reg
-            << ", %hi(" << id << ")" << std::endl;
-        dst << AST_INDENT << "addi " << lui_reg << ", "
-            << lui_reg << ", %lo(" << id << ")" << std::endl;
-
-        // Add the index
-        dst << AST_INDENT << "add " << index_reg << ", "
-            << index_reg << ", " << lui_reg << std::endl;
-
-        deallocate_register(dst, lui_reg);
-    }
-    else
-    {
-        // If base pointer is a pointer, derefence the pointer
-        if (map_stack.top()[id].is_pointer == true)
-        {
-            base_ptr_reg = allocate_register(
-                dst, Types::INT, {index_reg});
-
-            dst << AST_INDENT << "lw " << base_ptr_reg << ", "
-                << base_pointer << "(s0)" << std::endl;
-            dst << AST_INDENT << "add " << index_reg << ", "
-                << index_reg << ", " << base_ptr_reg << std::endl;
-
-            deallocate_register(dst, base_ptr_reg);
-        }
-        else
-        {
-            // Add the base pointer
-            dst << AST_INDENT << "addi " << index_reg << ", "
-                << index_reg << ", " << base_pointer << std::endl;
-            // Add s0
-            dst << AST_INDENT << "add " << index_reg << ", "
-                << index_reg << ", s0" << std::endl;
-        }
-    }
-}
 
 /**
  * Helper function to check if a mode is in mode_stack

@@ -33,13 +33,18 @@ enum class Scope
  *  Identifiers can be used to refer to variables or functions.
  *  However, we don't really know. A union could have been used, maybe in
  *  2 pass compiler. Right now, this is kinda a mess.
+ *
+ *  TODO if you're reading this and using this as inspiration, please don't.
+ *  The 2D array support is just hacked together, the deadline is tomorrow.
 */
 struct FunctionVariable
 {
     int stack_location;
     Types type;
-    std::vector<Types> parameter_types;
+    std::vector<Types> parameter_types = {};
     bool is_pointer = false;
+    bool is_array = false;
+    std::vector<int> array_dimensions = {}; // For multi-dimensional arrays
     Scope scope;
 };
 
@@ -83,7 +88,13 @@ public:
 
     void end_stack(std::ostream& dst);
 
-    int allocate_stack(Types type, std::string id, int arr_size = -1);
+    int allocate_stack(
+        Types type,
+        std::string id,
+        bool is_ptr = false,
+        bool is_array = false,
+        std::vector<int> array_dimensions = {}
+    );
 
     int allocate_bottom_stack(Types type, std::string id);
 
@@ -111,9 +122,7 @@ public:
 
     void add_function_declaration_type(Types type);
 
-    void set_is_pointer(std::string id, bool is_pointer);
-
-    bool get_is_pointer(std::string id) const;
+    FunctionVariable get_function_variable(std::string id) const;
 
     Types get_type(std::string id) const;
 
@@ -147,14 +156,6 @@ public:
         std::string label = ""
     );
 
-    void load_array_address(
-        std::ostream &dst,
-        std::string reg,
-        std::string id,
-        Types type,
-        std::string index_reg
-    );
-
     /*
     When declaring a variable or a function, say int x, y, z;, we need to know
     the type of x, y, and z. However, because the compiler uses in-order
@@ -165,6 +166,8 @@ public:
     // The type of the current variable/function declaration.
     TypePtr current_declaration_type;
     bool is_pointer = false;
+    bool is_array = false;
+    std::vector<int> array_dimensions = {};
     std::string current_id;
 
     // Used for creation of structs. Keep the current_declaration_type as the
@@ -219,9 +222,6 @@ public:
 
     // Multiplier for pointers (only applies to + and - AND is a number)
     unsigned int pointer_multiplier = 1;
-
-    // Multiplier for arrays
-    unsigned int array_multiplier = 1;
 
     // Boolean for pointer multiplier
     bool multiply_pointer = false;

@@ -51,6 +51,7 @@ public:
         // TODO Maybe don't expression is a number? It works however.
         // Downcast to number and evaluate
         int arr_size;
+        Number* num = dynamic_cast<Number*>(array_size);
 
         Types type = context.current_declaration_type->get_type();
         std::string id = direct_declarator->get_id();
@@ -70,10 +71,9 @@ public:
             dst << AST_INDENT << ".type " << id << ", @object" << std::endl;
             dst << AST_INDENT << ".size " << id << ", " << total_size << std::endl;
 
-            context.is_pointer = true;
-            context.allocate_stack(type, id, arr_size);
-            context.is_pointer = false;
+            context.allocate_stack(type, id, true, true, {arr_size});
         }
+
         /*
             If we are defining function parameters, e.g. f(int x[]), we
             need to interpret this as a pointer instead of an array.
@@ -83,22 +83,41 @@ public:
 
         else if (context.mode_stack.top() == Context::Mode::FUNCTION_DEFINITION)
         {
+            if (num)
+            {
+                arr_size = num->evaluate();
+            }
+            else
+            {
+                arr_size = -1;
+            }
+
+            // 100% a pointer, it is passed through the function
+            context.is_array = true;
+            context.array_dimensions.push_back(arr_size);
             context.is_pointer = true;
+
             direct_declarator->gen_asm(dst, dest_reg, context);
+
+            context.is_array = false;
             context.is_pointer = false;
-            arr_size = 1;
+            context.array_dimensions.clear();
         }
         else
         {
-            arr_size = dynamic_cast<Number*>(array_size)->evaluate();
+            arr_size = num->evaluate();
 
+            context.array_dimensions.push_back(arr_size);
             direct_declarator->gen_asm(dst, dest_reg, context);
 
             // Only allocate stack once: e.g. int x[2][2]
             if (dynamic_cast<Identifier*>(direct_declarator))
             {
                 Types type = context.get_type(id);
-                int stack_loc = context.allocate_stack(type, id, arr_size);
+
+                // NOT a pointer - lives on the stack
+                int stack_loc = context.allocate_stack(
+                    type, id, false, true, context.array_dimensions);
 
                 if (context.mode_stack.top() == Context::Mode::LOCAL_DECLARATION)
                 {
@@ -106,13 +125,9 @@ public:
                     dst << AST_INDENT << "addi " << dest_reg << ", " <<
                         "s0, " << stack_loc << std::endl;
                 }
+            }
 
-                context.array_multiplier = 1;
-            }
-            else
-            {
-                context.array_multiplier *= arr_size;
-            }
+            context.array_dimensions.clear();
         }
 
         return;

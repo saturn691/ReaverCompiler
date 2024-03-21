@@ -78,7 +78,6 @@
 #include <ast/type/struct/ast_struct_instance.hpp>
 
 #include <ast/variable/ast_declaration.hpp>
-#include <ast/variable/ast_variable_declarator.hpp>
 
 extern const Node *parseAST(std::string filename);
 
