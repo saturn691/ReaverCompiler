@@ -16,7 +16,7 @@
 #include "operators/ast_unary_expression.hpp"
 
 #define AST_STACK_ALIGN             16
-#define AST_STACK_ALLOCATE          128
+#define AST_STACK_ALLOCATE          512
 #define AST_PRINT_INDENT_SPACES     4
 #define AST_ARG_MAX_SIZE            8
 #define AST_INDENT                  std::string(AST_PRINT_INDENT_SPACES, ' ')
