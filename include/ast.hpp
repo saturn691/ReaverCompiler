@@ -50,6 +50,7 @@
 // Array
 #include <ast/array/ast_array_declarator.hpp>
 #include <ast/array/ast_array_access.hpp>
+#include <ast/array/ast_array_initializer_list.hpp>
 
 // Pointers
 #include <ast/pointer/ast_pointer.hpp>

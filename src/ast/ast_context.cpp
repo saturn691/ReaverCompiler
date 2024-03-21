@@ -1,20 +1,35 @@
 #include <ast/ast_context.hpp>
+#include <cmath>
+
 
 const std::unordered_map<Types, unsigned int> Context::type_size_map = {
-        {Types::VOID,               0},
-        {Types::UNSIGNED_CHAR,      1},
-        {Types::CHAR,               1},
-        {Types::UNSIGNED_SHORT,     2},
-        {Types::SHORT,              2},
-        {Types::UNSIGNED_INT,       4},
-        {Types::INT,                4},
-        {Types::UNSIGNED_LONG,      4},
-        {Types::LONG,               4},
-        {Types::FLOAT,              4},
-        {Types::DOUBLE,             8},
-        {Types::LONG_DOUBLE,        8}
-    };
+    {Types::VOID,               0},
+    {Types::UNSIGNED_CHAR,      1},
+    {Types::CHAR,               1},
+    {Types::UNSIGNED_SHORT,     2},
+    {Types::SHORT,              2},
+    {Types::UNSIGNED_INT,       4},
+    {Types::INT,                4},
+    {Types::UNSIGNED_LONG,      4},
+    {Types::LONG,               4},
+    {Types::FLOAT,              4},
+    {Types::DOUBLE,             8},
+    {Types::LONG_DOUBLE,        8}
+};
 
+
+const std::unordered_map<Types, std::string> Context::assembler_directive = {
+    {Types::UNSIGNED_CHAR, ".byte"},
+    {Types::CHAR, ".byte"},
+    {Types::UNSIGNED_SHORT, ".half"},
+    {Types::SHORT, ".half"},
+    {Types::UNSIGNED_INT, ".word"},
+    {Types::INT, ".word"},
+    {Types::UNSIGNED_LONG, ".word"},
+    {Types::LONG, ".word"},
+    {Types::FLOAT, ".word"},
+    {Types::DOUBLE, ".word"}
+};
 
 
 Context::Context() :
@@ -996,17 +1011,25 @@ std::string Context::get_store_instruction(Types type)
  *  @param reg The register to store from
  *  @param id The identifier to look up the stack location
  *  @param type The type of the variable for the store instruction
+ *  @param addr_reg Leave blank except when storing into an address
 */
 void Context::store(
     std::ostream &dst,
     std::string reg,
     std::string id,
-    Types type
+    Types type,
+    std::string addr_reg
 ) {
     std::string store_ins = get_store_instruction(type);
 
+    // Check if we need to store into an address
+    if (!addr_reg.empty())
+    {
+        dst << AST_INDENT << store_ins << " " << reg << ", "
+            << "0(" << addr_reg << ")" << std::endl;
+    }
     // Checks if it's a local or global variable
-    if (map_stack.top().at(id).scope == Scope::GLOBAL)
+    else if (map_stack.top().at(id).scope == Scope::GLOBAL)
     {
         dst << AST_INDENT << store_ins << " " << reg << ", "
             << id << std::endl;
@@ -1062,6 +1085,7 @@ void Context::load(
             << ", %hi(" << load_id << ")" << std::endl;
 
         // Now use the load instruction
+        // This is dereferencing a pointer
         dst << AST_INDENT << load_ins << " " << reg << ", "
             << "%lo(" << load_id << ")(" << lui_reg << ")" << std::endl;
 
@@ -1077,6 +1101,72 @@ void Context::load(
     }
 }
 
+
+/**
+ *  Same as load() but for arrays
+*/
+void Context::load_array_address(
+    std::ostream &dst,
+    std::string reg,
+    std::string id,
+    Types type,
+    std::string index_reg
+) {
+    std::string load_ins = get_load_instruction(type);
+    std::string lui_reg, base_ptr_reg;
+    std::string load_id;
+    int base_pointer = get_stack_location(id);
+    unsigned int size = get_size(id);
+    unsigned int log_size = log2(size);
+
+    // Find the correct offset for the array
+    if (log_size)
+    {
+        dst << AST_INDENT << "slli " << index_reg << ", "
+            << index_reg << ", " << log_size << std::endl;
+    }
+
+    if (map_stack.top()[id].scope == Scope::GLOBAL)
+    {
+        lui_reg = allocate_register(dst, Types::INT, {reg});
+
+        dst << AST_INDENT << "lui " << lui_reg
+            << ", %hi(" << id << ")" << std::endl;
+        dst << AST_INDENT << "addi " << lui_reg << ", "
+            << lui_reg << ", %lo(" << id << ")" << std::endl;
+
+        // Add the index
+        dst << AST_INDENT << "add " << index_reg << ", "
+            << index_reg << ", " << lui_reg << std::endl;
+
+        deallocate_register(dst, lui_reg);
+    }
+    else
+    {
+        // If base pointer is a pointer, derefence the pointer
+        if (map_stack.top()[id].is_pointer == true)
+        {
+            base_ptr_reg = allocate_register(
+                dst, Types::INT, {index_reg});
+
+            dst << AST_INDENT << "lw " << base_ptr_reg << ", "
+                << base_pointer << "(s0)" << std::endl;
+            dst << AST_INDENT << "add " << index_reg << ", "
+                << index_reg << ", " << base_ptr_reg << std::endl;
+
+            deallocate_register(dst, base_ptr_reg);
+        }
+        else
+        {
+            // Add the base pointer
+            dst << AST_INDENT << "addi " << index_reg << ", "
+                << index_reg << ", " << base_pointer << std::endl;
+            // Add s0
+            dst << AST_INDENT << "add " << index_reg << ", "
+                << index_reg << ", s0" << std::endl;
+        }
+    }
+}
 
 /**
  * Helper function to check if a mode is in mode_stack

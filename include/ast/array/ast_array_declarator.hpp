@@ -1,6 +1,7 @@
 #ifndef ast_array_declarator_hpp
 #define ast_array_declarator_hpp
 
+#include <cmath>
 #include "../ast_node.hpp"
 
 /*
@@ -47,8 +48,32 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
+        // TODO Maybe don't expression is a number? It works however.
+        // Downcast to number and evaluate
         int arr_size;
 
+        Types type = context.current_declaration_type->get_type();
+        std::string id = direct_declarator->get_id();
+
+        if (context.mode_stack.top() == Context::Mode::GLOBAL_DECLARATION)
+        {
+            unsigned int size = context.type_size_map.at(type);
+            arr_size = dynamic_cast<Number*>(array_size)->evaluate();
+            unsigned int total_size = size * arr_size;
+            unsigned int log_size = log2(total_size);
+
+            // DO NOT call direct_declarator->gen_asm() here
+            // Let the compiler know the existence of the variable
+            dst << AST_INDENT << ".globl " << id << std::endl;
+            dst << AST_INDENT << ".section .sdata, \"aw\"" << std::endl;
+            dst << AST_INDENT << ".align " << log_size << std::endl;
+            dst << AST_INDENT << ".type " << id << ", @object" << std::endl;
+            dst << AST_INDENT << ".size " << id << ", " << total_size << std::endl;
+
+            context.is_pointer = true;
+            context.allocate_stack(type, id, arr_size);
+            context.is_pointer = false;
+        }
         /*
             If we are defining function parameters, e.g. f(int x[]), we
             need to interpret this as a pointer instead of an array.
@@ -56,7 +81,7 @@ public:
             i.e., `int x[]` is equivalent to `int *x` in function parameters
         */
 
-        if (context.mode_stack.top() == Context::Mode::FUNCTION_DEFINITION)
+        else if (context.mode_stack.top() == Context::Mode::FUNCTION_DEFINITION)
         {
             context.is_pointer = true;
             direct_declarator->gen_asm(dst, dest_reg, context);
@@ -65,11 +90,8 @@ public:
         }
         else
         {
-            direct_declarator->gen_asm(dst, dest_reg, context);
-            // TODO Maybe don't expression is a number? It works however.
-            // Downcast to number and evaluate
             arr_size = dynamic_cast<Number*>(array_size)->evaluate();
-            std::string id = direct_declarator->get_id();
+            direct_declarator->gen_asm(dst, dest_reg, context);
             Types type = context.get_type(id);
             context.allocate_stack(type, id, arr_size);
         }

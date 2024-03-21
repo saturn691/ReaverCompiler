@@ -11,7 +11,7 @@ class InitDeclarator : public Declarator
 public:
     InitDeclarator(
         Declarator* _declarator,
-        Expression* _initializer
+        Node* _initializer
     ) :
         declarator(_declarator),
         initializer(_initializer)
@@ -60,7 +60,7 @@ public:
         }
         else
         {
-            type = context.get_type(id);
+            type = context.current_declaration_type->get_type();
         }
 
         // Global variables are handled differently
@@ -88,7 +88,7 @@ public:
     }
 private:
     Declarator* declarator;
-    Expression* initializer;
+    Node* initializer;
 };
 
 

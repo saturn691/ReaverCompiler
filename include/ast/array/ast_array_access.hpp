@@ -3,6 +3,7 @@
 
 #include "../ast_expression.hpp"
 #include "../ast_context.hpp"
+#include "../operators/ast_operator.hpp"
 
 #include <cmath>
 
@@ -39,7 +40,15 @@ public:
 
     Types get_type(Context &context) const override
     {
-        return identifier->get_type(context);
+        if (context.mode_stack.top() == Context::Mode::ASSIGN)
+        {
+            // Will return the address
+            return Types::INT;
+        }
+        else
+        {
+            return identifier->get_type(context);
+        }
     }
 
     std::string get_id() const override
@@ -49,7 +58,7 @@ public:
 
     std::string get_index_register() const
     {
-        return index_register;
+        return index_reg;
     }
 
     void gen_asm(
@@ -59,60 +68,34 @@ public:
     ) const override {
         std::string id = identifier->get_id();
         Types type = context.get_type(id);
-        std::string reg = context.allocate_register(dst, type, {dest_reg});
+        std::string load_ins = context.get_load_instruction(type);
 
-        index->gen_asm(dst, reg, context);
-        index_register = reg;
+        // Index must be an integer
+        index_reg = context.allocate_register(dst, Types::INT, {dest_reg});
+        index->gen_asm(dst, index_reg, context);
 
-        int size = context.get_size(id);
-        int log_size = log2(size);
-        int base_pointer = context.get_stack_location(id);
+        context.load_array_address(dst, dest_reg, id, type, index_reg);
 
-        /*
-            If the array is accessed through pointer element access operator
-            "[]", we need to dereference it;
-
-            Otherwise, we can just access the array directly
-        */
-        if (context.get_is_pointer(id))
+        // No need to load for assignment
+        if (context.mode_stack.top() != Context::Mode::ASSIGN)
         {
-            std::string addr_reg = context.allocate_register(
-                dst, Types::INT, {dest_reg, reg});
-
-            // Dereference the pointer to get the base address
-            dst << AST_INDENT << "lw " << addr_reg << ", "
-                << base_pointer << "(s0)" << std::endl;
-            dst << AST_INDENT << "slli " << reg << ", " << reg
-                << ", " << log_size << std::endl;
-            dst << AST_INDENT << "add " << reg << ", " << reg
-                << ", " << addr_reg << std::endl;
-
-            context.deallocate_register(dst, addr_reg);
+            // Dereference
+            dst << AST_INDENT << load_ins << " " << dest_reg << ", "
+                << "0(" << index_reg << ")" << std::endl;
         }
         else
         {
-            dst << AST_INDENT << "slli " << reg << ", " << reg
-                << ", " << log_size << std::endl;
-            dst << AST_INDENT << "addi " << reg << ", " << reg
-                << ", " << base_pointer << std::endl;
-            dst << AST_INDENT << "add " << reg << ", " << reg
-                << ", s0" << std::endl;
+            Operator::move_reg(dst, index_reg, dest_reg, Types::INT, Types::INT);
         }
 
-        // Load the value from the array
-        std::string load = Context::get_load_instruction(type);
-        dst << AST_INDENT << load << " " << dest_reg
-            << ", 0(" << reg << ")" << std::endl;
-
-        // intentionally do not deallocate the register
-        // will be deallocated in assign
+        context.deallocate_register(dst, index_reg);
     }
 
 private:
     // postfix_expression '[' expression ']'
     Identifier* identifier;
     Node* index;
-    mutable std::string index_register;
+    mutable std::string index_reg;
 };
 
 #endif // ast_array_access_hpp

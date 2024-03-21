@@ -91,7 +91,7 @@ public:
             }
             else
             {
-                dst << AST_INDENT << assembler_directive.at(type)
+                dst << AST_INDENT << context.assembler_directive.at(type)
                     << " " << get_value(type) << std::endl;
             }
         }
@@ -211,19 +211,6 @@ private:
 
         return val_str;
     }
-
-    const std::unordered_map<Types, std::string> assembler_directive = {
-        {Types::UNSIGNED_CHAR, ".byte"},
-        {Types::CHAR, ".byte"},
-        {Types::UNSIGNED_SHORT, ".half"},
-        {Types::SHORT, ".half"},
-        {Types::UNSIGNED_INT, ".word"},
-        {Types::INT, ".word"},
-        {Types::UNSIGNED_LONG, ".word"},
-        {Types::LONG, ".word"},
-        {Types::FLOAT, ".word"},
-        {Types::DOUBLE, ".word"}
-    };
 };
 
 

@@ -131,7 +131,13 @@ public:
 
     static std::string get_store_instruction(Types type);
 
-    void store(std::ostream &dst, std::string reg, std::string id, Types type);
+    void store(
+        std::ostream &dst,
+        std::string reg,
+        std::string id,
+        Types type,
+        std::string addr_reg = ""
+    );
 
     void load(
         std::ostream &dst,
@@ -139,6 +145,14 @@ public:
         std::string id,
         Types type,
         std::string label = ""
+    );
+
+    void load_array_address(
+        std::ostream &dst,
+        std::string reg,
+        std::string id,
+        Types type,
+        std::string index_reg
     );
 
     /*
@@ -222,6 +236,8 @@ public:
 
     // Map from type to size in bytes
     static const std::unordered_map<Types, unsigned int> type_size_map;
+
+    static const std::unordered_map<Types, std::string> assembler_directive;
 
 private:
 

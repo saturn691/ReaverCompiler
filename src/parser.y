@@ -53,7 +53,7 @@
 %type <expr> relational_expression equality_expression and_expression
 %type <expr> exclusive_or_expression inclusive_or_expression
 %type <expr> logical_and_expression logical_or_expression
-%type <expr> conditional_expression initializer
+%type <expr> conditional_expression
 %type <expr> expression constant_expression
 
 %type <node> declaration
@@ -68,7 +68,6 @@
 %type <node> type_qualifier_list
 %type <node> parameter_declaration type_name
 /* %type <node> abstract_declarator direct_abstract_declarator */
-%type <node> initializer_list
 %type <node> statement labeled_statement
 %type <node> expression_statement selection_statement iteration_statement
 %type <node> jump_statement
@@ -77,7 +76,7 @@
 %type <nodes> declaration_list statement_list argument_expression_list
 %type <nodes> parameter_list parameter_type_list struct_declaration_list
 %type <nodes> struct_declarator_list enumerator_list identifier_list
-%type <nodes> translation_unit
+%type <nodes> translation_unit initializer_list initializer
 
 // Other types of nodes
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
@@ -254,7 +253,6 @@ logical_or_expression
 conditional_expression
     : logical_or_expression
         { $$ = $1; }
-    // TODO ternary must be supported
     | logical_or_expression '?' expression ':' conditional_expression
         { $$ = new Ternary($1, $3, $5); }
     ;
@@ -467,9 +465,7 @@ declarator
 
 direct_declarator
     : IDENTIFIER
-    // TODO Might need some context
         { $$ = new Identifier(*$1); }
-    /* ^ Variable declarations */
     | '(' declarator ')'
         { $$ = $2; }
     /* Array declarations with size or without size: arr[5] or arr[] */
@@ -564,17 +560,21 @@ direct_abstract_declarator
 
 initializer
     : assignment_expression
-        { $$ = $1; }
+        { $$ = new NodeList($1); }
     // Like int arr[] = {1, 2, 3, 4, 5};
     // TODO Does have to be implemented
     | '{' initializer_list '}'
+        { $$ = $2; }
     | '{' initializer_list ',' '}'
+        { $$ = $2; }
     ;
 
 // TODO Does have to be implemented
 initializer_list
     : initializer
+        { $$ = new ArrayInitializerList($1); }
     | initializer_list ',' initializer
+        { $1->push_back($3); $$ = $1; }
     ;
 
 statement
