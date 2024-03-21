@@ -4,7 +4,7 @@
 #include "ast_declarator.hpp"
 #include "ast_expression.hpp"
 #include "pointer/ast_pointer_declarator.hpp"
-
+#include "array/ast_array_initializer_list.hpp"
 
 class InitDeclarator : public Declarator
 {
@@ -75,13 +75,21 @@ public:
         {
             std::string temp_reg = context.allocate_register(dst, type, {});
 
-            // This mode must occur AFTER the declarator->gen_asm()
-            context.mode_stack.push(Context::Mode::INIT_DECLARATION);
-            initializer->gen_asm(dst, temp_reg, context);
-            context.mode_stack.pop();
-
-            // Store the value in the stack
-            context.store(dst, temp_reg, id, type);
+            if (dynamic_cast<ArrayInitializerList*>(initializer))
+            {
+                // dest_reg has the base pointer address
+                initializer->gen_asm(dst, dest_reg, context);
+            }
+            else
+            {
+                // Allocate stack
+                // This mode must occur AFTER the declarator->gen_asm()
+                context.mode_stack.push(Context::Mode::INIT_DECLARATION);
+                initializer->gen_asm(dst, temp_reg, context);
+                // Store the value in the stack
+                context.mode_stack.pop();
+                context.store(dst, temp_reg, id, type);
+            }
 
             context.deallocate_register(dst, temp_reg);
         }

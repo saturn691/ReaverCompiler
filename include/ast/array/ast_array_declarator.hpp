@@ -93,7 +93,14 @@ public:
             arr_size = dynamic_cast<Number*>(array_size)->evaluate();
             direct_declarator->gen_asm(dst, dest_reg, context);
             Types type = context.get_type(id);
-            context.allocate_stack(type, id, arr_size);
+            int stack_loc = context.allocate_stack(type, id, arr_size);
+
+            if (context.mode_stack.top() == Context::Mode::LOCAL_DECLARATION)
+            {
+                // Remember the location of the base pointer
+                dst << AST_INDENT << "addi " << dest_reg << ", " <<
+                    "s0, " << stack_loc << std::endl;
+            }
         }
 
         return;
