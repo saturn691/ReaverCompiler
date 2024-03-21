@@ -14,16 +14,16 @@ class ArrayAccess : public Expression
 {
 public:
     ArrayAccess(
-        Identifier* _identifier,
+        Expression* _postfix_expression,
         Expression* _index
     ) :
-        identifier(_identifier),
+        postfix_expression(_postfix_expression),
         index(_index)
     {}
 
     virtual ~ArrayAccess()
     {
-        delete identifier;
+        delete postfix_expression;
         delete index;
     }
 
@@ -32,7 +32,7 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
         dst << indent;
-        identifier->print(dst, 0);
+        postfix_expression->print(dst, 0);
         dst << "[";
         index->print(dst, 0);
         dst << "]";
@@ -47,18 +47,13 @@ public:
         }
         else
         {
-            return identifier->get_type(context);
+            return postfix_expression->get_type(context);
         }
     }
 
     std::string get_id() const override
     {
-        return identifier->get_id();
-    }
-
-    std::string get_index_register() const
-    {
-        return index_reg;
+        return postfix_expression->get_id();
     }
 
     void gen_asm(
@@ -66,12 +61,14 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string id = identifier->get_id();
+        std::string id = get_id();
         Types type = context.get_type(id);
         std::string load_ins = context.get_load_instruction(type);
 
         // Index must be an integer
-        index_reg = context.allocate_register(dst, Types::INT, {dest_reg});
+        std::string index_reg = context.allocate_register(
+            dst, Types::INT, {dest_reg});
+
         index->gen_asm(dst, index_reg, context);
 
         context.load_array_address(dst, dest_reg, id, type, index_reg);
@@ -93,9 +90,8 @@ public:
 
 private:
     // postfix_expression '[' expression ']'
-    Identifier* identifier;
+    Expression *postfix_expression;
     Node* index;
-    mutable std::string index_reg;
 };
 
 #endif // ast_array_access_hpp

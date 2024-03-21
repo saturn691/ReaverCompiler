@@ -1,23 +1,16 @@
 #include <stdio.h>
 
-#define N 3
+int array_mul(int arr1[][2], int arr2[][2]);
 
-int array_mul(int arr1[][N], int arr2[][N], int size);
+// For reference: declaration of 'arr1' and 'arr2' as multidimensional arrays
+// must have bounds for all dimensions except the first
 
 int main() {
-    int arr1[N][N] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
-    int arr2[N][N] = {{9, 8, 7}, {6, 5, 4}, {3, 2, 1}};
-    int result[N][N];
+    int arr1[2][2] = {{1, 2}, {3, 4}};
+    int arr2[2][2] = {{5, 6}, {7, 8}};
 
-    array_mul(arr1, arr2, N);
+    int res = array_mul(arr1, arr2);
 
-    printf("Result:\n");
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            printf("%d ", result[i][j]);
-        }
-        printf("\n");
-    }
+    return !(res == 50);
 
-    return 0;
 }

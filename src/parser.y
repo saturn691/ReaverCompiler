@@ -103,13 +103,8 @@ primary_expression
 postfix_expression
     : primary_expression
         { $$ = $1; }
-    /*
-        2D array access is not tested.
-        Ugh we're not going to pass 100% of the tests.
-        Sorry guys. Put a PR in if you want to fix it.
-    */
     | postfix_expression '[' expression ']'
-        { $$ = new ArrayAccess(dynamic_cast<Identifier*>($1), $3); }
+        { $$ = new ArrayAccess($1, $3); }
     /*
         Function pointers are not tested in this code, so we can
         assume that the LHS is an identifier

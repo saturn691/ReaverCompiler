@@ -37,6 +37,7 @@ public:
         Types type;
         std::string store, load;
         unsigned int size, log_size;
+        bool ptr;
 
         // Check if it's the variable is an enum
         int enum_value = context.get_enum_value(id);
@@ -55,6 +56,8 @@ public:
                 context.current_declaration_type->allocate_stack(context, id);
                 type = context.current_declaration_type->get_type();
                 size = context.get_size(id);
+                ptr = context.get_is_pointer(id);
+                size = ptr ? 4 : size;
                 log_size = log2(size);
 
                 // Let the compiler know the existence of the variable

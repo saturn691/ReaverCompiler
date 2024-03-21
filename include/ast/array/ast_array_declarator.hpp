@@ -91,15 +91,27 @@ public:
         else
         {
             arr_size = dynamic_cast<Number*>(array_size)->evaluate();
-            direct_declarator->gen_asm(dst, dest_reg, context);
-            Types type = context.get_type(id);
-            int stack_loc = context.allocate_stack(type, id, arr_size);
 
-            if (context.mode_stack.top() == Context::Mode::LOCAL_DECLARATION)
+            direct_declarator->gen_asm(dst, dest_reg, context);
+
+            // Only allocate stack once: e.g. int x[2][2]
+            if (dynamic_cast<Identifier*>(direct_declarator))
             {
-                // Remember the location of the base pointer
-                dst << AST_INDENT << "addi " << dest_reg << ", " <<
-                    "s0, " << stack_loc << std::endl;
+                Types type = context.get_type(id);
+                int stack_loc = context.allocate_stack(type, id, arr_size);
+
+                if (context.mode_stack.top() == Context::Mode::LOCAL_DECLARATION)
+                {
+                    // Remember the location of the base pointer
+                    dst << AST_INDENT << "addi " << dest_reg << ", " <<
+                        "s0, " << stack_loc << std::endl;
+                }
+
+                context.array_multiplier = 1;
+            }
+            else
+            {
+                context.array_multiplier *= arr_size;
             }
         }
 

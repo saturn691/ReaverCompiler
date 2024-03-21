@@ -220,6 +220,9 @@ public:
     // Multiplier for pointers (only applies to + and - AND is a number)
     unsigned int pointer_multiplier = 1;
 
+    // Multiplier for arrays
+    unsigned int array_multiplier = 1;
+
     // Boolean for pointer multiplier
     bool multiply_pointer = false;
 
