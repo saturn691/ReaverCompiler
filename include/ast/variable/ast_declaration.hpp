@@ -45,7 +45,14 @@ public:
         context.current_declaration_type = declaration_specifiers;
         context.current_declaration_type->gen_asm(dst, dest_reg, context);
 
-        context.mode_stack.push(Context::Mode::DECLARATION);
+        if (context.mode_stack.top() == Context::Mode::GLOBAL)
+        {
+            context.mode_stack.push(Context::Mode::GLOBAL_DECLARATION);
+        }
+        else
+        {
+            context.mode_stack.push(Context::Mode::LOCAL_DECLARATION);
+        }
 
         // Will be an identifier list
         init_declarator_list->gen_asm(dst, dest_reg, context);

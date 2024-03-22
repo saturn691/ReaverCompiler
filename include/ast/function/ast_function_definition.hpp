@@ -64,8 +64,9 @@ public:
         context.end_label_stack.push(end_label);
 
         // Header section
-        dst << ".text" << std::endl;
-        dst << ".globl " << id << std::endl;
+        dst << AST_INDENT << ".text" << std::endl;
+        dst << AST_INDENT << ".globl " << id << std::endl;
+        dst << AST_INDENT << ".type " << id << ", @function" << std::endl;
         dst << std::endl;
 
         // Body section (ignore the register, it's not used here)

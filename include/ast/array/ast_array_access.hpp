@@ -3,6 +3,7 @@
 
 #include "../ast_expression.hpp"
 #include "../ast_context.hpp"
+#include "../operators/ast_operator.hpp"
 
 #include <cmath>
 
@@ -13,16 +14,16 @@ class ArrayAccess : public Expression
 {
 public:
     ArrayAccess(
-        Identifier* _identifier,
+        Expression* _postfix_expression,
         Expression* _index
     ) :
-        identifier(_identifier),
+        postfix_expression(_postfix_expression),
         index(_index)
     {}
 
     virtual ~ArrayAccess()
     {
-        delete identifier;
+        delete postfix_expression;
         delete index;
     }
 
@@ -31,7 +32,7 @@ public:
         std::string indent(AST_PRINT_INDENT_SPACES * indent_level, ' ');
 
         dst << indent;
-        identifier->print(dst, 0);
+        postfix_expression->print(dst, 0);
         dst << "[";
         index->print(dst, 0);
         dst << "]";
@@ -39,17 +40,20 @@ public:
 
     Types get_type(Context &context) const override
     {
-        return identifier->get_type(context);
+        if (context.mode_stack.top() == Context::Mode::ASSIGN)
+        {
+            // Will return the address
+            return Types::INT;
+        }
+        else
+        {
+            return postfix_expression->get_type(context);
+        }
     }
 
     std::string get_id() const override
     {
-        return identifier->get_id();
-    }
-
-    std::string get_index_register() const
-    {
-        return index_register;
+        return postfix_expression->get_id();
     }
 
     void gen_asm(
@@ -57,62 +61,168 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        std::string id = identifier->get_id();
+        std::string id = get_id();
         Types type = context.get_type(id);
-        std::string reg = context.allocate_register(dst, type, {dest_reg});
+        std::string load_ins = context.get_load_instruction(type);
 
-        index->gen_asm(dst, reg, context);
-        index_register = reg;
+        // Index must be an integer
+        std::string index_reg = context.allocate_register(
+            dst, Types::INT, {dest_reg});
 
-        int size = context.get_size(id);
-        int log_size = log2(size);
-        int base_pointer = context.get_stack_location(id);
+        unsigned int multiplier = 1;
 
-        /*
-            If the array is accessed through pointer element access operator
-            "[]", we need to dereference it;
+        recurse_gen_asm(dst, index_reg, context, multiplier, 1);
+        load_array_address(dst, context, dest_reg, id, type, index_reg);
 
-            Otherwise, we can just access the array directly
-        */
-        if (context.get_is_pointer(id))
+        // No need to load for assignment
+        if (context.mode_stack.top() != Context::Mode::ASSIGN)
         {
-            std::string addr_reg = context.allocate_register(
-                dst, Types::INT, {dest_reg, reg});
-
-            // Dereference the pointer to get the base address
-            dst << AST_INDENT << "lw " << addr_reg << ", "
-                << base_pointer << "(s0)" << std::endl;
-            dst << AST_INDENT << "slli " << reg << ", " << reg
-                << ", " << log_size << std::endl;
-            dst << AST_INDENT << "add " << reg << ", " << reg
-                << ", " << addr_reg << std::endl;
-
-            context.deallocate_register(dst, addr_reg);
+            // Dereference
+            dst << AST_INDENT << load_ins << " " << dest_reg << ", "
+                << "0(" << index_reg << ")" << std::endl;
         }
         else
         {
-            dst << AST_INDENT << "slli " << reg << ", " << reg
-                << ", " << log_size << std::endl;
-            dst << AST_INDENT << "addi " << reg << ", " << reg
-                << ", " << base_pointer << std::endl;
-            dst << AST_INDENT << "add " << reg << ", " << reg
-                << ", s0" << std::endl;
+            Operator::move_reg(dst, index_reg, dest_reg, Types::INT, Types::INT);
         }
 
-        // Load the value from the array
-        std::string load = Context::get_load_instruction(type);
-        dst << AST_INDENT << load << " " << dest_reg
-            << ", 0(" << reg << ")" << std::endl;
+        context.deallocate_register(dst, index_reg);
+    }
 
-        // intentionally do not deallocate the register
-        // will be deallocated in assign
+    /**
+     *  This function works out the index offset of an array, supporting
+     *  multi-dimensional arrays.
+     *
+     *  Depth must start as 1 for this to work correctly. We don't care about
+     *  index 0 of the dimension array (in C it can be omitted).
+    */
+    void recurse_gen_asm(
+        std::ostream &dst,
+        std::string &dest_reg,
+        Context &context,
+        unsigned int &multiplier,
+        unsigned int depth
+    ) const {
+        // Not good Leetcode, whatever bro
+        std::string id = get_id();
+        auto dimensions = context.get_function_variable(id).array_dimensions;
+
+        // Do we need to recurse?
+        ArrayAccess *array_access = dynamic_cast<ArrayAccess*>(postfix_expression);
+        if (array_access)
+        {
+            // Recurse
+            array_access->recurse_gen_asm(
+                dst, dest_reg, context, multiplier, depth + 1);
+
+            // Coming back up...
+
+            // Depth must start at 1
+            multiplier /= dimensions[dimensions.size() - depth];
+
+            std::string index_reg = context.allocate_register(
+                dst, Types::INT, {dest_reg});
+            index->gen_asm(dst, index_reg, context);
+
+            std::string mul_reg = context.allocate_register(
+                dst, Types::INT, {dest_reg});
+            dst << AST_INDENT << "li " << mul_reg << ", "
+                << multiplier << std::endl;
+            dst << AST_INDENT << "mul " << index_reg << ", "
+                << index_reg << ", " << mul_reg << std::endl;
+            dst << AST_INDENT << "add " << dest_reg << ", "
+                << dest_reg << ", " << index_reg << std::endl;
+
+            context.deallocate_register(dst, index_reg);
+            context.deallocate_register(dst, mul_reg);
+        }
+        else
+        {
+            // Bottom of the tree
+            Types type = context.get_type(id);
+            multiplier = context.type_size_map.at(type);
+
+            if (dimensions.size() > 1)
+            {
+                for (unsigned int i = 1; i < dimensions.size(); i++)
+                {
+                    multiplier *= dimensions[i];
+                }
+            }
+
+            index->gen_asm(dst, dest_reg, context);
+
+            std::string mul_reg = context.allocate_register(
+                dst, Types::INT, {dest_reg});
+            dst << AST_INDENT << "li " << mul_reg << ", "
+                << multiplier << std::endl;
+            dst << AST_INDENT << "mul " << dest_reg << ", "
+                << dest_reg << ", " << mul_reg << std::endl;
+            context.deallocate_register(dst, mul_reg);
+        }
     }
 
 private:
+
+    // Helper function to clean up code
+    void load_array_address(
+        std::ostream &dst,
+        Context &context,
+        std::string reg,
+        std::string id,
+        Types type,
+        std::string index_reg
+    ) const {
+        std::string load_ins = context.get_load_instruction(type);
+        std::string lui_reg, base_ptr_reg;
+        std::string load_id;
+        int base_pointer = context.get_stack_location(id);
+
+        if (context.get_function_variable(id).scope == Scope::GLOBAL)
+        {
+            lui_reg = context.allocate_register(dst, Types::INT, {reg});
+
+            dst << AST_INDENT << "lui " << lui_reg
+                << ", %hi(" << id << ")" << std::endl;
+            dst << AST_INDENT << "addi " << lui_reg << ", "
+                << lui_reg << ", %lo(" << id << ")" << std::endl;
+
+            // Add the index
+            dst << AST_INDENT << "add " << index_reg << ", "
+                << index_reg << ", " << lui_reg << std::endl;
+
+            context.deallocate_register(dst, lui_reg);
+        }
+        else
+        {
+            // If base pointer is a pointer, derefence the pointer
+            if (context.get_function_variable(id).is_pointer)
+            {
+                base_ptr_reg = context.allocate_register(
+                    dst, Types::INT, {index_reg});
+
+                dst << AST_INDENT << "lw " << base_ptr_reg << ", "
+                    << base_pointer << "(s0)" << std::endl;
+                dst << AST_INDENT << "add " << index_reg << ", "
+                    << index_reg << ", " << base_ptr_reg << std::endl;
+
+                context.deallocate_register(dst, base_ptr_reg);
+            }
+            else
+            {
+                // Add the base pointer
+                dst << AST_INDENT << "addi " << index_reg << ", "
+                    << index_reg << ", " << base_pointer << std::endl;
+                // Add s0
+                dst << AST_INDENT << "add " << index_reg << ", "
+                    << index_reg << ", s0" << std::endl;
+            }
+        }
+    }
+
     // postfix_expression '[' expression ']'
-    Identifier* identifier;
+    Expression *postfix_expression;
     Node* index;
-    mutable std::string index_register;
 };
 
 #endif // ast_array_access_hpp

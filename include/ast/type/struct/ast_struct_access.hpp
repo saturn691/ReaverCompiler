@@ -49,28 +49,23 @@ public:
     ) const override {
         // Find the id on the stack - will throw exception if not found
         std::string id = get_id();
-        int stack_loc = context.get_stack_location(id);
         Types type = get_type(context);
-
-        std::string load = context.get_load_instruction(type);
 
         // If the type does not match, we need to move it to the correct type
         if (!Operator::reg_type_match(dest_reg, type))
         {
             std::string temp_reg = context.allocate_register(dst, type, {dest_reg});
 
-            dst << AST_INDENT << load << " " << temp_reg << ", "
-                << stack_loc << "(s0)" << std::endl;
-
+            context.load(dst, temp_reg, id, type);
             Operator::move_reg(dst, temp_reg, dest_reg, type,
                                 context.get_type("!" + dest_reg));
+
             context.deallocate_register(dst, dest_reg);
         }
         // Normal operation
         else
         {
-            dst << AST_INDENT << load << " " << dest_reg << ", "
-                << stack_loc << "(s0)" << std::endl;
+            context.load(dst, dest_reg, id, type);
         }
 
     }

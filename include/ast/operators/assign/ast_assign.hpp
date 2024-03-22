@@ -58,16 +58,16 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
+        context.mode_stack.push(Context::Mode::ASSIGN);
+
         std::string id = unary_expression->get_id();
-        int stack_loc = context.get_stack_location(id);
         Types type = context.get_type(id);
         unsigned int multiplier = Context::type_size_map.at(type);
-        context.pointer_multiplier = context.get_is_pointer(id) ? multiplier : 1;
+        bool is_ptr = context.get_function_variable(id).is_pointer;
+        context.pointer_multiplier = (is_ptr) ? multiplier : 1;
 
         ArrayAccess* array_access = dynamic_cast<ArrayAccess*>(unary_expression);
         UnaryExpression* unary_expr = dynamic_cast<UnaryExpression*>(unary_expression);
-
-        context.mode_stack.push(Context::Mode::ASSIGN);
 
         // Start of assembly generation
         std::string temp_reg = context.allocate_register(dst, type, {dest_reg});
@@ -95,14 +95,6 @@ public:
 
         gen_assignment_asm(dst, reg, context);
 
-        if (array_access)
-        {
-            std::string arr_reg = array_access->get_index_register();
-
-            dst << AST_INDENT << store << " " << reg
-                << ", 0(" << arr_reg << ")" << std::endl;
-            context.deallocate_register(dst, arr_reg);
-        }
         /*
             Pointer dereference
 
@@ -118,10 +110,14 @@ public:
             files, it has to be done here to align with the node calls of the
             AST.
         */
+        if (array_access)
+        {
+            context.store(dst, reg, id, type, dest_reg);
+        }
         else if (unary_expr)
         {
-            std::string unary_op = unary_expr->get_unary_operator();
-            if (unary_op == "*")
+            UnaryOperator unary_op = unary_expr->get_unary_operator();
+            if (unary_op == UnaryOperator::DEREFERENCE)
             {
                 dst << AST_INDENT << store << " " << reg << ", 0("
                     << dest_reg << ")" << std::endl;
@@ -129,8 +125,7 @@ public:
         }
         else
         {
-            dst << AST_INDENT << store << " " << reg << ", "
-                << stack_loc << "(s0)" << std::endl;
+            context.store(dst, reg, id, type);
 
             // Move the result to the destination register
             Operator::move_reg(
@@ -167,95 +162,30 @@ private:
                 assignment_expression->gen_asm(dst, dest_reg, context);
                 break;
 
-            case AssignOpType::MUL_ASSIGN:
-                Operator(
-                    unary_expression,
-                    assignment_expression,
-                    OperatorType::MUL
-                ).gen_asm(dst, dest_reg, context);
-                break;
-
-            case AssignOpType::DIV_ASSIGN:
-                Operator(
-                    unary_expression,
-                    assignment_expression,
-                    OperatorType::DIV
-                ).gen_asm(dst, dest_reg, context);
-                break;
-
-            case AssignOpType::MOD_ASSIGN:
-                Operator(
-                    unary_expression,
-                    assignment_expression,
-                    OperatorType::MOD
-                ).gen_asm(dst, dest_reg, context);
-                break;
-
-            case AssignOpType::ADD_ASSIGN:
-                Operator(
-                    unary_expression,
-                    assignment_expression,
-                    OperatorType::ADD
-                ).gen_asm(dst, dest_reg, context);
-                break;
-
-            case AssignOpType::SUB_ASSIGN:
-                Operator(
-                    unary_expression,
-                    assignment_expression,
-                    OperatorType::SUB
-                ).gen_asm(dst, dest_reg, context);
-                break;
-
-            case AssignOpType::LEFT_ASSIGN:
-                Operator(
-                    unary_expression,
-                    assignment_expression,
-                    OperatorType::LEFT_SHIFT
-                ).gen_asm(dst, dest_reg, context);
-                break;
-
-            case AssignOpType::RIGHT_ASSIGN:
-                Operator(
-                    unary_expression,
-                    assignment_expression,
-                    OperatorType::RIGHT_SHIFT
-                ).gen_asm(dst, dest_reg, context);
-                break;
-
-            case AssignOpType::AND_ASSIGN:
-                Operator(
-                    unary_expression,
-                    assignment_expression,
-                    OperatorType::BITWISE_AND
-                ).gen_asm(dst, dest_reg, context);
-                break;
-
-            case AssignOpType::XOR_ASSIGN:
-                Operator(
-                    unary_expression,
-                    assignment_expression,
-                    OperatorType::BITWISE_XOR
-                ).gen_asm(dst, dest_reg, context);
-                break;
-
-            case AssignOpType::OR_ASSIGN:
-                Operator(
-                    unary_expression,
-                    assignment_expression,
-                    OperatorType::BITWISE_OR
-                ).gen_asm(dst, dest_reg, context);
-                break;
-
             default:
-                throw std::runtime_error(
-                    "Assign::gen_asm(): Unsupported assignment operator"
-                );
+                Operator(
+                    unary_expression,
+                    assignment_expression,
+                    assign_to_op.at(a_id)
+                ).gen_asm(dst, dest_reg, context);
                 break;
         }
 
         return;
     }
+
+    const std::unordered_map<AssignOpType, OperatorType> assign_to_op = {
+        {AssignOpType::MUL_ASSIGN, OperatorType::MUL},
+        {AssignOpType::DIV_ASSIGN, OperatorType::DIV},
+        {AssignOpType::MOD_ASSIGN, OperatorType::MOD},
+        {AssignOpType::ADD_ASSIGN, OperatorType::ADD},
+        {AssignOpType::SUB_ASSIGN, OperatorType::SUB},
+        {AssignOpType::LEFT_ASSIGN, OperatorType::LEFT_SHIFT},
+        {AssignOpType::RIGHT_ASSIGN, OperatorType::RIGHT_SHIFT},
+        {AssignOpType::AND_ASSIGN, OperatorType::BITWISE_AND},
+        {AssignOpType::XOR_ASSIGN, OperatorType::BITWISE_XOR},
+        {AssignOpType::OR_ASSIGN, OperatorType::BITWISE_OR}
+    };
 
     Expression* unary_expression;
     AssignOp* assignment_operator;

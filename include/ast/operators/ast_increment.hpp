@@ -80,12 +80,11 @@ public:
                 << ", " << temp_reg << std::endl;
         }
 
-        std::string store = context.get_store_instruction(type);
         std::string add = (type == Types::FLOAT) ? "fadd.s" : "fadd.d";
         std::string number = (invert ? "-1" : "1");
         std::string one_reg;
         // We can call the gen_asm function of the Number class if it's a float
-        Number one_node(1.0 * (invert ? -1 : 1));
+        Number one_node(number);
 
         switch (type)
         {
@@ -105,9 +104,7 @@ public:
                     << ", " << temp_reg << ", " << number << std::endl; // ++
         }
 
-        int stack_loc = context.get_stack_location(operand->get_id());
-        dst << AST_INDENT << store << " " << temp_reg
-            << ", " << stack_loc << "(s0)" << std::endl;
+        context.store(dst, temp_reg, operand->get_id(), type);
 
         // Pre-increment means we store the incremented value
         if (pre && mode == Context::Mode::RETURN)

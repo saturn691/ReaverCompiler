@@ -75,7 +75,8 @@ public:
         Context &context,
         std::string id
     ) const override {
-        context.allocate_stack(type, id);
+        context.allocate_stack(type, id, context.is_pointer, context.is_array,
+                                context.array_dimensions);
     }
 
     void gen_asm(

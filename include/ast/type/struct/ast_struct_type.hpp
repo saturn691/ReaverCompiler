@@ -199,7 +199,6 @@ public:
             {
                 std::string load = context.get_load_instruction(type);
                 std::string store = context.get_store_instruction(type);
-                int stack_loc = context.get_stack_location(new_id);
 
                 if (invert)
                 {
@@ -216,8 +215,7 @@ public:
 
                     // Doesn't matter which register we use to load
                     // As long as it's the right type :(
-                    dst << AST_INDENT << load << " " << temp_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
+                    context.load(dst, temp_reg, new_id, type);
 
                     // Now store it to its new location
                     dst << AST_INDENT << store << " " << temp_reg << ", "
@@ -231,8 +229,7 @@ public:
                     std::string arg_reg = context.allocate_arg_register(type);
 
                     // Load it into the argument register ready for use
-                    dst << AST_INDENT << load << " " << arg_reg << ", "
-                        << stack_loc << "(s0)" << std::endl;
+                    context.load(dst, arg_reg, new_id, type);
                 }
             }
         }

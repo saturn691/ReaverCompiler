@@ -48,8 +48,6 @@ public:
         The -O1 optimization was explored, but it is not very flexible for
         floating point numbers.
         */
-
-
         Types type = get_type(context);
         context.mode_stack.push(Context::Mode::OPERATOR);
 
@@ -88,10 +86,18 @@ public:
         switch (type)
         {
             case Types::FLOAT:
+                get_right()->gen_asm(dst, float_temp_reg, context);
+                dst << AST_INDENT << "feq.s " << temp_reg
+                    << ", " << float_temp_reg
+                    << ", " << float_zero_reg << std::endl;
+                dst << AST_INDENT << "bne " << temp_reg
+                    << ", zero, " << label2 << std::endl;
+                break;
+
             case Types::DOUBLE:
             case Types::LONG_DOUBLE:
                 get_right()->gen_asm(dst, float_temp_reg, context);
-                dst << AST_INDENT << "feq.s " << temp_reg
+                dst << AST_INDENT << "feq.d " << temp_reg
                     << ", " << float_temp_reg
                     << ", " << float_zero_reg << std::endl;
                 dst << AST_INDENT << "bne " << temp_reg

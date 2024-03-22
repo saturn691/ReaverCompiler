@@ -1,6 +1,7 @@
 #ifndef ast_array_declarator_hpp
 #define ast_array_declarator_hpp
 
+#include <cmath>
 #include "../ast_node.hpp"
 
 /*
@@ -47,7 +48,31 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
+        // TODO Maybe don't expression is a number? It works however.
+        // Downcast to number and evaluate
         int arr_size;
+        Number* num = dynamic_cast<Number*>(array_size);
+
+        Types type = context.current_declaration_type->get_type();
+        std::string id = direct_declarator->get_id();
+
+        if (context.mode_stack.top() == Context::Mode::GLOBAL_DECLARATION)
+        {
+            unsigned int size = context.type_size_map.at(type);
+            arr_size = dynamic_cast<Number*>(array_size)->evaluate();
+            unsigned int total_size = size * arr_size;
+            unsigned int log_size = log2(total_size);
+
+            // DO NOT call direct_declarator->gen_asm() here
+            // Let the compiler know the existence of the variable
+            dst << AST_INDENT << ".globl " << id << std::endl;
+            dst << AST_INDENT << ".section .sdata, \"aw\"" << std::endl;
+            dst << AST_INDENT << ".align " << log_size << std::endl;
+            dst << AST_INDENT << ".type " << id << ", @object" << std::endl;
+            dst << AST_INDENT << ".size " << id << ", " << total_size << std::endl;
+
+            context.allocate_stack(type, id, true, true, {arr_size});
+        }
 
         /*
             If we are defining function parameters, e.g. f(int x[]), we
@@ -56,22 +81,53 @@ public:
             i.e., `int x[]` is equivalent to `int *x` in function parameters
         */
 
-        if (context.mode_stack.top() == Context::Mode::FUNCTION_DEFINITION)
+        else if (context.mode_stack.top() == Context::Mode::FUNCTION_DEFINITION)
         {
+            if (num)
+            {
+                arr_size = num->evaluate();
+            }
+            else
+            {
+                arr_size = -1;
+            }
+
+            // 100% a pointer, it is passed through the function
+            context.is_array = true;
+            context.array_dimensions.push_back(arr_size);
             context.is_pointer = true;
+
             direct_declarator->gen_asm(dst, dest_reg, context);
+
+            context.is_array = false;
             context.is_pointer = false;
-            arr_size = 1;
+            context.array_dimensions.clear();
         }
         else
         {
+            arr_size = num->evaluate();
+
+            context.array_dimensions.push_back(arr_size);
             direct_declarator->gen_asm(dst, dest_reg, context);
-            // TODO Maybe don't expression is a number? It works however.
-            // Downcast to number and evaluate
-            arr_size = dynamic_cast<Number*>(array_size)->evaluate();
-            std::string id = direct_declarator->get_id();
-            Types type = context.get_type(id);
-            context.allocate_array_stack(type, arr_size, id);
+
+            // Only allocate stack once: e.g. int x[2][2]
+            if (dynamic_cast<Identifier*>(direct_declarator))
+            {
+                Types type = context.get_type(id);
+
+                // NOT a pointer - lives on the stack
+                int stack_loc = context.allocate_stack(
+                    type, id, false, true, context.array_dimensions);
+
+                if (context.mode_stack.top() == Context::Mode::LOCAL_DECLARATION)
+                {
+                    // Remember the location of the base pointer
+                    dst << AST_INDENT << "addi " << dest_reg << ", " <<
+                        "s0, " << stack_loc << std::endl;
+                }
+            }
+
+            context.array_dimensions.clear();
         }
 
         return;

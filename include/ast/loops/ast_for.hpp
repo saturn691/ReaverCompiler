@@ -75,6 +75,7 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
+        std::string init_label = context.get_unique_label("for_init");
         std::string start_label = context.get_unique_label("for_start");
         std::string iteration_label = context.get_unique_label("for_iteration");
         std::string end_label = context.get_unique_label("for_end");
@@ -87,7 +88,8 @@ public:
         std::string loop_reg = context.allocate_register(
             dst, Types::INT, {dest_reg});
 
-        // Loop initialization
+        // Loop initialization (label here for debugging, does nothing)
+        dst << init_label << ":" << std::endl;
         if (initiation)
         {
             initiation->gen_asm(dst, loop_reg, context);

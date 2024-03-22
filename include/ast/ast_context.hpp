@@ -11,28 +11,41 @@
 #include <set>
 #include <sstream>
 
-
 #include "ast_types.hpp"
 #include "type/ast_type.hpp"
+#include "operators/ast_unary_expression.hpp"
 
 #define AST_STACK_ALIGN             16
-#define AST_STACK_ALLOCATE          128
+#define AST_STACK_ALLOCATE          512
 #define AST_PRINT_INDENT_SPACES     4
 #define AST_ARG_MAX_SIZE            8
 #define AST_INDENT                  std::string(AST_PRINT_INDENT_SPACES, ' ')
+
+
+enum class Scope
+{
+    GLOBAL,
+    LOCAL
+};
 
 
 /*
  *  Identifiers can be used to refer to variables or functions.
  *  However, we don't really know. A union could have been used, maybe in
  *  2 pass compiler. Right now, this is kinda a mess.
+ *
+ *  TODO if you're reading this and using this as inspiration, please don't.
+ *  The 2D array support is just hacked together, the deadline is tomorrow.
 */
 struct FunctionVariable
 {
     int stack_location;
     Types type;
-    std::vector<Types> parameter_types;
+    std::vector<Types> parameter_types = {};
     bool is_pointer = false;
+    bool is_array = false;
+    std::vector<int> array_dimensions = {}; // For multi-dimensional arrays
+    Scope scope;
 };
 
 typedef std::unordered_map<std::string, FunctionVariable> id_map_t;
@@ -59,14 +72,6 @@ public:
         std::vector<std::string> exclude
     );
 
-    std::string spill_register(
-        std::ostream &dst,
-        Types type,
-        std::vector<std::string> exclude
-    );
-
-    void unspill_register(std::ostream &dst, std::string spilled_register);
-
     std::string allocate_return_register(Types type);
 
     std::string allocate_arg_register(Types type, std::string id = "");
@@ -83,11 +88,15 @@ public:
 
     void end_stack(std::ostream& dst);
 
-    int allocate_stack(Types type, std::string id);
+    int allocate_stack(
+        Types type,
+        std::string id,
+        bool is_ptr = false,
+        bool is_array = false,
+        std::vector<int> array_dimensions = {}
+    );
 
     int allocate_bottom_stack(Types type, std::string id);
-
-    int allocate_array_stack(Types type, int size, std::string id);
 
     int push_identifier_map();
 
@@ -105,8 +114,6 @@ public:
 
     std::string get_unique_label(std::string prefix = "");
 
-    void add_memory_data(std::string label, int value);
-
     void add_string_data(std::string label, std::string value);
 
     void gen_memory_asm(std::ostream& dst);
@@ -115,9 +122,7 @@ public:
 
     void add_function_declaration_type(Types type);
 
-    void set_is_pointer(std::string id, bool is_pointer);
-
-    bool get_is_pointer(std::string id) const;
+    FunctionVariable get_function_variable(std::string id) const;
 
     Types get_type(std::string id) const;
 
@@ -135,6 +140,22 @@ public:
 
     static std::string get_store_instruction(Types type);
 
+    void store(
+        std::ostream &dst,
+        std::string reg,
+        std::string id,
+        Types type,
+        std::string addr_reg = ""
+    );
+
+    void load(
+        std::ostream &dst,
+        std::string reg,
+        std::string id,
+        Types type,
+        std::string label = ""
+    );
+
     /*
     When declaring a variable or a function, say int x, y, z;, we need to know
     the type of x, y, and z. However, because the compiler uses in-order
@@ -145,6 +166,8 @@ public:
     // The type of the current variable/function declaration.
     TypePtr current_declaration_type;
     bool is_pointer = false;
+    bool is_array = false;
+    std::vector<int> array_dimensions = {};
     std::string current_id;
 
     // Used for creation of structs. Keep the current_declaration_type as the
@@ -172,7 +195,8 @@ public:
         LOCAL,
 
         ASSIGN,                     // Used for pointers
-        DECLARATION,                // Used for declarations
+        LOCAL_DECLARATION,          // Used for declarations
+        GLOBAL_DECLARATION,         // Used for global declarations
         INIT_DECLARATION,           // Used for initialising declarations
         SIZEOF,                     // Used for sizeof()
         OPERATOR,                   // Used for operators
@@ -202,21 +226,35 @@ public:
     // Boolean for pointer multiplier
     bool multiply_pointer = false;
 
+    // Used for global variables
+    UnaryOperator unary_operator;
+
     // Stack of maps
     std::stack<id_map_t> map_stack;
+
+    // Contains the .rodata section to be spit out at the end
+    std::stringstream memory_map;
 
     // Static Constants --------------------------------------------------------
 
     // Map from type to size in bytes
     static const std::unordered_map<Types, unsigned int> type_size_map;
 
+    static const std::unordered_map<Types, std::string> assembler_directive;
+
 private:
+
+    std::string spill_register(
+        std::ostream &dst,
+        Types type,
+        std::vector<std::string> exclude
+    );
+
+    void unspill_register(std::ostream &dst, std::string spilled_register);
+
     // For register spilling
     std::deque<std::string> used_registers;
     std::set<std::string> spilled_registers;
-
-    // Contains the map of labels to word values
-    std::unordered_map<std::string, int> memory_map;
 
     // Contains the map of labels to string values
     std::unordered_map<std::string, std::string> string_map;
