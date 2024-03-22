@@ -39,7 +39,6 @@ public:
         // Find the id on the stack - will throw exception if not found
         std::string id = get_id();
         return context.get_type(id);
-        // TODO - implement this
     }
 
     void gen_asm(

@@ -58,8 +58,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        // TODO: make it work for strings larger than 8 chars
-
         dst << AST_INDENT << "li " << dest_reg
             << ", " << (int)string << std::endl;
     }

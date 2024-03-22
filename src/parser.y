@@ -557,14 +557,12 @@ initializer
     : assignment_expression
         { $$ = new NodeList($1); }
     // Like int arr[] = {1, 2, 3, 4, 5};
-    // TODO Does have to be implemented
     | '{' initializer_list '}'
         { $$ = $2; }
     | '{' initializer_list ',' '}'
         { $$ = $2; }
     ;
 
-// TODO Does have to be implemented
 initializer_list
     : initializer
         { $$ = new ArrayInitializerList($1); }
