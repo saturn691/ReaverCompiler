@@ -51,7 +51,7 @@ public:
         // TODO Maybe don't expression is a number? It works however.
         // Downcast to number and evaluate
         int arr_size;
-        Number* num = dynamic_cast<Number*>(array_size);
+        Expression* num = dynamic_cast<Expression*>(array_size);
 
         Types type = context.current_declaration_type->get_type();
         std::string id = direct_declarator->get_id();
@@ -59,7 +59,7 @@ public:
         if (context.mode_stack.top() == Context::Mode::GLOBAL_DECLARATION)
         {
             unsigned int size = context.type_size_map.at(type);
-            arr_size = dynamic_cast<Number*>(array_size)->evaluate();
+            arr_size = num->evaluate();
             unsigned int total_size = size * arr_size;
             unsigned int log_size = log2(total_size);
 

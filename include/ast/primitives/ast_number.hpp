@@ -22,11 +22,10 @@ public:
         dst << value;
     }
 
-    double evaluate() const
+    double evaluate() const override
     {
         return std::stod(value);
     }
-
 
     /**
      *  Refer to sections 6.4.4.1 and 6.4.4.2 of the ISO C90 standard

@@ -52,7 +52,7 @@ public:
         {
             // Assume expression is a number
             // Downcast to number and evaluate
-            int value = dynamic_cast<Number*>(expression)->evaluate();
+            int value = dynamic_cast<Expression*>(expression)->evaluate();
             context.add_enum_value(identifier, value);
         }
     }

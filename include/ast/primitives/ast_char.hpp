@@ -38,6 +38,11 @@ public:
     virtual ~Char()
     {}
 
+    double evaluate() const override
+    {
+        return (double)string;
+    }
+
     void print(std::ostream &dst, int indent_level) const override
     {
         dst << "'" << string << "'";

@@ -12,6 +12,11 @@ public:
     virtual ~Expression()
     {}
 
+    virtual double evaluate() const
+    {
+        throw std::runtime_error("evaluate() not implemented");
+    }
+
     virtual Types get_type(Context &context) const = 0;
 };
 

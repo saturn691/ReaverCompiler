@@ -48,6 +48,13 @@ public:
         return operand->get_id();
     }
 
+    double evaluate() const override {
+        double value = operand->evaluate();
+        // If pre-increment, return the incremented value
+        // If invert, decrement instead of increment
+        return (pre ? (invert ? value - 1 : value + 1) : value);
+    }
+
     void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,

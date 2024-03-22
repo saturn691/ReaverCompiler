@@ -71,6 +71,38 @@ public:
         return right;
     }
 
+    double evaluate() const override
+    {
+        double l = left->evaluate();
+        double r = right->evaluate();
+
+        switch (otype)
+        {
+            case OperatorType::ADD:
+                return l + r;
+            case OperatorType::SUB:
+                return l - r;
+            case OperatorType::MOD:
+                return fmod(l, r);
+            case OperatorType::MUL:
+                return l * r;
+            case OperatorType::DIV:
+                return l / r;
+            case OperatorType::BITWISE_AND:
+                return (int)l & (int)r;
+            case OperatorType::BITWISE_OR:
+                return (int)l | (int)r;
+            case OperatorType::BITWISE_XOR:
+                return (int)l ^ (int)r;
+            case OperatorType::LEFT_SHIFT:
+                return (int)l << (int)r;
+            case OperatorType::RIGHT_SHIFT:
+                return (int)l >> (int)r;
+            default:
+                throw std::runtime_error("Unknown operator type");
+        }
+    }
+
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
