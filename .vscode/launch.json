@@ -11,7 +11,8 @@
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "compiler_tests/custom/026-struct_derefence.c",
+                "writing-a-c-compiler-tests/tests/chapter_13/valid/libraries/use_arg_after_fun_call.c",
+                // "compiler_tests/custom/026-struct_derefence.c",
                 "-o",
                 "bin/debug.s",
             ],

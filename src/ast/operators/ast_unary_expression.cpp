@@ -35,6 +35,7 @@ void UnaryExpression::gen_asm(
     Context &context
 ) const {
     std::string id, load;
+    Types type = get_type(context);
 
     if (context.mode_stack.top() == Context::Mode::GLOBAL_DECLARATION)
     {
@@ -73,8 +74,8 @@ void UnaryExpression::gen_asm(
             break;
 
         case UnaryOperator::SUB:
-            dst << AST_INDENT << "neg " << dest_reg << ", "
-                << dest_reg << std::endl;
+            dst << AST_INDENT << negate_map.at(type) << " " << dest_reg
+                << ", " << dest_reg << std::endl;
             break;
 
         case UnaryOperator::LOGICAL_NOT:

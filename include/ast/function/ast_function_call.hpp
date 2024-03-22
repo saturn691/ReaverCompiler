@@ -2,6 +2,7 @@
 #define ast_function_call_hpp
 
 #include "../ast_node.hpp"
+#include "../operators/ast_operator.hpp"
 #include "../ast_expression.hpp"
 #include "../primitives/ast_identifier.hpp"
 
@@ -77,8 +78,7 @@ public:
             case Types::LONG_DOUBLE:
                 if (dest_reg != "fa0")
                 {
-                    dst << AST_INDENT << "fmv.s " << dest_reg
-                        << ", " << "fa0" << std::endl;
+                    Operator::move_reg(dst, "fa0", dest_reg, type, type);
                 }
                 else
                 {
@@ -91,8 +91,7 @@ public:
             default:
                 if (dest_reg != "a0")
                 {
-                    dst << AST_INDENT << "mv " << dest_reg
-                        << ", " << "a0" << std::endl;
+                    Operator::move_reg(dst, "a0", dest_reg, type, type);
                 }
                 else
                 {
