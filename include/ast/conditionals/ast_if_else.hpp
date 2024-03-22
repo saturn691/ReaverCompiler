@@ -51,7 +51,6 @@ public:
         std::string &dest_reg,
         Context &context
     ) const override {
-        // TODO: fetch the condition, then, else code
         // if (condition_code) then (then_code) else (else_code)
         // if (condition) { then } else { else }
 

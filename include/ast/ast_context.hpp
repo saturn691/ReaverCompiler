@@ -200,6 +200,7 @@ public:
         INIT_DECLARATION,           // Used for initialising declarations
         SIZEOF,                     // Used for sizeof()
         OPERATOR,                   // Used for operators
+        ADDRESS,                    // Used for the & operator
         FUNCTION_DEFINITION,        // Duh
         RETURN                      // Duh as well
     };
@@ -219,12 +220,6 @@ public:
     // Holds the conditions and statements for switch-case statements
     std::stringstream switch_cases_expr;
     std::stringstream switch_default;
-
-    // Multiplier for pointers (only applies to + and - AND is a number)
-    unsigned int pointer_multiplier = 1;
-
-    // Boolean for pointer multiplier
-    bool multiply_pointer = false;
 
     // Used for global variables
     UnaryOperator unary_operator;

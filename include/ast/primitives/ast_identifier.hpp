@@ -36,6 +36,7 @@ public:
     ) const override {
         Types type;
         std::string store, load;
+        int address;
         unsigned int size, log_size;
         bool ptr;
 
@@ -84,6 +85,12 @@ public:
                     id,
                     context.current_sub_declaration_type
                 );
+                break;
+
+            case Context::Mode::ADDRESS:
+                address = context.get_stack_location(id);
+                dst << AST_INDENT << "addi " << dest_reg
+                    << ", s0, " << address << std::endl;
                 break;
 
             // STORE

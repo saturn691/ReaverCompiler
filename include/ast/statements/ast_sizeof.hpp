@@ -52,6 +52,25 @@ public:
 
     }
 
+    double evaluate() const override
+    {
+        // Cast to expression and evaluate
+        Expression* expression = dynamic_cast<Expression*>(child);
+        if (expression != NULL)
+        {
+            return expression->evaluate();
+        }
+
+        // Cast to type and get type
+        Type* type = dynamic_cast<Type*>(child);
+        if (type != NULL)
+        {
+            return Context::type_size_map.at(type->get_type());
+        }
+
+        return 0;
+    }
+
     void print(std::ostream &dst, int indent_level) const override
     {
         std::string indent((AST_PRINT_INDENT_SPACES * indent_level), ' ');

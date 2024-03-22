@@ -116,7 +116,8 @@ postfix_expression
     | postfix_expression '.' IDENTIFIER
         { $$ = new StructAccess($1, new Identifier(*$3)); }
     | postfix_expression PTR_OP IDENTIFIER
-        // TODO -- Need to implement -> operator
+        /* TODO this test will fail. I can't seem to crack structs. Oh well*/
+        { $$ = new StructAccess($1, new Identifier(*$3), true); }
     | postfix_expression INC_OP
         { $$ = new PostIncrement($1); }
     | postfix_expression DEC_OP
@@ -557,14 +558,12 @@ initializer
     : assignment_expression
         { $$ = new NodeList($1); }
     // Like int arr[] = {1, 2, 3, 4, 5};
-    // TODO Does have to be implemented
     | '{' initializer_list '}'
         { $$ = $2; }
     | '{' initializer_list ',' '}'
         { $$ = $2; }
     ;
 
-// TODO Does have to be implemented
 initializer_list
     : initializer
         { $$ = new ArrayInitializerList($1); }

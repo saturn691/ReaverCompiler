@@ -61,6 +61,20 @@ private:
         {UnaryOperator::LOGICAL_NOT, "!"},
         {UnaryOperator::BITWISE_NOT, "~"},
     };
+
+    const std::unordered_map<Types, std::string> negate_map = {
+        {Types::UNSIGNED_CHAR, "neg"},
+        {Types::CHAR, "neg"},
+        {Types::UNSIGNED_SHORT, "neg"},
+        {Types::SHORT, "neg"},
+        {Types::UNSIGNED_INT, "neg"},
+        {Types::INT, "neg"},
+        {Types::UNSIGNED_LONG, "neg"},
+        {Types::LONG, "neg"},
+        {Types::FLOAT, "fneg.s"},
+        {Types::DOUBLE, "fneg.d"},
+        {Types::LONG_DOUBLE, "fneg.d"}
+    };
 };
 
 

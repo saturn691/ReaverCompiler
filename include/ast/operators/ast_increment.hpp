@@ -48,6 +48,13 @@ public:
         return operand->get_id();
     }
 
+    double evaluate() const override {
+        double value = operand->evaluate();
+        // If pre-increment, return the incremented value
+        // If invert, decrement instead of increment
+        return (pre ? (invert ? value - 1 : value + 1) : value);
+    }
+
     void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -64,8 +71,21 @@ public:
             Code may be a bit unreadable but just follow this in order.
         */
 
-
         Types type = get_type(context);
+        int invert_val = invert ? -1 : 1;
+
+        Identifier* identifier = dynamic_cast<Identifier*>(operand);
+        if (identifier)
+        {
+            FunctionVariable fv = context
+                .get_function_variable(identifier->get_id());
+
+            if (fv.is_pointer)
+            {
+                invert_val *= context.type_size_map.at(fv.type);
+            }
+        }
+
         std::string temp_reg = context.allocate_register(dst, type, {dest_reg});
         Context::Mode mode = context.mode_stack.top();
         context.mode_stack.push(Context::Mode::OPERATOR);
@@ -81,7 +101,12 @@ public:
         }
 
         std::string add = (type == Types::FLOAT) ? "fadd.s" : "fadd.d";
-        std::string number = (invert ? "-1" : "1");
+        std::string number = std::to_string(invert_val);
+        if (type == Types::FLOAT)
+        {
+            number += "f";
+        }
+
         std::string one_reg;
         // We can call the gen_asm function of the Number class if it's a float
         Number one_node(number);

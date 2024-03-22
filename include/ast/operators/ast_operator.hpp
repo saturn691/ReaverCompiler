@@ -2,6 +2,7 @@
 #define AST_OPERATOR_HPP
 
 #include "../ast_node.hpp"
+#include <cmath>
 
 
 enum class OperatorType
@@ -71,6 +72,47 @@ public:
         return right;
     }
 
+    double evaluate() const override
+    {
+        double l = left->evaluate();
+        double r = right->evaluate();
+
+        switch (otype)
+        {
+            case OperatorType::ADD:
+                return l + r;
+            case OperatorType::SUB:
+                return l - r;
+            case OperatorType::MOD:
+                return fmod(l, r);
+            case OperatorType::MUL:
+                return l * r;
+            case OperatorType::DIV:
+                return l / r;
+            case OperatorType::BITWISE_AND:
+                return (int)l & (int)r;
+            case OperatorType::BITWISE_OR:
+                return (int)l | (int)r;
+            case OperatorType::BITWISE_XOR:
+                return (int)l ^ (int)r;
+            case OperatorType::LEFT_SHIFT:
+                return (int)l << (int)r;
+            case OperatorType::RIGHT_SHIFT:
+                return (int)l >> (int)r;
+            default:
+                throw std::runtime_error("Unknown operator type");
+        }
+    }
+
+    /**
+     *  Section 6.5.6 of the ISO C90 standard, paragraphs 8 and 9:
+     *
+     *  Essentially pointer arithmetic is allowed, but only if the pointer
+     *  arithmetic is done on an array.
+     *
+     *  Pointer arithmetic is only defined for subtracted between two array
+     *  pointers if they point to the same array.
+    */
     virtual void gen_asm(
         std::ostream &dst,
         std::string &dest_reg,
@@ -80,18 +122,56 @@ public:
         Types type = std::max(get_left()->get_type(context),
                               get_right()->get_type(context));
         context.mode_stack.push(Context::Mode::OPERATOR);
-        context.multiply_pointer = true;
 
         get_left()->gen_asm(dst, dest_reg, context);
 
         std::string temp_reg1 = context.allocate_register(dst, type, {dest_reg});
         get_right()->gen_asm(dst, temp_reg1, context);
 
+        // Pointer arithmetic is only defined for add and sub (else, UB)
+        if (otype == OperatorType::ADD || otype == OperatorType::SUB)
+        {
+            // Check if the left is a pointer
+            try
+            {
+                std::string l_id = get_left()->get_id();
+                FunctionVariable fv = context.get_function_variable(l_id);
+                if (fv.is_pointer && !fv.is_array)
+                {
+                    // Get the size of the type
+                    unsigned int size = context.type_size_map.at(fv.type);
+                    unsigned int log_size = log2(size);
+
+                    // Multiply the right by the size
+                    dst << AST_INDENT << "slli " << temp_reg1 << ", "
+                        << temp_reg1 << ", " << log_size << std::endl;
+                }
+            }
+            catch (...) {}
+
+            // Check the right is a pointer
+            try
+            {
+                std::string r_id = get_right()->get_id();
+                FunctionVariable fv = context.get_function_variable(r_id);
+                if (fv.is_pointer && !fv.is_array)
+                {
+                    // Get the size of the type
+                    unsigned int size = context.type_size_map.at(fv.type);
+                    unsigned int log_size = log2(size);
+
+                    // Multiply the left by the size
+                    dst << AST_INDENT << "slli " << dest_reg << ", "
+                        << dest_reg << ", " << log_size << std::endl;
+                }
+            }
+            catch (...) {}
+        }
+
         dst << AST_INDENT << ins_map.at(otype).at(type) << " " << dest_reg
             << ", " << dest_reg << ", " << temp_reg1 << std::endl;
 
         context.deallocate_register(dst, temp_reg1);
-        context.multiply_pointer = false;
         context.mode_stack.pop();
     }
 

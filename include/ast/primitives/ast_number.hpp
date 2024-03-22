@@ -22,11 +22,10 @@ public:
         dst << value;
     }
 
-    double evaluate() const
+    double evaluate() const override
     {
         return std::stod(value);
     }
-
 
     /**
      *  Refer to sections 6.4.4.1 and 6.4.4.2 of the ISO C90 standard
@@ -51,15 +50,22 @@ public:
             We need more information. If there is a decimal point, it is a
             double. Why?
 
+            Section 6.4.4.2, paragraph 2:
+            "A floating constant has a significant part, which may be followed
+            by an exponent part and a suffix that specifies its type."
+
             Section 6.4.4.2, paragraph 4:
             "An unsuffixed floating constant has type double. If suffixed by the
             letter f or F, it has type float. If suffixed by the letter l or L,
             it has type long double."
         */
-        if (value.find('.') != std::string::npos)
-        {
+        if (value.find('.') != std::string::npos ||
+            value.find('e') != std::string::npos ||
+            value.find('E') != std::string::npos
+        ) {
             return Types::DOUBLE;
         }
+
 
         // Make an educated guess
         return Types::INT;
@@ -98,7 +104,8 @@ public:
         else if (dest_reg[0] == 'f')
         {
             // Must be a float or a double
-            Types type = std::max(get_type(context), Types::FLOAT);
+            Types type = (get_type(context) == Types::FLOAT)
+                        ? Types::FLOAT : Types::DOUBLE;
             std::string label = context.get_unique_label(".constant");
             std::string ieee754_value = get_value(type);
 
@@ -125,16 +132,8 @@ public:
         }
         else
         {
-            // value is an integer
             long val;
-            if (context.multiply_pointer)
-            {
-                val = std::stol(value) * context.pointer_multiplier;
-            }
-            else
-            {
-                val = std::stol(value);
-            }
+            val = std::stol(value);
 
             dst << AST_INDENT << "li " << dest_reg << ", "
                 << val << std::endl;

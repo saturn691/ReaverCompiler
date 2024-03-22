@@ -775,6 +775,8 @@ void Context::gen_memory_asm(std::ostream& dst)
     std::string id;
 
     dst << memory_map.str();
+    dst << std::endl;
+    memory_map.str("");
 
     for (const auto& [id, val] : string_map)
     {
@@ -1123,6 +1125,12 @@ void Context::load(
         {
             deallocate_register(dst, lui_reg);
         }
+    }
+    else if (map_stack.top()[id].is_array)
+    {
+        // Just load the address of the array
+        dst << AST_INDENT << "addi " << reg << ", s0, "
+            << get_stack_location(id) << std::endl;
     }
     else
     {
