@@ -14,21 +14,24 @@ class StructAccess : public Expression
 public:
     StructAccess(
         Expression* _postfix_expression,
-        Identifier* _identifier
+        Identifier* _identifier,
+        bool _dereference = false
     ) :
         postfix_expression(_postfix_expression),
-        identifier(_identifier)
+        identifier(_identifier),
+        dereference(_dereference)
     {}
 
     void print(std::ostream &dst, int indent_level) const override
     {
         postfix_expression->print(dst, 0);
-        dst << ".";
+        dst << dereference_map.at(dereference);
         identifier->print(dst, 0);
     }
 
     std::string get_id() const override
     {
+        // Hacky context map only accepts "." and does not support nested
         return postfix_expression->get_id()
              + "."
              + identifier->get_id();
@@ -72,6 +75,12 @@ public:
 private:
     Expression* postfix_expression;
     Identifier* identifier;
+    bool dereference;
+
+    const std::unordered_map<bool, std::string> dereference_map = {
+        {true, "->"},
+        {false, "."}
+    };
 };
 
 

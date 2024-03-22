@@ -35,7 +35,6 @@ void UnaryExpression::gen_asm(
     Context &context
 ) const {
     std::string id, load;
-    int address;
 
     if (context.mode_stack.top() == Context::Mode::GLOBAL_DECLARATION)
     {
@@ -47,21 +46,17 @@ void UnaryExpression::gen_asm(
     Context::Mode mode = context.mode_stack.top();
     context.mode_stack.push(Context::Mode::OPERATOR);
 
-    if (unary_operator == UnaryOperator::DEREFERENCE)
+    if (unary_operator != UnaryOperator::ADDRESS)
     {
-        context.is_pointer = true;
+        cast_expression->gen_asm(dst, dest_reg, context);
     }
 
-    cast_expression->gen_asm(dst, dest_reg, context);
     switch (unary_operator)
     {
         case UnaryOperator::ADDRESS:
-            // TODO pass this onto cast_expression->gen_asm()
-            id = cast_expression->get_id();
-            address = context.get_stack_location(id);
-            dst << AST_INDENT << "addi " << dest_reg
-                << ", s0, " << address << std::endl;
-            context.is_pointer = true;
+            context.mode_stack.push(Context::Mode::ADDRESS);
+            cast_expression->gen_asm(dst, dest_reg, context);
+            context.mode_stack.pop();
             break;
 
         case UnaryOperator::DEREFERENCE:
@@ -95,5 +90,4 @@ void UnaryExpression::gen_asm(
     }
 
     context.mode_stack.pop();
-    context.is_pointer = false;
 }

@@ -124,16 +124,8 @@ public:
         }
         else
         {
-            // value is an integer
             long val;
-            if (context.multiply_pointer)
-            {
-                val = std::stol(value) * context.pointer_multiplier;
-            }
-            else
-            {
-                val = std::stol(value);
-            }
+            val = std::stol(value);
 
             dst << AST_INDENT << "li " << dest_reg << ", "
                 << val << std::endl;

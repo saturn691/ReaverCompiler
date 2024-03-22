@@ -67,6 +67,8 @@ public:
         {
             return Context::type_size_map.at(type->get_type());
         }
+
+        return 0;
     }
 
     void print(std::ostream &dst, int indent_level) const override

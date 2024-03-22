@@ -75,15 +75,16 @@ public:
         load_array_address(dst, context, dest_reg, id, type, index_reg);
 
         // No need to load for assignment
-        if (context.mode_stack.top() != Context::Mode::ASSIGN)
+        if (context.mode_stack.top() == Context::Mode::ASSIGN ||
+            context.mode_stack.top() == Context::Mode::ADDRESS
+        ) {
+            Operator::move_reg(dst, index_reg, dest_reg, Types::INT, Types::INT);
+        }
+        else
         {
             // Dereference
             dst << AST_INDENT << load_ins << " " << dest_reg << ", "
                 << "0(" << index_reg << ")" << std::endl;
-        }
-        else
-        {
-            Operator::move_reg(dst, index_reg, dest_reg, Types::INT, Types::INT);
         }
 
         context.deallocate_register(dst, index_reg);
