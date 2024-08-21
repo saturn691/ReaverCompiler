@@ -1,4 +1,5 @@
-CPPFLAGS += -std=c++20 -W -Wall -Wextra -Wno-unused-parameter -g -I include
+CPPFLAGS += -std=c++20 -W -Wall -Wextra -g -I include
+FLAGS = $(CPPFLAGS) -Werror
 
 HPPFILES := $(shell find include/ -type f -name "*.hpp")
 CPPFILES := $(shell find src/ -type f -name "*.cpp")
@@ -19,7 +20,7 @@ src/lexer.yy.cpp : src/lexer.l src/parser.tab.hpp
 
 bin/c_compiler : $(OFILES) src/parser.tab.o src/lexer.yy.o
 	@mkdir -p bin
-	g++ $(CPPFLAGS) -o bin/c_compiler $^
+	g++ $(FLAGS) -o bin/c_compiler $^
 
 # Add dependency of object files on source files
 $(OFILES): $(CPPFILES) $(HPPFILES)

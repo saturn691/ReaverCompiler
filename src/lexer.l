@@ -12,54 +12,6 @@ IS			(u|U|l|L)*
 #include <stdio.h>
 #include "parser.tab.hpp"
 
-// Lexer hack
-// Reference: https://en.wikipedia.org/wiki/Lexer_hack
-std::unordered_map<std::string, Types> type_map;
-
-/*
-	This handles "typedef". Only works for basic types.
-	In the future, may need a more robust way to handle typedefs to handle
-	structs/unions or enums.
-
-	The TYPE_NAME token in the parser is probably a hint.
-*/
-void update_type_map(std::string id, Types type)
-{
-	type_map[id] = type;
-}
-
-auto check_type_map(std::string id)
-{
-	if (type_map.count(id))
-	{
-		switch(type_map[id])
-		{
-			case Types::VOID:
-				return VOID;
-				break;
-			case Types::CHAR:
-				return CHAR;
-				break;
-			case Types::INT:
-				return INT;
-				break;
-			case Types::LONG:
-				return LONG;
-				break;
-			case Types::FLOAT:
-				return FLOAT;
-				break;
-			case Types::DOUBLE:
-				return DOUBLE;
-				break;
-			default:
-				throw std::runtime_error("Unknown type");
-		}
-	}
-
-	return IDENTIFIER;
-}
-
 
 %}
 
@@ -116,7 +68,7 @@ auto check_type_map(std::string id)
 "volatile"		{ return(VOLATILE); }
 "while"			{ return(WHILE); }
 
-{L}({L}|{D})*		{ yylval.string = new std::string(yytext); return(check_type_map(yytext)); }
+{L}({L}|{D})*		{ yylval.string = new std::string(yytext); return(IDENTIFIER); }
 
 0[xX]{H}+{IS}?		{ yylval.string = new std::string(yytext); return(CONSTANT); }
 0{D}+{IS}?		{ yylval.string = new std::string(yytext); return(CONSTANT); }

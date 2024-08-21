@@ -1,7 +1,9 @@
 # Reaver C Compiler
 
 Reaver C Compiler (`rcc`) is a C90 to RISC-V compiler. The development was
-largely driven by the [specification](docs/c_compiler.md).
+largely driven by the [specification](docs/c_compiler.md). To browse the
+compiler at the time of submission, which scored 90\% (181/201), navigate to tag
+[`v1.0`](https://github.com/saturn691/ReaverCompiler/tree/v1.0).
 
 ## Getting started
 

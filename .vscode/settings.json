@@ -68,7 +68,14 @@
         "sstream": "cpp",
         "stop_token": "cpp",
         "thread": "cpp",
-        "scoped_allocator": "cpp"
+        "scoped_allocator": "cpp",
+        "csignal": "cpp",
+        "strstream": "cpp",
+        "complex": "cpp",
+        "forward_list": "cpp",
+        "unordered_set": "cpp",
+        "optional": "cpp",
+        "typeindex": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++20"
 }

@@ -5,28 +5,18 @@
 #include "cli.h"
 #include "ast.hpp"
 
-
 void compile(std::string sourcePath, std::ostream &out)
 {
-    // Generate the AST
     const Node *ast = parseAST(sourcePath);
-
-    // Print out the AST to stdout
     ast->print(std::cout, 0);
     std::cout << std::endl;
 
-    // Compiile the output into the file
     Context context;
 
-    // This doesn't matter- will either be a0 or fa0
-    std::string output_register = "";
-
-    ast->gen_asm(out, output_register, context);
+    ast->lower(context);
 }
 
-
 extern FILE *yyin;
-
 
 int main(int argc, char **argv)
 {
