@@ -1,4 +1,5 @@
 bin/
+build/
 __pycache__/
 
 *.o

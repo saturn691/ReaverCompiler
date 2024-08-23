@@ -19,6 +19,8 @@
 // All the possible types of tokens
 %union{
     Node                *node;
+    NodeList            *nodes;
+    Type                *type;
     std::string         *string;
     yytokentype         token;
 }
@@ -65,24 +67,29 @@
 %type <node> jump_statement
 %type <node> external_declaration function_definition
 
-%type <node> declaration_list statement_list argument_expression_list
-%type <node> parameter_list parameter_type_list struct_declaration_list
-%type <node> struct_declarator_list enumerator_list identifier_list
+%type <nodes> declaration_list statement_list argument_expression_list
+%type <nodes> parameter_list parameter_type_list struct_declaration_list
+%type <nodes> struct_declarator_list enumerator_list identifier_list
 %type <node> translation_unit initializer_list initializer
 
 // Other types of nodes
-%type <node> type_specifier declaration_specifiers specifier_qualifier_list
+%type <type> type_specifier declaration_specifiers specifier_qualifier_list
 %type <node> struct_or_union_specifier
 %type <node> assignment_operator
 %type <node> declarator direct_declarator init_declarator
 %type <node> compound_statement
 %type <node> unary_operator
 
-%start translation_unit
+%start root
 %%
+
+root
+    : translation_unit
+        { g_root = $1; }
 
 primary_expression
 	: IDENTIFIER
+        { $$ = new Identifier(*$1); }
 	| CONSTANT
 	| STRING_LITERAL
 	| '(' expression ')'
@@ -90,6 +97,7 @@ primary_expression
 
 postfix_expression
 	: primary_expression
+        { $$ = $1; }
 	| postfix_expression '[' expression ']'
 	| postfix_expression '(' ')'
 	| postfix_expression '(' argument_expression_list ')'
@@ -106,6 +114,7 @@ argument_expression_list
 
 unary_expression
 	: postfix_expression
+        { $$ = $1; }
 	| INC_OP unary_expression
 	| DEC_OP unary_expression
 	| unary_operator cast_expression
@@ -124,30 +133,42 @@ unary_operator
 
 cast_expression
 	: unary_expression
+        { $$ = $1; }
 	| '(' type_name ')' cast_expression
 	;
 
 multiplicative_expression
 	: cast_expression
+        { $$ = $1; }
 	| multiplicative_expression '*' cast_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::MUL); }
 	| multiplicative_expression '/' cast_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::DIV); }
 	| multiplicative_expression '%' cast_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::MOD); }
 	;
 
 additive_expression
 	: multiplicative_expression
+        { $$ = $1; }
 	| additive_expression '+' multiplicative_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::ADD); }
 	| additive_expression '-' multiplicative_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::SUB); }
 	;
 
 shift_expression
 	: additive_expression
+        { $$ = $1; }
 	| shift_expression LEFT_OP additive_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::LSL); }
 	| shift_expression RIGHT_OP additive_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::LSR); }
 	;
 
 relational_expression
 	: shift_expression
+        { $$ = $1; }
 	| relational_expression '<' shift_expression
 	| relational_expression '>' shift_expression
 	| relational_expression LE_OP shift_expression
@@ -156,42 +177,53 @@ relational_expression
 
 equality_expression
 	: relational_expression
+        { $$ = $1; }
 	| equality_expression EQ_OP relational_expression
 	| equality_expression NE_OP relational_expression
 	;
 
 and_expression
 	: equality_expression
+        { $$ = $1; }
 	| and_expression '&' equality_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::BITWISE_AND); }
 	;
 
 exclusive_or_expression
 	: and_expression
+        { $$ = $1; }
 	| exclusive_or_expression '^' and_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::BITWISE_XOR); }
 	;
 
 inclusive_or_expression
 	: exclusive_or_expression
+        { $$ = $1; }
 	| inclusive_or_expression '|' exclusive_or_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::BITWISE_OR); }
 	;
 
 logical_and_expression
 	: inclusive_or_expression
+        { $$ = $1; }
 	| logical_and_expression AND_OP inclusive_or_expression
 	;
 
 logical_or_expression
 	: logical_and_expression
+        { $$ = $1; }
 	| logical_or_expression OR_OP logical_and_expression
 	;
 
 conditional_expression
 	: logical_or_expression
+        { $$ = $1; }
 	| logical_or_expression '?' expression ':' conditional_expression
 	;
 
 assignment_expression
 	: conditional_expression
+        { $$ = $1; }
 	| unary_expression assignment_operator assignment_expression
 	;
 
@@ -211,6 +243,7 @@ assignment_operator
 
 expression
 	: assignment_expression
+        { $$ = $1; }
 	| expression ',' assignment_expression
 	;
 
@@ -227,6 +260,7 @@ declaration_specifiers
 	: storage_class_specifier
 	| storage_class_specifier declaration_specifiers
 	| type_specifier
+        { $$ = $1; }
 	| type_specifier declaration_specifiers
 	| type_qualifier
 	| type_qualifier declaration_specifiers
@@ -252,14 +286,23 @@ storage_class_specifier
 
 type_specifier
 	: VOID
+        {$$ = new BasicType(Types::VOID); }
 	| CHAR
+        {$$ = new BasicType(Types::CHAR); }
 	| SHORT
+        {$$ = new BasicType(Types::SHORT); }
 	| INT
+        {$$ = new BasicType(Types::INT); }
 	| LONG
+        {$$ = new BasicType(Types::LONG); }
 	| FLOAT
+        {$$ = new BasicType(Types::FLOAT); }
 	| DOUBLE
+        {$$ = new BasicType(Types::DOUBLE); }
 	| SIGNED
+        {$$ = new BasicType(Types::INT); }
 	| UNSIGNED
+        {$$ = new BasicType(Types::UNSIGNED_INT); }
 	| struct_or_union_specifier
 	| enum_specifier
 	| TYPE_NAME
@@ -327,17 +370,22 @@ type_qualifier
 declarator
 	: pointer direct_declarator
 	| direct_declarator
+        { $$ = $1; }
 	;
 
 direct_declarator
 	: IDENTIFIER
+        { $$ = new Identifier(*$1); }
 	| '(' declarator ')'
+        { $$ = $2; }
 	| direct_declarator '[' constant_expression ']'
 	| direct_declarator '[' ']'
 	| direct_declarator '(' parameter_type_list ')'
+        { $$ = new FunctionDeclarator($1, $3); }
 	| direct_declarator '(' identifier_list ')'
 	| direct_declarator '(' ')'
-	;
+        { $$ = new FunctionDeclarator($1); }
+    ;
 
 pointer
 	: '*'
@@ -409,11 +457,17 @@ initializer_list
 
 statement
 	: labeled_statement
+        { $$ = $1; }
 	| compound_statement
-	| expression_statement
-	| selection_statement
-	| iteration_statement
-	| jump_statement
+        { $$ = $1; }
+    | expression_statement
+        { $$ = $1; }
+    | selection_statement
+        { $$ = $1; }
+    | iteration_statement
+        { $$ = $1; }
+    | jump_statement
+        { $$ = $1; }
 	;
 
 labeled_statement
@@ -424,9 +478,14 @@ labeled_statement
 
 compound_statement
 	: '{' '}'
+        { $$ = new Scope(); }
 	| '{' statement_list '}'
+        { $$ = new Scope(NULL, $2); }
 	| '{' declaration_list '}'
+        { $$ = new Scope($2, NULL); }
 	| '{' declaration_list statement_list '}'
+        // This is a C90 quirk - declarations have to appear before.
+        { $$ = new Scope($2, $3); }
 	;
 
 declaration_list
@@ -436,7 +495,9 @@ declaration_list
 
 statement_list
 	: statement
+        { $$ = new NodeList($1); }
 	| statement_list statement
+        { $1->push_back($2); $$ = $1; }
 	;
 
 expression_statement
@@ -462,7 +523,9 @@ jump_statement
 	| CONTINUE ';'
 	| BREAK ';'
 	| RETURN ';'
+        { $$ = new Return(); }
 	| RETURN expression ';'
+        { $$ = new Return($2); }
 	;
 
 translation_unit

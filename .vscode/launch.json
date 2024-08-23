@@ -6,33 +6,17 @@
     "configurations": [
         {
             "name": "Debug c_compiler",
-            "type": "cppdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/bin/c_compiler",
             "args": [
                 "-S",
-                "writing-a-c-compiler-tests/tests/chapter_13/valid/libraries/use_arg_after_fun_call.c",
-                // "compiler_tests/custom/026-struct_derefence.c",
+                // "writing-a-c-compiler-tests/tests/chapter_13/valid/libraries/use_arg_after_fun_call.c",
+                "compiler_tests/integer/add.c",
                 "-o",
                 "bin/debug.s",
             ],
-            "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ]
         }
     ]
 }

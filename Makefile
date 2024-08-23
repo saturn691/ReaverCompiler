@@ -3,9 +3,9 @@ FLAGS = $(CPPFLAGS) -Werror
 
 HPPFILES := $(shell find include/ -type f -name "*.hpp")
 CPPFILES := $(shell find src/ -type f -name "*.cpp")
-OFILES := $(CPPFILES:.cpp=.o)
+OFILES := $(CPPFILES:src/%.cpp=build/%.o)
 
-.PHONY: default
+.PHONY: default clean
 
 default: bin/c_compiler
 
@@ -15,10 +15,11 @@ src/parser.tab.cpp src/parser.tab.hpp : src/parser.y $(HPPFILES)
 src/lexer.yy.cpp : src/lexer.l src/parser.tab.hpp
 	flex -o src/lexer.yy.cpp src/lexer.l
 
-%.o: %.cpp
+build/%.o: src/%.cpp
+	@mkdir -p $(dir $@)
 	g++ $(CPPFLAGS) -c $< -o $@
 
-bin/c_compiler : $(OFILES) src/parser.tab.o src/lexer.yy.o
+bin/c_compiler : $(OFILES) build/parser.tab.o build/lexer.yy.o
 	@mkdir -p bin
 	g++ $(FLAGS) -o bin/c_compiler $^
 
@@ -27,8 +28,7 @@ $(OFILES): $(CPPFILES) $(HPPFILES)
 
 clean :
 	rm -rf bin/*
-	rm -f src/*.o
-	rm -f src/ast/*.o
+	rm -rf build/*
 	rm -f src/lexer.yy.cpp
 	rm -f src/parser.tab.cpp
 	rm -f src/parser.tab.hpp

@@ -75,7 +75,8 @@
         "forward_list": "cpp",
         "unordered_set": "cpp",
         "optional": "cpp",
-        "typeindex": "cpp"
+        "typeindex": "cpp",
+        "*.ipp": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++20"
 }
