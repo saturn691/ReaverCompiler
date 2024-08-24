@@ -17,7 +17,7 @@ void Return::print(std::ostream &dst, int indent_level) const
     {
         expression->print(dst, 0);
     }
-    dst << ";" << std::endl;
+    dst << ";";
 }
 
 void Return::lower(Context &context) const

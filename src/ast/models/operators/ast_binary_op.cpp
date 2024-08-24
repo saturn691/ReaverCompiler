@@ -47,6 +47,30 @@ void BinaryOp::print(std::ostream &dst, int indent_level) const
     case BinaryOpType::LSR:
         dst << " >> ";
         break;
+    case BinaryOpType::EQ:
+        dst << " == ";
+        break;
+    case BinaryOpType::NE:
+        dst << " != ";
+        break;
+    case BinaryOpType::LT:
+        dst << " < ";
+        break;
+    case BinaryOpType::GT:
+        dst << " > ";
+        break;
+    case BinaryOpType::LE:
+        dst << " <= ";
+        break;
+    case BinaryOpType::GE:
+        dst << " >= ";
+        break;
+    case BinaryOpType::LOGICAL_AND:
+        dst << " && ";
+        break;
+    case BinaryOpType::LOGICAL_OR:
+        dst << " || ";
+        break;
     }
     right->print(dst, 0);
 }

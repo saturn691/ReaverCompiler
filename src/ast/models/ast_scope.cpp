@@ -29,7 +29,7 @@ void Scope::print(std::ostream &dst, int indent_level) const
     {
         statements->print(dst, indent_level + 1);
     }
-    dst << indent << "}" << std::endl;
+    dst << indent << "}";
 }
 
 void Scope::lower(Context &context) const

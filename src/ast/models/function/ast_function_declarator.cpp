@@ -20,6 +20,10 @@ void FunctionDeclarator::print(std::ostream &dst, int indent_level) const
     dst << indent;
     declarator->print(dst, 0);
     dst << "(";
+    if (params != nullptr)
+    {
+        params->print(dst, 0);
+    }
     dst << ")";
 }
 

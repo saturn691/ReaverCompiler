@@ -16,10 +16,15 @@ public:
 
     void push_back(const Node *node);
 
-    void print(std::ostream &dst, int indent_level) const override;
+    virtual void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context) const override;
+    virtual void lower(Context &context) const override;
 
-private:
+protected:
     std::vector<std::unique_ptr<const Node>> nodes;
+
+    void print_delim(
+        std::ostream &dst,
+        int indent_level,
+        const std::string &delim) const;
 };

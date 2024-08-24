@@ -34,6 +34,8 @@ unsigned int BasicType::get_size() const
     case Types::LONG_DOUBLE:
         return 8;
     }
+
+    return 0;
 }
 
 void BasicType::print(std::ostream &dst, int indent_level) const

@@ -12,11 +12,11 @@
             "args": [
                 "-S",
                 // "writing-a-c-compiler-tests/tests/chapter_13/valid/libraries/use_arg_after_fun_call.c",
-                "compiler_tests/integer/add.c",
+                "compiler_tests/misc/switch1.c",
                 "-o",
                 "bin/debug.s",
             ],
             "cwd": "${workspaceFolder}",
-        }
+        },
     ]
 }

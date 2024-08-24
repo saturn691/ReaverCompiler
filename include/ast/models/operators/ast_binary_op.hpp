@@ -16,6 +16,14 @@ enum class BinaryOpType
     BITWISE_XOR,
     LSL,
     LSR,
+    EQ,
+    NE,
+    LT,
+    GT,
+    LE,
+    GE,
+    LOGICAL_AND,
+    LOGICAL_OR
 };
 
 class BinaryOp : public Node

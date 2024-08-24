@@ -34,3 +34,20 @@ void NodeList::lower(Context &context) const
         }
     }
 }
+
+void NodeList::print_delim(
+    std::ostream &dst,
+    int indent_level,
+    const std::string &delim) const
+{
+    std::string indent = Utils::get_indent(indent_level);
+    dst << indent;
+    for (size_t i = 0; i < nodes.size(); i++)
+    {
+        nodes[i]->print(dst, indent_level);
+        if (i != nodes.size() - 1)
+        {
+            dst << delim;
+        }
+    }
+}

@@ -1,18 +1,19 @@
 #pragma once
 
-#include <string>
+#include <memory>
 
 #include <ast/models/ast_node.hpp>
 
-class Identifier : public Node
+class DoWhile : public Node
 {
 public:
-    Identifier(const std::string id);
+    DoWhile(const Node *statement, const Node *condition);
 
     void print(std::ostream &dst, int indent_level) const override;
 
     void lower(Context &context) const override;
 
 private:
-    std::string id;
+    std::unique_ptr<const Node> statement;
+    std::unique_ptr<const Node> condition;
 };

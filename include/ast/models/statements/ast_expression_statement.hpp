@@ -1,18 +1,20 @@
 #pragma once
 
-#include <string>
+#include <memory>
 
 #include <ast/models/ast_node.hpp>
 
-class Identifier : public Node
+class ExpressionStatement : public Node
 {
 public:
-    Identifier(const std::string id);
+    ExpressionStatement();
+
+    ExpressionStatement(const Node *expression);
 
     void print(std::ostream &dst, int indent_level) const override;
 
     void lower(Context &context) const override;
 
 private:
-    std::string id;
+    std::unique_ptr<const Node> expression;
 };

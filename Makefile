@@ -24,7 +24,7 @@ bin/c_compiler : $(OFILES) build/parser.tab.o build/lexer.yy.o
 	g++ $(FLAGS) -o bin/c_compiler $^
 
 # Add dependency of object files on source files
-$(OFILES): $(CPPFILES) $(HPPFILES)
+$(OFILES): $(HPPFILES)
 
 clean :
 	rm -rf bin/*

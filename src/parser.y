@@ -21,6 +21,8 @@
     Node                *node;
     NodeList            *nodes;
     Type                *type;
+    UnaryOpType         unary_op;
+    AssignmentType      assignment_op;
     std::string         *string;
     yytokentype         token;
 }
@@ -51,7 +53,6 @@
 %type <node> expression constant_expression
 
 %type <node> declaration
-%type <node> init_declarator_list
 /* %type <node> storage_class_specifier type_qualifier */
 
 %type <node> struct_declaration
@@ -70,15 +71,16 @@
 %type <nodes> declaration_list statement_list argument_expression_list
 %type <nodes> parameter_list parameter_type_list struct_declaration_list
 %type <nodes> struct_declarator_list enumerator_list identifier_list
+%type <nodes> init_declarator_list
 %type <node> translation_unit initializer_list initializer
 
 // Other types of nodes
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
 %type <node> struct_or_union_specifier
-%type <node> assignment_operator
+%type <assignment_op> assignment_operator
 %type <node> declarator direct_declarator init_declarator
 %type <node> compound_statement
-%type <node> unary_operator
+%type <unary_op> unary_operator
 
 %start root
 %%
@@ -91,6 +93,7 @@ primary_expression
 	: IDENTIFIER
         { $$ = new Identifier(*$1); }
 	| CONSTANT
+        { $$ = new Constant(*$1); }
 	| STRING_LITERAL
 	| '(' expression ')'
 	;
@@ -104,7 +107,9 @@ postfix_expression
 	| postfix_expression '.' IDENTIFIER
 	| postfix_expression PTR_OP IDENTIFIER
 	| postfix_expression INC_OP
+        { $$ = new UnaryOp(UnaryOpType::POST_INC, $1); }
 	| postfix_expression DEC_OP
+        { $$ = new UnaryOp(UnaryOpType::POST_DEC, $1); }
 	;
 
 argument_expression_list
@@ -116,19 +121,28 @@ unary_expression
 	: postfix_expression
         { $$ = $1; }
 	| INC_OP unary_expression
+        { $$ = new UnaryOp(UnaryOpType::PRE_INC, $2); }
 	| DEC_OP unary_expression
+        { $$ = new UnaryOp(UnaryOpType::PRE_DEC, $2); }
 	| unary_operator cast_expression
+        { $$ = new UnaryOp($1, $2); }
 	| SIZEOF unary_expression
 	| SIZEOF '(' type_name ')'
 	;
 
 unary_operator
 	: '&'
+        { $$ = UnaryOpType::ADDRESS_OF; }
 	| '*'
+        { $$ = UnaryOpType::DEREFERENCE; }
 	| '+'
+        { $$ = UnaryOpType::PLUS; }
 	| '-'
+        { $$ = UnaryOpType::MINUS; }
 	| '~'
+        { $$ = UnaryOpType::BITWISE_NOT; }
 	| '!'
+        { $$ = UnaryOpType::LOGICAL_NOT; }
 	;
 
 cast_expression
@@ -170,16 +184,22 @@ relational_expression
 	: shift_expression
         { $$ = $1; }
 	| relational_expression '<' shift_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::LT); }
 	| relational_expression '>' shift_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::GT); }
 	| relational_expression LE_OP shift_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::LE); }
 	| relational_expression GE_OP shift_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::GE); }
 	;
 
 equality_expression
 	: relational_expression
         { $$ = $1; }
 	| equality_expression EQ_OP relational_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::EQ); }
 	| equality_expression NE_OP relational_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::NE); }
 	;
 
 and_expression
@@ -207,12 +227,14 @@ logical_and_expression
 	: inclusive_or_expression
         { $$ = $1; }
 	| logical_and_expression AND_OP inclusive_or_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::LOGICAL_AND); }
 	;
 
 logical_or_expression
 	: logical_and_expression
         { $$ = $1; }
 	| logical_or_expression OR_OP logical_and_expression
+        { $$ = new BinaryOp($1, $3, BinaryOpType::LOGICAL_OR); }
 	;
 
 conditional_expression
@@ -225,20 +247,32 @@ assignment_expression
 	: conditional_expression
         { $$ = $1; }
 	| unary_expression assignment_operator assignment_expression
+        { $$ = new Assignment($1, $3, $2); }
 	;
 
 assignment_operator
 	: '='
+        { $$ = AssignmentType::ASSIGN; }
 	| MUL_ASSIGN
+        { $$ = AssignmentType::MUL_ASSIGN; }
 	| DIV_ASSIGN
+        { $$ = AssignmentType::DIV_ASSIGN; }
 	| MOD_ASSIGN
+        { $$ = AssignmentType::MOD_ASSIGN; }
 	| ADD_ASSIGN
+        { $$ = AssignmentType::ADD_ASSIGN; }
 	| SUB_ASSIGN
+        { $$ = AssignmentType::SUB_ASSIGN; }
 	| LEFT_ASSIGN
+        { $$ = AssignmentType::LEFT_ASSIGN; }
 	| RIGHT_ASSIGN
+        { $$ = AssignmentType::RIGHT_ASSIGN; }
 	| AND_ASSIGN
+        { $$ = AssignmentType::AND_ASSIGN; }
 	| XOR_ASSIGN
+        { $$ = AssignmentType::XOR_ASSIGN; }
 	| OR_ASSIGN
+        { $$ = AssignmentType::OR_ASSIGN; }
 	;
 
 expression
@@ -249,11 +283,15 @@ expression
 
 constant_expression
 	: conditional_expression
+        { $$ = $1; }
 	;
 
 declaration
 	: declaration_specifiers ';'
+        // Careful here: we need to render the ';'
+        { $$ = new Declaration($1); }
 	| declaration_specifiers init_declarator_list ';'
+        { $$ = new Declaration($1, $2); }
 	;
 
 declaration_specifiers
@@ -268,13 +306,17 @@ declaration_specifiers
 
 init_declarator_list
 	: init_declarator
+        { $$ = new InitDeclaratorList($1); }
 	| init_declarator_list ',' init_declarator
-	;
+        { $1->push_back($3); $$ = $1; }
+    ;
 
 init_declarator
 	: declarator
+        { $$ = $1; }
 	| declarator '=' initializer
-	;
+        { $$ = new InitDeclarator($1, $3); }
+    ;
 
 storage_class_specifier
 	: TYPEDEF
@@ -402,18 +444,24 @@ type_qualifier_list
 
 parameter_type_list
 	: parameter_list
+        { $$ = $1; }
 	| parameter_list ',' ELLIPSIS
-	;
+        // Need <stdarg.h> for this
+    ;
 
 parameter_list
 	: parameter_declaration
+        { $$ = new FunctionParamList($1); }
 	| parameter_list ',' parameter_declaration
-	;
+        { $1->push_back($3); $$ = $1; }
+    ;
 
 parameter_declaration
 	: declaration_specifiers declarator
+        { $$ = new FunctionParam($1, $2); }
 	| declaration_specifiers abstract_declarator
 	| declaration_specifiers
+        { $$ = new FunctionParam($1); }
 	;
 
 identifier_list
@@ -457,23 +505,25 @@ initializer_list
 
 statement
 	: labeled_statement
-        { $$ = $1; }
+        { $$ = new Statement($1); }
 	| compound_statement
-        { $$ = $1; }
+        { $$ = new Statement($1); }
     | expression_statement
-        { $$ = $1; }
+        { $$ = new Statement($1); }
     | selection_statement
-        { $$ = $1; }
+        { $$ = new Statement($1); }
     | iteration_statement
-        { $$ = $1; }
+        { $$ = new Statement($1); }
     | jump_statement
-        { $$ = $1; }
+        { $$ = new Statement($1); }
 	;
 
 labeled_statement
 	: IDENTIFIER ':' statement
 	| CASE constant_expression ':' statement
+        { $$ = new Case($2, $4); }
 	| DEFAULT ':' statement
+        { $$ = new Default($3); }
 	;
 
 compound_statement
@@ -490,7 +540,9 @@ compound_statement
 
 declaration_list
 	: declaration
+        { $$ = new NodeList($1); }
 	| declaration_list declaration
+        { $1->push_back($2); $$ = $1; }
 	;
 
 statement_list
@@ -502,26 +554,36 @@ statement_list
 
 expression_statement
 	: ';'
+        { $$ = new ExpressionStatement(); }
 	| expression ';'
+        { $$ = new ExpressionStatement($1); }
 	;
 
 selection_statement
 	: IF '(' expression ')' statement
+        { $$ = new If($3, $5); }
 	| IF '(' expression ')' statement ELSE statement
-	| SWITCH '(' expression ')' statement
-	;
+        { $$ = new If($3, $5, $7); }
+    | SWITCH '(' expression ')' statement
+        { $$ = new Switch($3, $5); }
+    ;
 
 iteration_statement
 	: WHILE '(' expression ')' statement
-	| DO statement WHILE '(' expression ')' ';'
+        { $$ = new While($3, $5); }
+    | DO statement WHILE '(' expression ')' ';'
+        { $$ = new DoWhile($2, $5); }
 	| FOR '(' expression_statement expression_statement ')' statement
-	| FOR '(' expression_statement expression_statement expression ')' statement
-	;
+        { $$ = new For($3, $4, $6); }
+    | FOR '(' expression_statement expression_statement expression ')' statement
+        { $$ = new For($3, $4, $5, $7); }
+    ;
 
 jump_statement
 	: GOTO IDENTIFIER ';'
 	| CONTINUE ';'
 	| BREAK ';'
+        { $$ = new Break(); }
 	| RETURN ';'
         { $$ = new Return(); }
 	| RETURN expression ';'
