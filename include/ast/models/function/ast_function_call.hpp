@@ -3,20 +3,18 @@
 #include <memory>
 
 #include <ast/models/ast_node.hpp>
+#include <ast/models/ast_node_list.hpp>
 
-class Case : public Node
+class FunctionCall : public Node
 {
 public:
-    Case(const Node *expression, const Node *statement);
+    FunctionCall(const Node *declarator, const NodeList *args);
 
     virtual void print(std::ostream &dst, int indent_level) const override;
 
     virtual void lower(Context &context) const override;
 
 private:
-    // constant expression
-    std::unique_ptr<const Node> expression;
-
-protected:
-    std::unique_ptr<const Node> statement;
+    std::unique_ptr<const Node> declarator;
+    std::unique_ptr<const NodeList> args;
 };

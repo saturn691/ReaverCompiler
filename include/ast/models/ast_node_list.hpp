@@ -23,6 +23,10 @@ public:
 protected:
     std::vector<std::unique_ptr<const Node>> nodes;
 
+    /**
+     * Prints a list of nodes with a delimiter between each node, with an
+     * indent and no newline
+     */
     void print_delim(
         std::ostream &dst,
         int indent_level,

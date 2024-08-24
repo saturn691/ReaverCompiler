@@ -18,8 +18,11 @@ Declaration::Declaration(
 void Declaration::print(std::ostream &dst, int indent_level) const
 {
     specifiers->print(dst, indent_level);
-    dst << " ";
-    init_list->print(dst, 0);
+    if (init_list)
+    {
+        dst << " ";
+        init_list->print(dst, 0);
+    }
     dst << ";" << std::endl;
 }
 

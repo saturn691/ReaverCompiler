@@ -4,19 +4,15 @@
 
 #include <ast/models/ast_node.hpp>
 
-class Case : public Node
+class Parenthesis : public Node
 {
 public:
-    Case(const Node *expression, const Node *statement);
+    Parenthesis(const Node *expr);
 
     virtual void print(std::ostream &dst, int indent_level) const override;
 
     virtual void lower(Context &context) const override;
 
 private:
-    // constant expression
-    std::unique_ptr<const Node> expression;
-
-protected:
-    std::unique_ptr<const Node> statement;
+    std::unique_ptr<const Node> expr;
 };

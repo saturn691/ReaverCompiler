@@ -44,7 +44,7 @@ void NodeList::print_delim(
     dst << indent;
     for (size_t i = 0; i < nodes.size(); i++)
     {
-        nodes[i]->print(dst, indent_level);
+        nodes[i]->print(dst, 0);
         if (i != nodes.size() - 1)
         {
             dst << delim;

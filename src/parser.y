@@ -23,7 +23,9 @@
     Type                *type;
     UnaryOpType         unary_op;
     AssignmentType      assignment_op;
+    StructOrUnionType   struct_or_union;
     std::string         *string;
+    int                 integer;
     yytokentype         token;
 }
 
@@ -56,10 +58,10 @@
 /* %type <node> storage_class_specifier type_qualifier */
 
 %type <node> struct_declaration
-/* %type <node> struct_or_union */
-%type <node> struct_declarator
-%type <node> enum_specifier enumerator
-%type <node> pointer
+%type <struct_or_union> struct_or_union
+%type <node> struct_declarator enumerator
+%type <type> enum_specifier
+%type <integer> pointer
 %type <node> type_qualifier_list
 %type <node> parameter_declaration type_name
 /* %type <node> abstract_declarator direct_abstract_declarator */
@@ -72,11 +74,11 @@
 %type <nodes> parameter_list parameter_type_list struct_declaration_list
 %type <nodes> struct_declarator_list enumerator_list identifier_list
 %type <nodes> init_declarator_list
-%type <node> translation_unit initializer_list initializer
+%type <nodes> translation_unit initializer_list initializer
 
 // Other types of nodes
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
-%type <node> struct_or_union_specifier
+%type <type> struct_or_union_specifier
 %type <assignment_op> assignment_operator
 %type <node> declarator direct_declarator init_declarator
 %type <node> compound_statement
@@ -95,17 +97,26 @@ primary_expression
 	| CONSTANT
         { $$ = new Constant(*$1); }
 	| STRING_LITERAL
-	| '(' expression ')'
+        { $$ = new String(*$1); }
+	| CHAR_LITERAL
+        { $$ = new Char(*$1); }
+    | '(' expression ')'
+        { $$ = new Parenthesis($2); }
 	;
 
 postfix_expression
 	: primary_expression
         { $$ = $1; }
 	| postfix_expression '[' expression ']'
+        { $$ = new ArrayAccess($1, $3); }
 	| postfix_expression '(' ')'
+        { $$ = new FunctionCall($1, new NodeList()); }
 	| postfix_expression '(' argument_expression_list ')'
-	| postfix_expression '.' IDENTIFIER
-	| postfix_expression PTR_OP IDENTIFIER
+        { $$ = new FunctionCall($1, $3); }
+    | postfix_expression '.' IDENTIFIER
+        { $$ = new StructAccess($1, StructAccessType::DOT, *$3); }
+    | postfix_expression PTR_OP IDENTIFIER
+        { $$ = new StructAccess($1, StructAccessType::ARROW, *$3); }
 	| postfix_expression INC_OP
         { $$ = new UnaryOp(UnaryOpType::POST_INC, $1); }
 	| postfix_expression DEC_OP
@@ -114,8 +125,10 @@ postfix_expression
 
 argument_expression_list
 	: assignment_expression
+        { $$ = new FunctionCallList($1); }
 	| argument_expression_list ',' assignment_expression
-	;
+        { $1->push_back($3); $$ = $1; }
+    ;
 
 unary_expression
 	: postfix_expression
@@ -127,7 +140,9 @@ unary_expression
 	| unary_operator cast_expression
         { $$ = new UnaryOp($1, $2); }
 	| SIZEOF unary_expression
-	| SIZEOF '(' type_name ')'
+        { $$ = new Sizeof($2); }
+    | SIZEOF '(' type_name ')'
+        { $$ = new Sizeof($3); }
 	;
 
 unary_operator
@@ -346,63 +361,86 @@ type_specifier
 	| UNSIGNED
         {$$ = new BasicType(Types::UNSIGNED_INT); }
 	| struct_or_union_specifier
+        { $$ = $1; }
 	| enum_specifier
+        { $$ = $1; }
 	| TYPE_NAME
 	;
 
 struct_or_union_specifier
 	: struct_or_union IDENTIFIER '{' struct_declaration_list '}'
-	| struct_or_union '{' struct_declaration_list '}'
-	| struct_or_union IDENTIFIER
-	;
+        { $$ = new StructDeclaration($1, *$2, $4); }
+    | struct_or_union '{' struct_declaration_list '}'
+        { $$ = new StructDeclaration($1, $3); }
+    | struct_or_union IDENTIFIER
+        { $$ = new Struct($1, *$2); }
+    ;
 
 struct_or_union
 	: STRUCT
+        { $$ = StructOrUnionType::STRUCT; }
 	| UNION
+        { $$ = StructOrUnionType::UNION; }
 	;
 
 struct_declaration_list
 	: struct_declaration
+        { $$ = new StructDeclarationList($1); }
 	| struct_declaration_list struct_declaration
-	;
+        { $1->push_back($2); $$ = $1; }
+    ;
 
 struct_declaration
 	: specifier_qualifier_list struct_declarator_list ';'
+        { $$ = new StructItem($1, $2); }
 	;
 
 specifier_qualifier_list
 	: type_specifier specifier_qualifier_list
 	| type_specifier
-	| type_qualifier specifier_qualifier_list
+        { $$ = $1; }
+    | type_qualifier specifier_qualifier_list
 	| type_qualifier
 	;
 
 struct_declarator_list
 	: struct_declarator
+        { $$ = new StructItemList($1); }
 	| struct_declarator_list ',' struct_declarator
-	;
+        { $1->push_back($3); $$ = $1; }
+    ;
 
 struct_declarator
 	: declarator
+        { $$ = new StructItemDeclarator($1); }
 	| ':' constant_expression
+        // Anonymous bitfield
 	| declarator ':' constant_expression
-	;
+        //  Named bitfield
+    ;
 
 enum_specifier
 	: ENUM '{' enumerator_list '}'
+        { $$ = new EnumDeclaration($3); }
 	| ENUM IDENTIFIER '{' enumerator_list '}'
-	| ENUM IDENTIFIER
+        { $$ = new EnumDeclaration(*$2, $4); }
+    | ENUM IDENTIFIER
+        { $$ = new Enum(*$2); }
 	;
 
 enumerator_list
 	: enumerator
+        { $$ = new EnumList($1); }
 	| enumerator_list ',' enumerator
+        { $1->push_back($3); $$ = $1; }
 	;
 
 enumerator
 	: IDENTIFIER
+        { $$ = new EnumItem(*$1); }
 	| IDENTIFIER '=' constant_expression
-	;
+        { $$ = new EnumItem(*$1, $3); }
+    ;
 
 type_qualifier
 	: CONST
@@ -411,7 +449,8 @@ type_qualifier
 
 declarator
 	: pointer direct_declarator
-	| direct_declarator
+        { $$ = new PointerDeclarator($1, $2); }
+    | direct_declarator
         { $$ = $1; }
 	;
 
@@ -421,20 +460,28 @@ direct_declarator
 	| '(' declarator ')'
         { $$ = $2; }
 	| direct_declarator '[' constant_expression ']'
-	| direct_declarator '[' ']'
+        { $$ = new ArrayDeclarator($1, $3); }
+    | direct_declarator '[' ']'
+        { $$ = new ArrayDeclarator($1); }
 	| direct_declarator '(' parameter_type_list ')'
         { $$ = new FunctionDeclarator($1, $3); }
 	| direct_declarator '(' identifier_list ')'
-	| direct_declarator '(' ')'
+        // Old K&R style function declaration
+    | direct_declarator '(' ')'
         { $$ = new FunctionDeclarator($1); }
     ;
 
+// Ignore const/volatile for now
 pointer
 	: '*'
+        { $$ = 1; }
 	| '*' type_qualifier_list
-	| '*' pointer
+        { $$ = 1; }
+    | '*' pointer
+        { $$ = $2 + 1; }
 	| '*' type_qualifier_list pointer
-	;
+        { $$ = $3 + 1; }
+    ;
 
 type_qualifier_list
 	: type_qualifier
@@ -592,9 +639,10 @@ jump_statement
 
 translation_unit
 	: external_declaration
-        { $$ = $1; }
+        { $$ = new DeclarationList($1); }
 	| translation_unit external_declaration
-	;
+        { $1->push_back($2); $$ = $1; }
+    ;
 
 external_declaration
 	: function_definition

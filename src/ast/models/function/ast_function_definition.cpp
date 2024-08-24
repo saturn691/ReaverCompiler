@@ -19,6 +19,7 @@ void FunctionDefinition::print(std::ostream &dst, int indent_level) const
     declarator->print(dst, 0);
     dst << std::endl;
     statement->print(dst, indent_level);
+    dst << std::endl;
 }
 
 void FunctionDefinition::lower(Context &context) const
