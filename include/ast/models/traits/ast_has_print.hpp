@@ -2,16 +2,19 @@
 
 #include <iostream>
 
-#include <ast/ast_utils.hpp>
+#include <ast/utils/ast_utils.hpp>
 
 /**
  *  Implementable trait for nodes.
  */
-class HasPrint
+namespace ast
 {
-public:
-    virtual ~HasPrint() = default;
+    class HasPrint
+    {
+    public:
+        virtual ~HasPrint() = default;
 
-    // Tell and expression to print itself to the given stream
-    virtual void print(std::ostream &dst, int indent_level) const = 0;
-};
+        // Tell and expression to print itself to the given stream
+        virtual void print(std::ostream &dst, int indent_level) const = 0;
+    };
+}

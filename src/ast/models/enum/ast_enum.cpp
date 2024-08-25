@@ -1,22 +1,25 @@
 #include <ast/models/enum/ast_enum.hpp>
 
-Enum::Enum(const std::string identifier)
-    : identifier(identifier)
+namespace ast
 {
-}
+    Enum::Enum(const std::string identifier)
+        : identifier(identifier)
+    {
+    }
 
-void Enum::print(std::ostream &dst, int indent_level) const
-{
-    std::string indent = Utils::get_indent(indent_level);
-    dst << indent << "enum " << identifier;
-}
+    void Enum::print(std::ostream &dst, int indent_level) const
+    {
+        std::string indent = Utils::get_indent(indent_level);
+        dst << indent << "enum " << identifier;
+    }
 
-void Enum::lower(Context &context) const
-{
-}
+    void Enum::lower(Context &context) const
+    {
+    }
 
-unsigned int Enum::get_size() const
-{
-    // sizeof(int)
-    return 4;
+    unsigned int Enum::get_size() const
+    {
+        // sizeof(int)
+        return 4;
+    }
 }

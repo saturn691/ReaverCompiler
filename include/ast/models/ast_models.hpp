@@ -6,6 +6,7 @@
 
 #include <ast/models/array/ast_array_access.hpp>
 #include <ast/models/array/ast_array_declarator.hpp>
+#include <ast/models/array/ast_array_initializer_list.hpp>
 
 #include <ast/models/declaration/ast_declaration_list.hpp>
 #include <ast/models/declaration/ast_declaration.hpp>

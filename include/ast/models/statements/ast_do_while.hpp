@@ -4,16 +4,19 @@
 
 #include <ast/models/ast_node.hpp>
 
-class DoWhile : public Node
+namespace ast
 {
-public:
-    DoWhile(const Node *statement, const Node *condition);
+    class DoWhile : public Node
+    {
+    public:
+        DoWhile(const Node *statement, const Node *condition);
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context) const override;
+        void lower(Context &context) const override;
 
-private:
-    std::unique_ptr<const Node> statement;
-    std::unique_ptr<const Node> condition;
-};
+    private:
+        std::unique_ptr<const Node> statement;
+        std::unique_ptr<const Node> condition;
+    };
+}

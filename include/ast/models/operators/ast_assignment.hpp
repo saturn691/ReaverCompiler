@@ -19,17 +19,20 @@ enum class AssignmentType
     OR_ASSIGN
 };
 
-class Assignment : public Node
+namespace ast
 {
-public:
-    Assignment(const Node *left, const Node *right, const AssignmentType op);
+    class Assignment : public Node
+    {
+    public:
+        Assignment(const Node *left, const Node *right, const AssignmentType op);
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context) const override;
+        void lower(Context &context) const override;
 
-private:
-    std::unique_ptr<const Node> left;
-    std::unique_ptr<const Node> right;
-    AssignmentType op;
-};
+    private:
+        std::unique_ptr<const Node> left;
+        std::unique_ptr<const Node> right;
+        AssignmentType op;
+    };
+}

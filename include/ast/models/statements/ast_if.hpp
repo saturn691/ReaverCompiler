@@ -4,24 +4,27 @@
 
 #include <ast/models/ast_node.hpp>
 
-class If : public Node
+namespace ast
 {
-public:
-    If(
-        const Node *condition,
-        const Node *statement);
+    class If : public Node
+    {
+    public:
+        If(
+            const Node *condition,
+            const Node *statement);
 
-    If(
-        const Node *condition,
-        const Node *statement,
-        const Node *else_statement);
+        If(
+            const Node *condition,
+            const Node *statement,
+            const Node *else_statement);
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context) const override;
+        void lower(Context &context) const override;
 
-private:
-    std::unique_ptr<const Node> condition;
-    std::unique_ptr<const Node> statement;
-    std::unique_ptr<const Node> else_statement;
-};
+    private:
+        std::unique_ptr<const Node> condition;
+        std::unique_ptr<const Node> statement;
+        std::unique_ptr<const Node> else_statement;
+    };
+}

@@ -1,32 +1,35 @@
 #include <ast/models/function/ast_function_declarator.hpp>
 
-FunctionDeclarator::FunctionDeclarator(
-    const Node *declarator)
-    : declarator(declarator)
+namespace ast
 {
-}
-
-FunctionDeclarator::FunctionDeclarator(
-    const Node *declarator,
-    const NodeList *params)
-    : declarator(declarator),
-      params(params)
-{
-}
-
-void FunctionDeclarator::print(std::ostream &dst, int indent_level) const
-{
-    std::string indent = Utils::get_indent(indent_level);
-    dst << indent;
-    declarator->print(dst, 0);
-    dst << "(";
-    if (params != nullptr)
+    FunctionDeclarator::FunctionDeclarator(
+        const Node *declarator)
+        : declarator(declarator)
     {
-        params->print(dst, 0);
     }
-    dst << ")";
-}
 
-void FunctionDeclarator::lower(Context &context) const
-{
+    FunctionDeclarator::FunctionDeclarator(
+        const Node *declarator,
+        const NodeList *params)
+        : declarator(declarator),
+          params(params)
+    {
+    }
+
+    void FunctionDeclarator::print(std::ostream &dst, int indent_level) const
+    {
+        std::string indent = Utils::get_indent(indent_level);
+        dst << indent;
+        declarator->print(dst, 0);
+        dst << "(";
+        if (params != nullptr)
+        {
+            params->print(dst, 0);
+        }
+        dst << ")";
+    }
+
+    void FunctionDeclarator::lower(Context &context) const
+    {
+    }
 }

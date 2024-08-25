@@ -3,7 +3,7 @@
 #include <string>
 #include <iostream>
 
-#include <ast/ast_context.hpp>
+#include <ast/utils/ast_context.hpp>
 #include <ast/models/traits/ast_has_print.hpp>
 
 /**
@@ -11,11 +11,14 @@
  *  This is the standard interface for all nodes and only contains the functions
  *  that all nodes must implement.
  */
-class Node : public HasPrint
+namespace ast
 {
-public:
-    virtual ~Node() = default;
+    class Node : public HasPrint
+    {
+    public:
+        virtual ~Node() = default;
 
-    // Lowers AST into an IR graph
-    virtual void lower(Context &context) const = 0;
-};
+        // Lowers AST into an IR graph
+        virtual void lower(Context &context) const = 0;
+    };
+}

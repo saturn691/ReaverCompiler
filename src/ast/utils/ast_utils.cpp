@@ -1,6 +1,9 @@
-#include <ast/ast_utils.hpp>
+#include <ast/utils/ast_utils.hpp>
 
-std::string Utils::get_indent(int indent_level)
+namespace ast
 {
-    return std::string(indent_level * spaces, ' ');
+    std::string Utils::get_indent(int indent_level)
+    {
+        return std::string(indent_level * spaces, ' ');
+    }
 }

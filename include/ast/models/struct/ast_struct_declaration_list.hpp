@@ -2,10 +2,13 @@
 
 #include <ast/models/ast_node_list.hpp>
 
-class StructDeclarationList : public NodeList
+namespace ast
 {
-public:
-    using NodeList::NodeList;
+    class StructDeclarationList : public NodeList
+    {
+    public:
+        using NodeList::NodeList;
 
-    void print(std::ostream &dst, int indent_level) const override;
-};
+        void print(std::ostream &dst, int indent_level) const override;
+    };
+}

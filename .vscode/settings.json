@@ -76,7 +76,8 @@
         "unordered_set": "cpp",
         "optional": "cpp",
         "typeindex": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "variant": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++20"
 }

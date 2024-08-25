@@ -6,18 +6,21 @@
 #include <ast/models/ast_node_list.hpp>
 #include <ast/models/type/ast_type.hpp>
 
-class StructItem : public Node
+namespace ast
 {
-public:
-    StructItem(
-        const Type *type,
-        const NodeList *declarators);
+    class StructItem : public Node
+    {
+    public:
+        StructItem(
+            const Type *type,
+            const NodeList *declarators);
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context) const override;
+        void lower(Context &context) const override;
 
-private:
-    std::unique_ptr<const Type> type;
-    std::unique_ptr<const NodeList> declarators;
-};
+    private:
+        std::unique_ptr<const Type> type;
+        std::unique_ptr<const NodeList> declarators;
+    };
+}

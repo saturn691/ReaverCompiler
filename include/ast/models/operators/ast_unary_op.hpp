@@ -18,16 +18,19 @@ enum class UnaryOpType
     POST_DEC
 };
 
-class UnaryOp : public Node
+namespace ast
 {
-public:
-    UnaryOp(const UnaryOpType op, const Node *expr);
+    class UnaryOp : public Node
+    {
+    public:
+        UnaryOp(const UnaryOpType op, const Node *expr);
 
-    virtual void print(std::ostream &dst, int indent_level) const override;
+        virtual void print(std::ostream &dst, int indent_level) const override;
 
-    virtual void lower(Context &context) const override;
+        virtual void lower(Context &context) const override;
 
-private:
-    UnaryOpType op;
-    std::unique_ptr<const Node> expr;
-};
+    private:
+        UnaryOpType op;
+        std::unique_ptr<const Node> expr;
+    };
+}

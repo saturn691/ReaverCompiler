@@ -4,16 +4,19 @@
 
 #include <ast/models/ast_node.hpp>
 
-class PointerDeclarator : public Node
+namespace ast
 {
-public:
-    PointerDeclarator(int amount, const Node *declarator);
+    class PointerDeclarator : public Node
+    {
+    public:
+        PointerDeclarator(int amount, const Node *declarator);
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context) const override;
+        void lower(Context &context) const override;
 
-private:
-    int amount;
-    std::unique_ptr<const Node> declarator;
-};
+    private:
+        int amount;
+        std::unique_ptr<const Node> declarator;
+    };
+}

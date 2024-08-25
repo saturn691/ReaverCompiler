@@ -1,35 +1,31 @@
 CPPFLAGS += -std=c++20 -W -Wall -Wextra -g -I include
 FLAGS = $(CPPFLAGS) -Werror
 
-HPPFILES := $(shell find include/ -type f -name "*.hpp")
 CPPFILES := $(shell find src/ -type f -name "*.cpp")
-OFILES := $(CPPFILES:src/%.cpp=build/%.o)
+DEPENDENCIES := $(patsubst src/%.cpp,build/%.d,$(CPPFILES))
+OFILES := $(patsubst src/%.cpp,build/%.o,$(CPPFILES))
+OFILES += build/parser.tab.o build/lexer.yy.o
 
 .PHONY: default clean
 
 default: bin/c_compiler
 
-src/parser.tab.cpp src/parser.tab.hpp : src/parser.y $(HPPFILES)
-	bison -v -d src/parser.y -o src/parser.tab.cpp
+bin/c_compiler : $(OFILES)
+	@mkdir -p bin
+	g++ $(FLAGS) -o $@ $^
 
-src/lexer.yy.cpp : src/lexer.l src/parser.tab.hpp
-	flex -o src/lexer.yy.cpp src/lexer.l
+-include $(DEPENDENCIES)
 
 build/%.o: src/%.cpp
 	@mkdir -p $(dir $@)
-	g++ $(CPPFLAGS) -c $< -o $@
+	g++ $(CPPFLAGS) -MMD -MP -c $< -o $@
 
-bin/c_compiler : $(OFILES) build/parser.tab.o build/lexer.yy.o
-	@mkdir -p bin
-	g++ $(FLAGS) -o bin/c_compiler $^
+build/parser.tab.cpp build/parser.tab.hpp : src/parser.y
+	bison -v -d src/parser.y -o build/parser.tab.cpp
 
-# Add dependency of object files on source files
-$(OFILES): $(HPPFILES)
+build/lexer.yy.cpp : src/lexer.l build/parser.tab.hpp
+	flex -o build/lexer.yy.cpp src/lexer.l
 
 clean :
 	rm -rf bin/*
 	rm -rf build/*
-	rm -f src/lexer.yy.cpp
-	rm -f src/parser.tab.cpp
-	rm -f src/parser.tab.hpp
-	rm -f src/parser.output

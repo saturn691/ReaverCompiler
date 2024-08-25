@@ -11,18 +11,21 @@ enum class StructOrUnionType
     UNION
 };
 
-class Struct : public Type
+namespace ast
 {
-public:
-    Struct(
-        const StructOrUnionType type,
-        const std::string identifier);
+    class Struct : public Type
+    {
+    public:
+        Struct(
+            const StructOrUnionType type,
+            const std::string identifier);
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-    unsigned int get_size() const override;
+        unsigned int get_size() const override;
 
-private:
-    StructOrUnionType type;
-    std::string identifier;
-};
+    private:
+        StructOrUnionType type;
+        std::string identifier;
+    };
+}

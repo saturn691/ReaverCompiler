@@ -3,10 +3,14 @@
 #include <unistd.h>
 
 #include "cli.h"
-#include "ast.hpp"
+#include "ast/ast.hpp"
 
 void compile(std::string sourcePath, std::ostream &out)
 {
+    using ast::Context;
+    using ast::Node;
+    using ast::parseAST;
+
     const Node *ast = parseAST(sourcePath);
     ast->print(std::cout, 0);
     std::cout << std::endl;

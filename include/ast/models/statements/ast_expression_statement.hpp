@@ -4,17 +4,20 @@
 
 #include <ast/models/ast_node.hpp>
 
-class ExpressionStatement : public Node
+namespace ast
 {
-public:
-    ExpressionStatement();
+    class ExpressionStatement : public Node
+    {
+    public:
+        ExpressionStatement();
 
-    ExpressionStatement(const Node *expression);
+        ExpressionStatement(const Node *expression);
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context) const override;
+        void lower(Context &context) const override;
 
-private:
-    std::unique_ptr<const Node> expression;
-};
+    private:
+        std::unique_ptr<const Node> expression;
+    };
+}

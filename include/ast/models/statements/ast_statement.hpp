@@ -8,15 +8,18 @@
  * The purpose of this node is to flush the buffer (std::endl) after a
  * statement is printed.
  */
-class Statement : public Node
+namespace ast
 {
-public:
-    Statement(const Node *statement);
+    class Statement : public Node
+    {
+    public:
+        Statement(const Node *statement);
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context) const override;
+        void lower(Context &context) const override;
 
-private:
-    std::unique_ptr<const Node> statement;
-};
+    private:
+        std::unique_ptr<const Node> statement;
+    };
+}

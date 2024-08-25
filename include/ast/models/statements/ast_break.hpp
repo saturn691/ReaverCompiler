@@ -2,12 +2,15 @@
 
 #include <ast/models/ast_node.hpp>
 
-class Break : public Node
+namespace ast
 {
-public:
-    Break();
+    class Break : public Node
+    {
+    public:
+        Break();
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context) const override;
-};
+        void lower(Context &context) const override;
+    };
+}

@@ -3,15 +3,18 @@
 #include <ast/models/type/ast_type.hpp>
 #include <ast/models/type/ast_types.hpp>
 
-class BasicType : public Type
+namespace ast
 {
-public:
-    BasicType(const Types type);
+    class BasicType : public Type
+    {
+    public:
+        BasicType(const Types type);
 
-    unsigned int get_size() const override;
+        unsigned int get_size() const override;
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-private:
-    Types type;
-};
+    private:
+        Types type;
+    };
+}

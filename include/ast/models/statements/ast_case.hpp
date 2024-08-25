@@ -4,19 +4,22 @@
 
 #include <ast/models/ast_node.hpp>
 
-class Case : public Node
+namespace ast
 {
-public:
-    Case(const Node *expression, const Node *statement);
+    class Case : public Node
+    {
+    public:
+        Case(const Node *expression, const Node *statement);
 
-    virtual void print(std::ostream &dst, int indent_level) const override;
+        virtual void print(std::ostream &dst, int indent_level) const override;
 
-    virtual void lower(Context &context) const override;
+        virtual void lower(Context &context) const override;
 
-private:
-    // constant expression
-    std::unique_ptr<const Node> expression;
+    private:
+        // constant expression
+        std::unique_ptr<const Node> expression;
 
-protected:
-    std::unique_ptr<const Node> statement;
-};
+    protected:
+        std::unique_ptr<const Node> statement;
+    };
+}

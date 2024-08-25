@@ -1,6 +1,9 @@
 #include <ast/models/struct/ast_struct_item_list.hpp>
 
-void StructItemList::print(std::ostream &dst, int indent_level) const
+namespace ast
 {
-    print_delim(dst, indent_level, "\n");
+    void StructItemList::print(std::ostream &dst, int indent_level) const
+    {
+        print_delim(dst, indent_level, "\n");
+    }
 }

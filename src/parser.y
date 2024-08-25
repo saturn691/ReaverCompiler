@@ -1,10 +1,12 @@
 // References: https://www.lysator.liu.se/c/ANSI-C-grammar-y.html
 
 %code requires{
-  #include "ast.hpp"
+  #include "ast/ast.hpp"
 
   #include <cassert>
   #include <string>
+
+  using namespace ast;
 
   extern FILE *yyin;
   extern const Node *g_root;
@@ -541,13 +543,19 @@ direct_abstract_declarator
 
 initializer
 	: assignment_expression
+        // Doesn't change anything in lowering but keeps parser happy
+        { $$ = new NodeList($1); }
 	| '{' initializer_list '}'
-	| '{' initializer_list ',' '}'
-	;
+        { $$ = $2; }
+    | '{' initializer_list ',' '}'
+        { $$ = $2; }
+    ;
 
 initializer_list
 	: initializer
+        { $$ = new ArrayInitializerList($1); }
 	| initializer_list ',' initializer
+        { $1->push_back($3); $$ = $1; }
 	;
 
 statement
@@ -663,20 +671,23 @@ function_definition
 
 const Node *g_root;
 
-const Node *parseAST(std::string filename)
+namespace ast
 {
-    yyin = fopen(filename.c_str(), "r");
-
-    if (yyin == NULL)
+    const Node *parseAST(std::string filename)
     {
-        std::cerr << "Couldn't open input file " << filename << std::endl;
-        exit(1);
+        yyin = fopen(filename.c_str(), "r");
+
+        if (yyin == NULL)
+        {
+            std::cerr << "Couldn't open input file " << filename << std::endl;
+            exit(1);
+        }
+
+        g_root = NULL;
+        yyparse();
+        fclose(yyin);
+        yylex_destroy();
+
+        return g_root;
     }
-
-    g_root = NULL;
-    yyparse();
-    fclose(yyin);
-    yylex_destroy();
-
-    return g_root;
 }

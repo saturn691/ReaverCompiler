@@ -7,28 +7,31 @@
 
 #include <ast/models/ast_node.hpp>
 
-class NodeList : public Node
+namespace ast
 {
-public:
-    NodeList();
+    class NodeList : public Node
+    {
+    public:
+        NodeList();
 
-    NodeList(const Node *node);
+        NodeList(const Node *node);
 
-    void push_back(const Node *node);
+        void push_back(const Node *node);
 
-    virtual void print(std::ostream &dst, int indent_level) const override;
+        virtual void print(std::ostream &dst, int indent_level) const override;
 
-    virtual void lower(Context &context) const override;
+        virtual void lower(Context &context) const override;
 
-protected:
-    std::vector<std::unique_ptr<const Node>> nodes;
+    protected:
+        std::vector<std::unique_ptr<const Node>> nodes;
 
-    /**
-     * Prints a list of nodes with a delimiter between each node, with an
-     * indent and no newline
-     */
-    void print_delim(
-        std::ostream &dst,
-        int indent_level,
-        const std::string &delim) const;
-};
+        /**
+         * Prints a list of nodes with a delimiter between each node, with an
+         * indent and no newline
+         */
+        void print_delim(
+            std::ostream &dst,
+            int indent_level,
+            const std::string &delim) const;
+    };
+}

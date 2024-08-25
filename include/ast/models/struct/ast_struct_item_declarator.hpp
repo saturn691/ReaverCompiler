@@ -4,16 +4,19 @@
 
 #include <ast/models/ast_node.hpp>
 
-class StructItemDeclarator : public Node
+namespace ast
 {
-public:
-    StructItemDeclarator(
-        const Node *declarator);
+    class StructItemDeclarator : public Node
+    {
+    public:
+        StructItemDeclarator(
+            const Node *declarator);
 
-    void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context) const override;
+        void lower(Context &context) const override;
 
-private:
-    std::unique_ptr<const Node> declarator;
-};
+    private:
+        std::unique_ptr<const Node> declarator;
+    };
+}
