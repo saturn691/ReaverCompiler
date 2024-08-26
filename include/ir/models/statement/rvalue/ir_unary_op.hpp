@@ -13,12 +13,12 @@ namespace ir
     public:
         UnaryOp(
             const std::string &op,
-            const std::variant<Constant, LocalDeclaration> &lhs);
+            const std::variant<Constant, Declaration> &lhs);
 
         void print(std::ostream &dst, int indent_level) const override;
 
     private:
         std::string op;
-        const std::variant<Constant, LocalDeclaration> &lhs;
+        const std::variant<Constant, Declaration> &lhs;
     };
 }

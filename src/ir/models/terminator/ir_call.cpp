@@ -5,7 +5,7 @@ namespace ir
     Call::Call(
         const std::string &func,
         const std::vector<std::string> &args,
-        const LocalDeclaration &ret,
+        const Declaration &ret,
         const BasicBlock &bb)
         : func(func),
           args(args),

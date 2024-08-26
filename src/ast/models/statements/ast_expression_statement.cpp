@@ -21,11 +21,12 @@ namespace ast
         dst << ";";
     }
 
-    void ExpressionStatement::lower(Context &context) const
+    template <typename... Args>
+    void ExpressionStatement::lower(Context &context, Args &&...args) const
     {
         if (expression)
         {
-            expression->lower(context);
+            expression->lower(context, std::forward<Args>(args)...);
         }
     }
 }

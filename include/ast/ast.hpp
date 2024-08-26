@@ -6,5 +6,5 @@
 
 namespace ast
 {
-    extern const Node *parseAST(std::string filename);
+    extern const TranslationUnit *parseAST(std::string filename);
 }

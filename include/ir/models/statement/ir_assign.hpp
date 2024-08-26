@@ -10,13 +10,13 @@ namespace ir
     {
     public:
         Assign(
-            const LocalDeclaration &lhs,
+            const Declaration &lhs,
             const Rvalue &rhs);
 
         void print(std::ostream &dst, int indent_level) const override;
 
     private:
-        const LocalDeclaration &lhs;
+        const Declaration &lhs;
         const Rvalue &rhs;
     };
 }

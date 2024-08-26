@@ -5,6 +5,8 @@
 #include <ast/models/ast_node.hpp>
 #include <ast/models/type/ast_type.hpp>
 
+#include <ir/models/ir_ir.hpp>
+
 namespace ast
 {
     class FunctionDefinition : public Node
@@ -17,7 +19,7 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context) const override;
+        void lower(Context &context, ir::IR &ir) const;
 
     private:
         std::unique_ptr<const Type> specifiers;

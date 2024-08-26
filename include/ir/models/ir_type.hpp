@@ -7,7 +7,7 @@ namespace ir
     class Type : public HasPrint
     {
     public:
-        Type();
+        Type() = default;
 
         void print(std::ostream &dst, int indent_level) const override;
     };

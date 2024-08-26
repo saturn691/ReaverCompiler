@@ -11,9 +11,9 @@ namespace ast
 
     Declaration::Declaration(
         const Type *specifiers,
-        const NodeList *init_list)
+        const DeclaratorList *init_list)
         : specifiers(std::unique_ptr<const Type>(specifiers)),
-          init_list(std::unique_ptr<const NodeList>(init_list))
+          init_list(std::unique_ptr<const DeclaratorList>(init_list))
     {
     }
 
@@ -28,7 +28,8 @@ namespace ast
         dst << ";" << std::endl;
     }
 
-    void Declaration::lower(Context &context) const
+    void Declaration::lower(Context &context, ir::IR &ir) const
     {
+        std::cout << "Declaration::lower" << std::endl;
     }
 }

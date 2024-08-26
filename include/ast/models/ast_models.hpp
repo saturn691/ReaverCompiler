@@ -8,11 +8,11 @@
 #include <ast/models/array/ast_array_declarator.hpp>
 #include <ast/models/array/ast_array_initializer_list.hpp>
 
-#include <ast/models/declaration/ast_declaration_list.hpp>
 #include <ast/models/declaration/ast_declaration.hpp>
 #include <ast/models/declaration/ast_init_declarator_list.hpp>
 #include <ast/models/declaration/ast_init_declarator.hpp>
 #include <ast/models/declaration/ast_pointer_declarator.hpp>
+#include <ast/models/declaration/ast_translation_unit.hpp>
 
 #include <ast/models/enum/ast_enum_declaration.hpp>
 #include <ast/models/enum/ast_enum_item.hpp>

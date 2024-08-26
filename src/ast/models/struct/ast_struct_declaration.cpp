@@ -4,19 +4,19 @@ namespace ast
 {
     StructDeclaration::StructDeclaration(
         StructOrUnionType type,
-        const NodeList *declarations)
+        const StructDeclarationList *declarations)
         : type(type),
-          declarations(std::unique_ptr<const NodeList>(declarations))
+          declarations(std::unique_ptr<const StructDeclarationList>(declarations))
     {
     }
 
     StructDeclaration::StructDeclaration(
         const StructOrUnionType type,
         const std::string identifier,
-        const NodeList *declarations)
+        const StructDeclarationList *declarations)
         : type(type),
           identifier(identifier),
-          declarations(std::unique_ptr<const NodeList>(declarations))
+          declarations(std::unique_ptr<const StructDeclarationList>(declarations))
     {
     }
 

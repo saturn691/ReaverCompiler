@@ -24,7 +24,8 @@ namespace ast
         dst << std::endl;
     }
 
-    void FunctionDefinition::lower(Context &context) const
+    void FunctionDefinition::lower(Context &context, ir::IR &ir) const
     {
+        std::cout << "FunctionDefinition::lower" << std::endl;
     }
 }

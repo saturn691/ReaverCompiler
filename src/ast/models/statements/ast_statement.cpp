@@ -21,8 +21,9 @@ namespace ast
         }
     }
 
-    void Statement::lower(Context &context) const
+    template <typename... Args>
+    void Statement::lower(Context &context, Args &&...args) const
     {
-        statement->lower(context);
+        statement->lower(context, std::forward<Args>(args)...);
     }
 }

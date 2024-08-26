@@ -17,7 +17,8 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context) const override;
+        template <typename... Args>
+        void lower(Context &context, Args &&...args) const;
 
     private:
         std::unique_ptr<const Node> statement;

@@ -4,7 +4,7 @@
 
 namespace ast
 {
-    class ArrayInitializerList : public NodeList
+    class ArrayInitializerList : public NodeList<NodeList<Node>>
     {
     public:
         using NodeList::NodeList;

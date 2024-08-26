@@ -4,7 +4,7 @@ namespace ir
 {
     UnaryOp::UnaryOp(
         const std::string &op,
-        const std::variant<Constant, LocalDeclaration> &lhs)
+        const std::variant<Constant, Declaration> &lhs)
         : op(op),
           lhs(lhs)
     {

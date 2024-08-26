@@ -8,16 +8,17 @@
 void compile(std::string sourcePath, std::ostream &out)
 {
     using ast::Context;
-    using ast::Node;
     using ast::parseAST;
+    using ast::TranslationUnit;
+    using ir::IR;
 
-    const Node *ast = parseAST(sourcePath);
+    const TranslationUnit *ast = parseAST(sourcePath);
     ast->print(std::cout, 0);
     std::cout << std::endl;
 
     Context context;
 
-    ast->lower(context);
+    ir::IR ir = ast->lower(context);
 }
 
 extern FILE *yyin;

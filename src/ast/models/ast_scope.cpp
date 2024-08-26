@@ -6,16 +6,14 @@ namespace ast
     {
     }
 
-    Scope::Scope(const NodeList *declarations)
+    Scope::Scope(const TranslationUnit *declarations)
         : declarations(declarations)
     {
     }
 
-    Scope::Scope(
-        const NodeList *declarations,
-        const NodeList *statements)
-        : declarations(declarations),
-          statements(statements)
+    Scope::Scope(const TranslationUnit *declarations,
+                 const StatementList *statements)
+        : declarations(declarations), statements(statements)
     {
     }
 

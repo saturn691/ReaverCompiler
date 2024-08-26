@@ -4,7 +4,7 @@
 
 namespace ast
 {
-    class InitDeclaratorList : public NodeList
+    class InitDeclaratorList : public NodeList<Node>
     {
     public:
         using NodeList::NodeList;

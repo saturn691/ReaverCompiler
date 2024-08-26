@@ -3,7 +3,7 @@
 namespace ir
 {
     Assign::Assign(
-        const LocalDeclaration &lhs,
+        const Declaration &lhs,
         const Rvalue &rhs)
         : lhs(lhs), rhs(rhs)
     {

@@ -3,16 +3,16 @@
 namespace ast
 {
     EnumDeclaration::EnumDeclaration(
-        const NodeList *enum_list)
-        : enum_list(std::unique_ptr<const NodeList>(enum_list))
+        const EnumList *enum_list)
+        : enum_list(std::unique_ptr<const EnumList>(enum_list))
     {
     }
 
     EnumDeclaration::EnumDeclaration(
         const std::string identifier,
-        const NodeList *enum_list)
+        const EnumList *enum_list)
         : identifier(identifier),
-          enum_list(std::unique_ptr<const NodeList>(enum_list))
+          enum_list(std::unique_ptr<const EnumList>(enum_list))
     {
     }
 

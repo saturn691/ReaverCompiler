@@ -9,9 +9,9 @@ namespace ast
     public:
         String(const std::string value);
 
-        virtual void print(std::ostream &dst, int indent_level) const override;
+        void print(std::ostream &dst, int indent_level) const override;
 
-        virtual void lower(Context &context) const override;
+        void lower(Context &context) const;
 
     private:
         std::string value;

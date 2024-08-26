@@ -3,9 +3,9 @@
 namespace ir
 {
     BinaryOp::BinaryOp(
-        const std::variant<Constant, LocalDeclaration> &lhs,
+        const std::variant<Constant, Declaration> &lhs,
         const std::string &op,
-        const std::variant<Constant, LocalDeclaration> &rhs)
+        const std::variant<Constant, Declaration> &rhs)
         : lhs(lhs),
           op(op),
           rhs(rhs)

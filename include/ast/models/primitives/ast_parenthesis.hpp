@@ -13,7 +13,8 @@ namespace ast
 
         virtual void print(std::ostream &dst, int indent_level) const override;
 
-        virtual void lower(Context &context) const override;
+        template <typename... Args>
+        decltype(auto) lower(Context &context, Args &&...args) const;
 
     private:
         std::unique_ptr<const Node> expr;

@@ -4,7 +4,7 @@ namespace ast
 {
     FunctionCall::FunctionCall(
         const Node *declarator,
-        const NodeList *args)
+        const FunctionCallList *args)
         : declarator(declarator),
           args(args)
     {

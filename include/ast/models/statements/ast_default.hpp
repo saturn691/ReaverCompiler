@@ -13,6 +13,6 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context) const override;
+        void lower(Context &context) const;
     };
 }

@@ -9,7 +9,7 @@
   using namespace ast;
 
   extern FILE *yyin;
-  extern const Node *g_root;
+  extern const TranslationUnit *g_root;
 
   // Declare functions provided by Flex,
   // so that Bison generated code can call them.
@@ -20,15 +20,31 @@
 
 // All the possible types of tokens
 %union{
-    Node                *node;
-    NodeList            *nodes;
-    Type                *type;
-    UnaryOpType         unary_op;
-    AssignmentType      assignment_op;
-    StructOrUnionType   struct_or_union;
-    std::string         *string;
-    int                 integer;
-    yytokentype         token;
+    Node                    *node;
+    NodeList<Node>          *nodes;
+    Type                    *type;
+
+    FunctionDefinition      *function_definition;
+    Declaration             *declaration;
+
+    UnaryOpType             unary_op;
+    AssignmentType          assignment_op;
+    StructOrUnionType       struct_or_union;
+
+    ArrayInitializerList    *array_initializer_list;
+    NodeList<Declaration>   *declaration_list;
+    EnumList                *enum_list;
+    FunctionCallList        *function_call_list;
+    FunctionParamList       *function_param_list;
+    InitDeclaratorList      *init_declarator_list;
+    NodeList<Statement>     *statement_list;
+    StructDeclarationList   *struct_declaration_list;
+    StructItemList          *struct_item_list;
+    TranslationUnit         *translation_unit;
+
+    std::string             *string;
+    int                     integer;
+    yytokentype             token;
 }
 
 %token IDENTIFIER CONSTANT STRING_LITERAL CHAR_LITERAL SIZEOF
@@ -56,10 +72,9 @@
 %type <node> conditional_expression
 %type <node> expression constant_expression
 
-%type <node> declaration
 /* %type <node> storage_class_specifier type_qualifier */
 
-%type <node> struct_declaration
+%type <node> struct_declaration external_declaration
 %type <struct_or_union> struct_or_union
 %type <node> struct_declarator enumerator
 %type <type> enum_specifier
@@ -70,13 +85,20 @@
 %type <node> statement labeled_statement
 %type <node> expression_statement selection_statement iteration_statement
 %type <node> jump_statement
-%type <node> external_declaration function_definition
 
-%type <nodes> declaration_list statement_list argument_expression_list
-%type <nodes> parameter_list parameter_type_list struct_declaration_list
-%type <nodes> struct_declarator_list enumerator_list identifier_list
-%type <nodes> init_declarator_list
-%type <nodes> translation_unit initializer_list initializer
+%type <nodes> identifier_list
+%type <nodes> initializer
+
+%type <declaration_list> declaration_list
+%type <enum_list> enumerator_list
+%type <init_declarator_list> init_declarator_list
+%type <function_param_list> parameter_list parameter_type_list
+%type <array_initializer_list> initializer_list
+%type <function_call_list> argument_expression_list
+%type <statement_list> statement_list
+%type <struct_item_list> struct_declarator_list
+%type <struct_declaration_list> struct_declaration_list
+%type <translation_unit> translation_unit
 
 // Other types of nodes
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
@@ -85,6 +107,9 @@
 %type <node> declarator direct_declarator init_declarator
 %type <node> compound_statement
 %type <unary_op> unary_operator
+%type <function_definition> function_definition
+%type <declaration> declaration
+
 
 %start root
 %%
@@ -112,7 +137,7 @@ postfix_expression
 	| postfix_expression '[' expression ']'
         { $$ = new ArrayAccess($1, $3); }
 	| postfix_expression '(' ')'
-        { $$ = new FunctionCall($1, new NodeList()); }
+        { $$ = new FunctionCall($1, new FunctionCallList()); }
 	| postfix_expression '(' argument_expression_list ')'
         { $$ = new FunctionCall($1, $3); }
     | postfix_expression '.' IDENTIFIER
@@ -387,9 +412,9 @@ struct_or_union
 
 struct_declaration_list
 	: struct_declaration
-        { $$ = new StructDeclarationList($1); }
+        { $$ = new StructDeclarationList(dynamic_cast<const StructItem*>($1)); }
 	| struct_declaration_list struct_declaration
-        { $1->push_back($2); $$ = $1; }
+        { $1->push_back(dynamic_cast<const StructItem*>($2)); $$ = $1; }
     ;
 
 struct_declaration
@@ -407,9 +432,9 @@ specifier_qualifier_list
 
 struct_declarator_list
 	: struct_declarator
-        { $$ = new StructItemList($1); }
+        { $$ = new StructItemList(dynamic_cast<const StructItemDeclarator*>($1)); }
 	| struct_declarator_list ',' struct_declarator
-        { $1->push_back($3); $$ = $1; }
+        { $1->push_back(dynamic_cast<const StructItemDeclarator*>($3)); $$ = $1; }
     ;
 
 struct_declarator
@@ -432,9 +457,9 @@ enum_specifier
 
 enumerator_list
 	: enumerator
-        { $$ = new EnumList($1); }
+        { $$ = new EnumList(dynamic_cast<const EnumItem*>($1)); }
 	| enumerator_list ',' enumerator
-        { $1->push_back($3); $$ = $1; }
+        { $1->push_back(dynamic_cast<const EnumItem*>($3)); $$ = $1; }
 	;
 
 enumerator
@@ -500,9 +525,9 @@ parameter_type_list
 
 parameter_list
 	: parameter_declaration
-        { $$ = new FunctionParamList($1); }
+        { $$ = new FunctionParamList(dynamic_cast<const FunctionParam*>($1)); }
 	| parameter_list ',' parameter_declaration
-        { $1->push_back($3); $$ = $1; }
+        { $1->push_back(dynamic_cast<const FunctionParam*>($3)); $$ = $1; }
     ;
 
 parameter_declaration
@@ -541,14 +566,14 @@ direct_abstract_declarator
 	| direct_abstract_declarator '(' parameter_type_list ')'
 	;
 
+// Doesn't change anything in lowering but keeps parser happy
 initializer
 	: assignment_expression
-        // Doesn't change anything in lowering but keeps parser happy
-        { $$ = new NodeList($1); }
+        { $$ = new NodeList<Node>($1); }
 	| '{' initializer_list '}'
-        { $$ = $2; }
+        { $$ = new NodeList<Node>($2); }
     | '{' initializer_list ',' '}'
-        { $$ = $2; }
+        { $$ = new NodeList<Node>($2); }
     ;
 
 initializer_list
@@ -595,16 +620,16 @@ compound_statement
 
 declaration_list
 	: declaration
-        { $$ = new NodeList($1); }
+        { $$ = new NodeList<Declaration>(dynamic_cast<const Declaration*>($1)); }
 	| declaration_list declaration
-        { $1->push_back($2); $$ = $1; }
+        { $1->push_back(dynamic_cast<const Declaration*>($2)); $$ = $1; }
 	;
 
 statement_list
 	: statement
-        { $$ = new NodeList($1); }
+        { $$ = new NodeList<Statement>(dynamic_cast<const Statement*>($1)); }
 	| statement_list statement
-        { $1->push_back($2); $$ = $1; }
+        { $1->push_back(dynamic_cast<const Statement*>($2)); $$ = $1; }
 	;
 
 expression_statement
@@ -647,9 +672,19 @@ jump_statement
 
 translation_unit
 	: external_declaration
-        { $$ = new DeclarationList($1); }
+        { $$ = new TranslationUnit(dynamic_cast<const Declaration*>($1)); }
 	| translation_unit external_declaration
-        { $1->push_back($2); $$ = $1; }
+        {
+            if (const auto *funcDef = dynamic_cast<const FunctionDefinition*>($2))
+            {
+                $1->push_back(funcDef);
+            }
+            else if (const auto *decl = dynamic_cast<const Declaration*>($2))
+            {
+                $1->push_back(decl);
+            }
+            $$ = $1;
+        }
     ;
 
 external_declaration
@@ -669,11 +704,11 @@ function_definition
 
 %%
 
-const Node *g_root;
+const TranslationUnit *g_root;
 
 namespace ast
 {
-    const Node *parseAST(std::string filename)
+    const TranslationUnit *parseAST(std::string filename)
     {
         yyin = fopen(filename.c_str(), "r");
 

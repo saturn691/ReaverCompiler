@@ -10,7 +10,7 @@ namespace ast
 
     FunctionDeclarator::FunctionDeclarator(
         const Node *declarator,
-        const NodeList *params)
+        const FunctionParamList *params)
         : declarator(declarator),
           params(params)
     {

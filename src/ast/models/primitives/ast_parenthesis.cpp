@@ -15,7 +15,8 @@ namespace ast
         dst << ")";
     }
 
-    void Parenthesis::lower(Context &context) const
+    template <typename... Args>
+    decltype(auto) Parenthesis::lower(Context &context, Args &&...args) const
     {
         expr->lower(context);
     }

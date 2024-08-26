@@ -14,7 +14,7 @@ namespace ir
         Call(
             const std::string &func,
             const std::vector<std::string> &args,
-            const LocalDeclaration &ret,
+            const Declaration &ret,
             const BasicBlock &bb);
 
         void print(std::ostream &dst, int indent_level) const override;
@@ -22,7 +22,7 @@ namespace ir
     private:
         std::string func;
         std::vector<std::string> args;
-        const LocalDeclaration &ret;
+        const Declaration &ret;
         const BasicBlock &bb;
     };
 }

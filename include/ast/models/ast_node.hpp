@@ -18,7 +18,8 @@ namespace ast
     public:
         virtual ~Node() = default;
 
-        // Lowers AST into an IR graph
-        virtual void lower(Context &context) const = 0;
+        // Turns the AST node to IR
+        template <typename... Args>
+        decltype(auto) lower(Context &context, Args &&...args) const;
     };
 }

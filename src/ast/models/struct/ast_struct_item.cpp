@@ -4,9 +4,9 @@ namespace ast
 {
     StructItem::StructItem(
         const Type *type,
-        const NodeList *declarators)
+        const StructItemList *declarators)
         : type(std::unique_ptr<const Type>(type)),
-          declarators(std::unique_ptr<const NodeList>(declarators))
+          declarators(std::unique_ptr<const StructItemList>(declarators))
     {
     }
 

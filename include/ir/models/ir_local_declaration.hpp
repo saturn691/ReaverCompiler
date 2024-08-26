@@ -5,10 +5,12 @@
 
 namespace ir
 {
-    class LocalDeclaration : public HasPrint
+    class Declaration : public HasPrint
     {
     public:
-        LocalDeclaration(const std::string &name, const Type &type);
+        Declaration() = default;
+
+        Declaration(const std::string &name, const Type &type);
 
         void print(std::ostream &dst, int indent_level) const override;
 

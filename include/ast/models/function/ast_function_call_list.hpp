@@ -4,7 +4,7 @@
 
 namespace ast
 {
-    class FunctionCallList : public NodeList
+    class FunctionCallList : public NodeList<Node>
     {
     public:
         using NodeList::NodeList;

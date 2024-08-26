@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include <ast/models/declaration/ast_declaration.hpp>
+#include <ast/models/statements/ast_statement.hpp>
 #include <ast/models/ast_node.hpp>
 #include <ast/models/ast_node_list.hpp>
 
@@ -10,18 +12,22 @@ namespace ast
     class Scope : public Node
     {
     public:
+        using StatementList = NodeList<Statement>;
+        using TranslationUnit = NodeList<Declaration>;
+
         Scope();
 
-        Scope(const NodeList *declarations);
+        Scope(const TranslationUnit *declarations);
 
-        Scope(const NodeList *declarations, const NodeList *statements);
+        Scope(const TranslationUnit *declarations,
+              const StatementList *statements);
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context) const override;
+        void lower(Context &context) const;
 
     private:
-        std::unique_ptr<const NodeList> declarations;
-        std::unique_ptr<const NodeList> statements;
+        std::unique_ptr<const TranslationUnit> declarations;
+        std::unique_ptr<const StatementList> statements;
     };
 }
