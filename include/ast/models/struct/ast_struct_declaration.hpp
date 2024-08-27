@@ -9,7 +9,7 @@
 
 namespace ast
 {
-    class StructDeclaration : public Type, public Node
+    class StructDeclaration : public Type
     {
     public:
         // Anonymous struct/union
@@ -24,7 +24,7 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context) const;
+        ir::Type lower(Context &context) const override;
 
         unsigned int get_size() const override;
 

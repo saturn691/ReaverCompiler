@@ -1,14 +1,16 @@
 #pragma once
 
-#include <ast/models/traits/ast_has_print.hpp>
+#include <ast/models/ast_node.hpp>
+
+#include <ir/models/ir_type.hpp>
 
 namespace ast
 {
-    class Type : public HasPrint
+    class Type : public Node
     {
     public:
         virtual unsigned int get_size() const = 0;
 
-    private:
+        virtual ir::Type lower(Context &context) const = 0;
     };
 }

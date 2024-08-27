@@ -4,6 +4,7 @@
   #include "ast/ast.hpp"
 
   #include <cassert>
+  #include <variant>
   #include <string>
 
   using namespace ast;
@@ -22,8 +23,9 @@
 %union{
     Node                    *node;
     NodeList<Node>          *nodes;
-    Type                    *type;
 
+    Type                    *type;
+    Declarator              *decl;
     FunctionDefinition      *function_definition;
     Declaration             *declaration;
 
@@ -42,6 +44,7 @@
     StructItemList          *struct_item_list;
     TranslationUnit         *translation_unit;
 
+    std::variant<Declaration*, FunctionDefinition*> *ext_decl;
     std::string             *string;
     int                     integer;
     yytokentype             token;
@@ -74,7 +77,8 @@
 
 /* %type <node> storage_class_specifier type_qualifier */
 
-%type <node> struct_declaration external_declaration
+%type <node> struct_declaration
+%type <ext_decl> external_declaration
 %type <struct_or_union> struct_or_union
 %type <node> struct_declarator enumerator
 %type <type> enum_specifier
@@ -104,7 +108,7 @@
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
 %type <type> struct_or_union_specifier
 %type <assignment_op> assignment_operator
-%type <node> declarator direct_declarator init_declarator
+%type <decl> declarator direct_declarator init_declarator
 %type <node> compound_statement
 %type <unary_op> unary_operator
 %type <function_definition> function_definition
@@ -672,26 +676,16 @@ jump_statement
 
 translation_unit
 	: external_declaration
-        { $$ = new TranslationUnit(dynamic_cast<const Declaration*>($1)); }
+        { $$ = new TranslationUnit($1); }
 	| translation_unit external_declaration
-        {
-            if (const auto *funcDef = dynamic_cast<const FunctionDefinition*>($2))
-            {
-                $1->push_back(funcDef);
-            }
-            else if (const auto *decl = dynamic_cast<const Declaration*>($2))
-            {
-                $1->push_back(decl);
-            }
-            $$ = $1;
-        }
+        { $1->push_back($2); $$ = $1; }
     ;
 
 external_declaration
 	: function_definition
-        { $$ = $1; }
+        { $$ = new std::variant<Declaration*, FunctionDefinition*>($1); }
 	| declaration
-        { $$ = $1; }
+        { $$ = new std::variant<Declaration*, FunctionDefinition*>($1); }
 	;
 
 function_definition

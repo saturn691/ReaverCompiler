@@ -22,6 +22,8 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
+        ir::Type lower(Context &context) const override;
+
         unsigned int get_size() const override;
 
     private:

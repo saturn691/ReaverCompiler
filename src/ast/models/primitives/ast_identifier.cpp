@@ -13,7 +13,12 @@ namespace ast
         dst << indent << id;
     }
 
-    void Identifier::lower(Context &context) const
+    std::vector<ir::Declaration> Identifier::lower(Context &context) const
     {
+    }
+
+    std::string Identifier::get_id() const
+    {
+        return id;
     }
 }

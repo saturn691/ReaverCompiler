@@ -4,10 +4,10 @@ namespace ast
 {
     FunctionDefinition::FunctionDefinition(
         const Type *specifiers,
-        const Node *declarator,
+        const Declarator *declarator,
         const Node *statement)
         : specifiers(std::unique_ptr<const Type>(specifiers)),
-          declarator(std::unique_ptr<const Node>(declarator)),
+          declarator(std::unique_ptr<const Declarator>(declarator)),
           statement(std::unique_ptr<const Node>(statement))
     {
     }
@@ -26,6 +26,13 @@ namespace ast
 
     void FunctionDefinition::lower(Context &context, ir::IR &ir) const
     {
-        std::cout << "FunctionDefinition::lower" << std::endl;
+        ir::Declaration return_type = ir::Declaration(
+            std::nullopt,
+            specifiers->lower(context));
+        std::vector<ir::Declaration> args = declarator->lower(context);
+        std::string name = declarator->get_id();
+        ir::Function function = ir::Function(name, return_type, args);
+
+        ir.add_function(function);
     }
 }

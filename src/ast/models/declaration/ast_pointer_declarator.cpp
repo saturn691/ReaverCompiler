@@ -4,9 +4,9 @@ namespace ast
 {
     PointerDeclarator::PointerDeclarator(
         int amount,
-        const Node *declarator)
+        const Declarator *declarator)
         : amount(amount),
-          declarator(std::unique_ptr<const Node>(declarator))
+          declarator(std::unique_ptr<const Declarator>(declarator))
     {
     }
 
@@ -18,7 +18,13 @@ namespace ast
         declarator->print(dst, 0);
     }
 
-    void PointerDeclarator::lower(Context &context) const
+    std::vector<ir::Declaration>
+    PointerDeclarator::lower(Context &context) const
     {
+    }
+
+    std::string PointerDeclarator::get_id() const
+    {
+        return declarator->get_id();
     }
 }

@@ -13,7 +13,7 @@ namespace ast
         dst << indent << "enum " << identifier;
     }
 
-    void Enum::lower(Context &context) const
+    ir::Type Enum::lower(Context &context) const
     {
     }
 

@@ -9,7 +9,7 @@
 
 namespace ast
 {
-    class EnumDeclaration : public Node, public Type
+    class EnumDeclaration : public Type
     {
     public:
         EnumDeclaration(const EnumList *enum_list);
@@ -20,7 +20,7 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context) const;
+        ir::Type lower(Context &context) const override;
 
         unsigned int get_size() const override;
 

@@ -12,11 +12,9 @@ namespace ir
         // Prints the node to the output stream
         virtual void print(std::ostream &dst, int indent_level) const = 0;
 
-    protected:
-        inline void print_indent(std::ostream &dst, int indent_level) const
+        inline std::string get_indent(int indent_level) const
         {
-            std::string indent(indent_level * 4, ' ');
-            dst << indent;
+            return std::string(indent_level * 4, ' ');
         }
     };
 }

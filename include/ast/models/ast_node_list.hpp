@@ -28,7 +28,9 @@ namespace ast
         NodeList(const T *node);
 
         /**
-         * Adds a node to the list. Only used in the parser.
+         * Adds a node to the list. Only used in the parser. Accepts either
+         * - Node*
+         * - std::variant<Node*...>
          */
         template <typename T>
         void push_back(const T *node);
@@ -62,7 +64,17 @@ namespace ast
     template <typename T>
     void NodeList<Ts...>::push_back(const T *node)
     {
-        nodes.push_back(std::unique_ptr<const T>(node));
+        if constexpr (std::is_same_v<T, std::variant<Ts *...>>)
+        {
+            std::visit([this](auto *arg)
+                       { using U = std::remove_pointer_t<decltype(arg)>;
+                        this->nodes.push_back(std::unique_ptr<const U>(arg)); },
+                       *node);
+        }
+        else
+        {
+            nodes.push_back(std::unique_ptr<const T>(node));
+        }
     }
 
     template <typename... Ts>

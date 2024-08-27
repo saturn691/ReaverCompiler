@@ -1,22 +1,25 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
-#include <ast/models/ast_node.hpp>
+#include <ast/models/declaration/ast_declarator.hpp>
 
 namespace ast
 {
-    class PointerDeclarator : public Node
+    class PointerDeclarator : public Declarator
     {
     public:
-        PointerDeclarator(int amount, const Node *declarator);
+        PointerDeclarator(int amount, const Declarator *declarator);
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context) const;
+        std::vector<ir::Declaration> lower(Context &context) const override;
+
+        std::string get_id() const override;
 
     private:
         int amount;
-        std::unique_ptr<const Node> declarator;
+        std::unique_ptr<const Declarator> declarator;
     };
 }

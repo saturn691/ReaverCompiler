@@ -3,24 +3,28 @@
 #include <memory>
 
 #include <ast/models/function/ast_function_param_list.hpp>
-#include <ast/models/ast_node.hpp>
+#include <ast/models/declaration/ast_declarator.hpp>
 #include <ast/models/ast_node_list.hpp>
 
 namespace ast
 {
-    class FunctionDeclarator : public Node
+    class FunctionDeclarator : public Declarator
     {
     public:
-        FunctionDeclarator(const Node *declarator);
+        FunctionDeclarator(const Declarator *declarator);
 
-        FunctionDeclarator(const Node *declarator, const FunctionParamList *params);
+        FunctionDeclarator(
+            const Declarator *declarator,
+            const FunctionParamList *params);
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context) const;
+        std::vector<ir::Declaration> lower(Context &context) const override;
+
+        std::string get_id() const override;
 
     private:
-        std::unique_ptr<const Node> declarator;
+        std::unique_ptr<const Declarator> declarator;
         std::unique_ptr<const FunctionParamList> params;
     };
 }

@@ -3,7 +3,7 @@
 namespace ir
 {
     Declaration::Declaration(
-        const std::string &name,
+        const std::optional<std::string> &name,
         const Type &type)
         : name(name),
           type(type)

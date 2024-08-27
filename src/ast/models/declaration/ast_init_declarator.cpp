@@ -3,9 +3,9 @@
 namespace ast
 {
     InitDeclarator::InitDeclarator(
-        const Node *declarator,
+        const Declarator *declarator,
         const Node *initializer)
-        : declarator(std::unique_ptr<const Node>(declarator)),
+        : declarator(std::unique_ptr<const Declarator>(declarator)),
           initializer(std::unique_ptr<const Node>(initializer))
     {
     }
@@ -17,7 +17,13 @@ namespace ast
         initializer->print(dst, 0);
     }
 
-    void InitDeclarator::lower(Context &context) const
+    std::vector<ir::Declaration>
+    InitDeclarator::lower(Context &context) const
     {
+    }
+
+    std::string InitDeclarator::get_id() const
+    {
+        return declarator->get_id();
     }
 }

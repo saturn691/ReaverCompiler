@@ -1,5 +1,7 @@
 #include <ast/models/function/ast_function_param.hpp>
 
+#include <optional>
+
 namespace ast
 {
     FunctionParam::FunctionParam(const Type *type)
@@ -10,7 +12,7 @@ namespace ast
 
     FunctionParam::FunctionParam(
         const Type *type,
-        const Node *identifier)
+        const Declarator *identifier)
         : type(type),
           identifier(identifier)
     {
@@ -27,7 +29,15 @@ namespace ast
         }
     }
 
-    void FunctionParam::lower(Context &context) const
+    ir::Declaration FunctionParam::lower(Context &context) const
     {
+        std::optional<std::string> ident = std::nullopt;
+        if (identifier != nullptr)
+        {
+            ident = identifier->get_id();
+        }
+        return ir::Declaration(
+            ident,
+            type->lower(context));
     }
 }

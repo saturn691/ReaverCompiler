@@ -18,6 +18,6 @@ namespace ast
     template <typename... Args>
     decltype(auto) Parenthesis::lower(Context &context, Args &&...args) const
     {
-        expr->lower(context);
+        return expr->lower(context);
     }
 }

@@ -47,7 +47,7 @@ namespace ast
         dst << indent << "}";
     }
 
-    void StructDeclaration::lower(Context &context) const
+    ir::Type StructDeclaration::lower(Context &context) const
     {
     }
 

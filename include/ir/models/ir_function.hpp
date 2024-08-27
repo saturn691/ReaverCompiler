@@ -12,7 +12,12 @@ namespace ir
     class Function : public HasPrint
     {
     public:
-        Function(const std::string name);
+        Function(
+            const std::string name,
+            const Declaration ret,
+            const std::vector<Declaration> params);
+
+        Function(const Function &other);
 
         void print(std::ostream &dst, int indent_level) const override;
 
@@ -21,7 +26,7 @@ namespace ir
         std::vector<BasicBlock> bbs;
         std::vector<Declaration> locals;
         std::vector<Declaration> params;
-        Declaration ret;
+        const Declaration ret;
         std::vector<Constant> constants;
     };
 }

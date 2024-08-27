@@ -27,6 +27,10 @@ namespace ast
         dst << " " << identifier;
     }
 
+    ir::Type Struct::lower(Context &context) const
+    {
+    }
+
     unsigned int Struct::get_size() const
     {
         return 0;

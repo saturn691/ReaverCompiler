@@ -26,7 +26,7 @@ namespace ast
         dst << indent << "}";
     }
 
-    void EnumDeclaration::lower(Context &context) const
+    ir::Type EnumDeclaration::lower(Context &context) const
     {
     }
 

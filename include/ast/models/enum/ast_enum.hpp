@@ -5,14 +5,14 @@
 
 namespace ast
 {
-    class Enum : public Node, public Type
+    class Enum : public Type
     {
     public:
         Enum(const std::string identifier);
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context) const;
+        ir::Type lower(Context &context) const override;
 
         unsigned int get_size() const override;
 

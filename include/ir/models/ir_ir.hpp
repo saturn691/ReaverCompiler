@@ -12,6 +12,10 @@ namespace ir
 
         void print(std::ostream &dst, int indent_level) const override;
 
+        void add_function(const Function &function);
+
+        void add_declaration(const Declaration &declaration);
+
     private:
         // Function definitions
         std::vector<Function> functions;

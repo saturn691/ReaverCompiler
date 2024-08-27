@@ -3,16 +3,17 @@
 namespace ast
 {
     FunctionDeclarator::FunctionDeclarator(
-        const Node *declarator)
-        : declarator(declarator)
+        const Declarator *declarator)
+        : declarator(std::unique_ptr<const Declarator>(declarator)),
+          params(nullptr)
     {
     }
 
     FunctionDeclarator::FunctionDeclarator(
-        const Node *declarator,
+        const Declarator *declarator,
         const FunctionParamList *params)
-        : declarator(declarator),
-          params(params)
+        : declarator(std::unique_ptr<const Declarator>(declarator)),
+          params(std::unique_ptr<const FunctionParamList>(params))
     {
     }
 
@@ -29,7 +30,14 @@ namespace ast
         dst << ")";
     }
 
-    void FunctionDeclarator::lower(Context &context) const
+    std::vector<ir::Declaration>
+    FunctionDeclarator::lower(Context &context) const
     {
+        return params->lower(context);
+    }
+
+    std::string FunctionDeclarator::get_id() const
+    {
+        return declarator->get_id();
     }
 }
