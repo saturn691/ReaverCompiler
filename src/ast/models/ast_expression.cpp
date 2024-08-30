@@ -1,13 +1,18 @@
-#include <ast/models/operators/ast_binary_op.hpp>
+#include <ast/models/ast_expression.hpp>
+#include <ast/utils/ast_utils.hpp>
 
 namespace ast
 {
+    /*************************************************************************
+     * BinaryOp implementation
+     ************************************************************************/
+
     BinaryOp::BinaryOp(
-        const Node *left,
-        const Node *right,
+        const Expression *left,
+        const Expression *right,
         const BinaryOpType op)
-        : left(std::unique_ptr<const Node>(left)),
-          right(std::unique_ptr<const Node>(right)),
+        : left(std::shared_ptr<const Expression>(left)),
+          right(std::shared_ptr<const Expression>(right)),
           op(op)
     {
     }
@@ -77,7 +82,23 @@ namespace ast
         right->print(dst, 0);
     }
 
-    void BinaryOp::lower(Context &context) const
+    /*************************************************************************
+     * Identifier implementation
+     ************************************************************************/
+
+    Identifier::Identifier(std::string id)
+        : id(id)
     {
+    }
+
+    void Identifier::print(std::ostream &dst, int indent_level) const
+    {
+        std::string indent = Utils::get_indent(indent_level);
+        dst << indent << id;
+    }
+
+    std::string Identifier::get_id() const
+    {
+        return id;
     }
 }

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <ast/models/ast_node.hpp>
+#include <ast/models/statements/ast_statement.hpp>
 
 namespace ast
 {
-    class Break : public Node
+    class Break : public Statement
     {
     public:
         Break();

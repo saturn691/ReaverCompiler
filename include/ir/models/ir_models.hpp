@@ -17,5 +17,5 @@
 
 #include <ir/models/ir_basic_block.hpp>
 #include <ir/models/ir_function.hpp>
-#include <ir/models/ir_local_declaration.hpp>
+#include <ir/models/ir_declaration.hpp>
 #include <ir/models/ir_type.hpp>

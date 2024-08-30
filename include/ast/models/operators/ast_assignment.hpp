@@ -31,8 +31,8 @@ namespace ast
         void lower(Context &context) const;
 
     private:
-        std::unique_ptr<const Node> left;
-        std::unique_ptr<const Node> right;
+        std::shared_ptr<const Node> left;
+        std::shared_ptr<const Node> right;
         AssignmentType op;
     };
 }

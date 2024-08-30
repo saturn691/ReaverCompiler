@@ -6,7 +6,7 @@ namespace ast
         int amount,
         const Declarator *declarator)
         : amount(amount),
-          declarator(std::unique_ptr<const Declarator>(declarator))
+          declarator(std::shared_ptr<const Declarator>(declarator))
     {
     }
 
@@ -16,11 +16,6 @@ namespace ast
         std::string pointers(amount, '*');
         dst << indent << pointers;
         declarator->print(dst, 0);
-    }
-
-    std::vector<ir::Declaration>
-    PointerDeclarator::lower(Context &context) const
-    {
     }
 
     std::string PointerDeclarator::get_id() const

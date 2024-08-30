@@ -4,7 +4,7 @@
 
 #include <ir/models/statement/rvalue/ir_constant.hpp>
 #include <ir/models/statement/rvalue/ir_rvalue.hpp>
-#include <ir/models/ir_local_declaration.hpp>
+#include <ir/models/ir_declaration.hpp>
 
 namespace ir
 {

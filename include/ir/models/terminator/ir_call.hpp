@@ -3,7 +3,7 @@
 #include <vector>
 
 #include <ir/models/terminator/ir_terminator.hpp>
-#include <ir/models/ir_local_declaration.hpp>
+#include <ir/models/ir_declaration.hpp>
 #include <ir/models/ir_basic_block.hpp>
 
 namespace ir

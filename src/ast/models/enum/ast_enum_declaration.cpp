@@ -4,7 +4,7 @@ namespace ast
 {
     EnumDeclaration::EnumDeclaration(
         const EnumList *enum_list)
-        : enum_list(std::unique_ptr<const EnumList>(enum_list))
+        : enum_list(std::shared_ptr<const EnumList>(enum_list))
     {
     }
 
@@ -12,7 +12,7 @@ namespace ast
         const std::string identifier,
         const EnumList *enum_list)
         : identifier(identifier),
-          enum_list(std::unique_ptr<const EnumList>(enum_list))
+          enum_list(std::shared_ptr<const EnumList>(enum_list))
     {
     }
 

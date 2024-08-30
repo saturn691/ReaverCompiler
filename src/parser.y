@@ -26,25 +26,30 @@
 
     Type                    *type;
     Declarator              *decl;
-    FunctionDefinition      *function_definition;
-    Declaration             *declaration;
+    Expression              *expr;
+    FunctionDefinition      *func_def;
+    FunctionDeclarator      *func_decl;
+    Declaration             *declar;
+    DeclarationNode         *decl_node;
+    CompoundStatement       *scope;
+    Statement               *stmt;
 
-    UnaryOpType             unary_op;
-    AssignmentType          assignment_op;
-    StructOrUnionType       struct_or_union;
+    // UnaryOpType             unary_op;
+    // AssignmentType          assignment_op;
+    // StructOrUnionType       struct_or_union;
 
-    ArrayInitializerList    *array_initializer_list;
-    NodeList<Declaration>   *declaration_list;
-    EnumList                *enum_list;
-    FunctionCallList        *function_call_list;
+    // ArrayInitializerList    *array_initializer_list;
+    DeclarationList         *declaration_list;
+    // EnumList                *enum_list;
+    // FunctionCallList        *function_call_list;
     FunctionParamList       *function_param_list;
     InitDeclaratorList      *init_declarator_list;
-    NodeList<Statement>     *statement_list;
-    StructDeclarationList   *struct_declaration_list;
-    StructItemList          *struct_item_list;
+    StatementList           *stmt_list;
+    // StructDeclarationList   *struct_declaration_list;
+    // StructItemList          *struct_item_list;
     TranslationUnit         *translation_unit;
 
-    std::variant<Declaration*, FunctionDefinition*> *ext_decl;
+    std::variant<DeclarationNode*, FunctionDefinition*> *ext_decl;
     std::string             *string;
     int                     integer;
     yytokentype             token;
@@ -65,15 +70,16 @@
 
 %type <string> IDENTIFIER STRING_LITERAL CHAR_LITERAL CONSTANT
 
-%type <node> primary_expression postfix_expression unary_expression
-%type <node> assignment_expression
-%type <node> cast_expression
-%type <node> multiplicative_expression additive_expression shift_expression
-%type <node> relational_expression equality_expression and_expression
-%type <node> exclusive_or_expression inclusive_or_expression
-%type <node> logical_and_expression logical_or_expression
-%type <node> conditional_expression
-%type <node> expression constant_expression
+%type <expr> primary_expression postfix_expression unary_expression
+%type <expr> assignment_expression
+%type <expr> cast_expression
+%type <expr> multiplicative_expression additive_expression shift_expression
+%type <expr> relational_expression equality_expression and_expression
+%type <expr> exclusive_or_expression inclusive_or_expression
+%type <expr> logical_and_expression logical_or_expression
+%type <expr> conditional_expression
+%type <expr> expression constant_expression
+%type <expr> initializer
 
 /* %type <node> storage_class_specifier type_qualifier */
 
@@ -86,12 +92,12 @@
 %type <node> type_qualifier_list
 %type <node> parameter_declaration type_name
 /* %type <node> abstract_declarator direct_abstract_declarator */
-%type <node> statement labeled_statement
-%type <node> expression_statement selection_statement iteration_statement
-%type <node> jump_statement
+
+%type <stmt> statement labeled_statement
+%type <stmt> expression_statement selection_statement iteration_statement
+%type <stmt> jump_statement
 
 %type <nodes> identifier_list
-%type <nodes> initializer
 
 %type <declaration_list> declaration_list
 %type <enum_list> enumerator_list
@@ -99,7 +105,7 @@
 %type <function_param_list> parameter_list parameter_type_list
 %type <array_initializer_list> initializer_list
 %type <function_call_list> argument_expression_list
-%type <statement_list> statement_list
+%type <stmt_list> statement_list
 %type <struct_item_list> struct_declarator_list
 %type <struct_declaration_list> struct_declaration_list
 %type <translation_unit> translation_unit
@@ -109,10 +115,11 @@
 %type <type> struct_or_union_specifier
 %type <assignment_op> assignment_operator
 %type <decl> declarator direct_declarator init_declarator
-%type <node> compound_statement
+%type <scope> compound_statement
 %type <unary_op> unary_operator
-%type <function_definition> function_definition
-%type <declaration> declaration
+%type <func_def> function_definition
+%type <decl_node> declaration
+%type <func_decl> function_declarator
 
 
 %start root
@@ -126,69 +133,69 @@ primary_expression
 	: IDENTIFIER
         { $$ = new Identifier(*$1); }
 	| CONSTANT
-        { $$ = new Constant(*$1); }
+        /* { $$ = new Constant(*$1); } */
 	| STRING_LITERAL
-        { $$ = new String(*$1); }
+        /* { $$ = new String(*$1); } */
 	| CHAR_LITERAL
-        { $$ = new Char(*$1); }
+        /* { $$ = new Char(*$1); } */
     | '(' expression ')'
-        { $$ = new Parenthesis($2); }
+        /* { $$ = new Parenthesis($2); } */
 	;
 
 postfix_expression
 	: primary_expression
         { $$ = $1; }
 	| postfix_expression '[' expression ']'
-        { $$ = new ArrayAccess($1, $3); }
+        /* { $$ = new ArrayAccess($1, $3); } */
 	| postfix_expression '(' ')'
-        { $$ = new FunctionCall($1, new FunctionCallList()); }
+        /* { $$ = new FunctionCall($1, new FunctionCallList()); } */
 	| postfix_expression '(' argument_expression_list ')'
-        { $$ = new FunctionCall($1, $3); }
+        /* { $$ = new FunctionCall($1, $3); } */
     | postfix_expression '.' IDENTIFIER
-        { $$ = new StructAccess($1, StructAccessType::DOT, *$3); }
+        /* { $$ = new StructAccess($1, StructAccessType::DOT, *$3); } */
     | postfix_expression PTR_OP IDENTIFIER
-        { $$ = new StructAccess($1, StructAccessType::ARROW, *$3); }
+        /* { $$ = new StructAccess($1, StructAccessType::ARROW, *$3); } */
 	| postfix_expression INC_OP
-        { $$ = new UnaryOp(UnaryOpType::POST_INC, $1); }
+        /* { $$ = new UnaryOp(UnaryOpType::POST_INC, $1); } */
 	| postfix_expression DEC_OP
-        { $$ = new UnaryOp(UnaryOpType::POST_DEC, $1); }
+        /* { $$ = new UnaryOp(UnaryOpType::POST_DEC, $1); } */
 	;
 
 argument_expression_list
 	: assignment_expression
-        { $$ = new FunctionCallList($1); }
+        /* { $$ = new FunctionCallList($1); } */
 	| argument_expression_list ',' assignment_expression
-        { $1->push_back($3); $$ = $1; }
+        /* { $1->push_back($3); $$ = $1; } */
     ;
 
 unary_expression
 	: postfix_expression
         { $$ = $1; }
 	| INC_OP unary_expression
-        { $$ = new UnaryOp(UnaryOpType::PRE_INC, $2); }
+        /* { $$ = new UnaryOp(UnaryOpType::PRE_INC, $2); } */
 	| DEC_OP unary_expression
-        { $$ = new UnaryOp(UnaryOpType::PRE_DEC, $2); }
+        /* { $$ = new UnaryOp(UnaryOpType::PRE_DEC, $2); } */
 	| unary_operator cast_expression
-        { $$ = new UnaryOp($1, $2); }
+        /* { $$ = new UnaryOp($1, $2); } */
 	| SIZEOF unary_expression
-        { $$ = new Sizeof($2); }
+        /* { $$ = new Sizeof($2); } */
     | SIZEOF '(' type_name ')'
-        { $$ = new Sizeof($3); }
+        /* { $$ = new Sizeof($3); } */
 	;
 
 unary_operator
 	: '&'
-        { $$ = UnaryOpType::ADDRESS_OF; }
+        /* { $$ = UnaryOpType::ADDRESS_OF; } */
 	| '*'
-        { $$ = UnaryOpType::DEREFERENCE; }
+        /* { $$ = UnaryOpType::DEREFERENCE; } */
 	| '+'
-        { $$ = UnaryOpType::PLUS; }
+        /* { $$ = UnaryOpType::PLUS; } */
 	| '-'
-        { $$ = UnaryOpType::MINUS; }
+        /* { $$ = UnaryOpType::MINUS; } */
 	| '~'
-        { $$ = UnaryOpType::BITWISE_NOT; }
+        /* { $$ = UnaryOpType::BITWISE_NOT; } */
 	| '!'
-        { $$ = UnaryOpType::LOGICAL_NOT; }
+        /* { $$ = UnaryOpType::LOGICAL_NOT; } */
 	;
 
 cast_expression
@@ -293,32 +300,32 @@ assignment_expression
 	: conditional_expression
         { $$ = $1; }
 	| unary_expression assignment_operator assignment_expression
-        { $$ = new Assignment($1, $3, $2); }
+        /* { $$ = new Assignment($1, $3, $2); } */
 	;
 
 assignment_operator
 	: '='
-        { $$ = AssignmentType::ASSIGN; }
+        /* { $$ = AssignmentType::ASSIGN; } */
 	| MUL_ASSIGN
-        { $$ = AssignmentType::MUL_ASSIGN; }
+        /* { $$ = AssignmentType::MUL_ASSIGN; } */
 	| DIV_ASSIGN
-        { $$ = AssignmentType::DIV_ASSIGN; }
+        /* { $$ = AssignmentType::DIV_ASSIGN; } */
 	| MOD_ASSIGN
-        { $$ = AssignmentType::MOD_ASSIGN; }
+        /* { $$ = AssignmentType::MOD_ASSIGN; } */
 	| ADD_ASSIGN
-        { $$ = AssignmentType::ADD_ASSIGN; }
+        /* { $$ = AssignmentType::ADD_ASSIGN; } */
 	| SUB_ASSIGN
-        { $$ = AssignmentType::SUB_ASSIGN; }
+        /* { $$ = AssignmentType::SUB_ASSIGN; } */
 	| LEFT_ASSIGN
-        { $$ = AssignmentType::LEFT_ASSIGN; }
+        /* { $$ = AssignmentType::LEFT_ASSIGN; } */
 	| RIGHT_ASSIGN
-        { $$ = AssignmentType::RIGHT_ASSIGN; }
+        /* { $$ = AssignmentType::RIGHT_ASSIGN; } */
 	| AND_ASSIGN
-        { $$ = AssignmentType::AND_ASSIGN; }
+        /* { $$ = AssignmentType::AND_ASSIGN; } */
 	| XOR_ASSIGN
-        { $$ = AssignmentType::XOR_ASSIGN; }
+        /* { $$ = AssignmentType::XOR_ASSIGN; } */
 	| OR_ASSIGN
-        { $$ = AssignmentType::OR_ASSIGN; }
+        /* { $$ = AssignmentType::OR_ASSIGN; } */
 	;
 
 expression
@@ -335,9 +342,9 @@ constant_expression
 declaration
 	: declaration_specifiers ';'
         // Careful here: we need to render the ';'
-        { $$ = new Declaration($1); }
+        { $$ = new DeclarationNode($1); }
 	| declaration_specifiers init_declarator_list ';'
-        { $$ = new Declaration($1, $2); }
+        { $$ = new DeclarationNode($1, $2); }
 	;
 
 declaration_specifiers
@@ -400,30 +407,30 @@ type_specifier
 
 struct_or_union_specifier
 	: struct_or_union IDENTIFIER '{' struct_declaration_list '}'
-        { $$ = new StructDeclaration($1, *$2, $4); }
+        /* { $$ = new StructDeclaration($1, *$2, $4); } */
     | struct_or_union '{' struct_declaration_list '}'
-        { $$ = new StructDeclaration($1, $3); }
+        /* { $$ = new StructDeclaration($1, $3); } */
     | struct_or_union IDENTIFIER
-        { $$ = new Struct($1, *$2); }
+        /* { $$ = new Struct($1, *$2); } */
     ;
 
 struct_or_union
 	: STRUCT
-        { $$ = StructOrUnionType::STRUCT; }
+        /* { $$ = StructOrUnionType::STRUCT; } */
 	| UNION
-        { $$ = StructOrUnionType::UNION; }
+        /* { $$ = StructOrUnionType::UNION; } */
 	;
 
 struct_declaration_list
 	: struct_declaration
-        { $$ = new StructDeclarationList(dynamic_cast<const StructItem*>($1)); }
+        /* { $$ = new StructDeclarationList(dynamic_cast<const StructItem*>($1)); } */
 	| struct_declaration_list struct_declaration
-        { $1->push_back(dynamic_cast<const StructItem*>($2)); $$ = $1; }
+        /* { $1->push_back(dynamic_cast<const StructItem*>($2)); $$ = $1; } */
     ;
 
 struct_declaration
 	: specifier_qualifier_list struct_declarator_list ';'
-        { $$ = new StructItem($1, $2); }
+        /* { $$ = new StructItem($1, $2); } */
 	;
 
 specifier_qualifier_list
@@ -436,14 +443,14 @@ specifier_qualifier_list
 
 struct_declarator_list
 	: struct_declarator
-        { $$ = new StructItemList(dynamic_cast<const StructItemDeclarator*>($1)); }
+        /* { $$ = new StructItemList(dynamic_cast<const StructItemDeclarator*>($1)); } */
 	| struct_declarator_list ',' struct_declarator
-        { $1->push_back(dynamic_cast<const StructItemDeclarator*>($3)); $$ = $1; }
+        /* { $1->push_back(dynamic_cast<const StructItemDeclarator*>($3)); $$ = $1; } */
     ;
 
 struct_declarator
 	: declarator
-        { $$ = new StructItemDeclarator($1); }
+        /* { $$ = new StructItemDeclarator($1); } */
 	| ':' constant_expression
         // Anonymous bitfield
 	| declarator ':' constant_expression
@@ -452,25 +459,25 @@ struct_declarator
 
 enum_specifier
 	: ENUM '{' enumerator_list '}'
-        { $$ = new EnumDeclaration($3); }
+        /* { $$ = new EnumDeclaration($3); } */
 	| ENUM IDENTIFIER '{' enumerator_list '}'
-        { $$ = new EnumDeclaration(*$2, $4); }
+        /* { $$ = new EnumDeclaration(*$2, $4); } */
     | ENUM IDENTIFIER
-        { $$ = new Enum(*$2); }
+        /* { $$ = new Enum(*$2); } */
 	;
 
 enumerator_list
 	: enumerator
-        { $$ = new EnumList(dynamic_cast<const EnumItem*>($1)); }
+        /* { $$ = new EnumList(dynamic_cast<const EnumItem*>($1)); } */
 	| enumerator_list ',' enumerator
-        { $1->push_back(dynamic_cast<const EnumItem*>($3)); $$ = $1; }
+        /* { $1->push_back(dynamic_cast<const EnumItem*>($3)); $$ = $1; } */
 	;
 
 enumerator
 	: IDENTIFIER
-        { $$ = new EnumItem(*$1); }
+        /* { $$ = new EnumItem(*$1); } */
 	| IDENTIFIER '=' constant_expression
-        { $$ = new EnumItem(*$1, $3); }
+        /* { $$ = new EnumItem(*$1, $3); } */
     ;
 
 type_qualifier
@@ -478,9 +485,23 @@ type_qualifier
 	| VOLATILE
 	;
 
+/* Makes lowering easier */
+function_declarator
+    : direct_declarator '(' parameter_type_list ')'
+        { $$ = new FunctionDeclarator($1, $3); }
+    | direct_declarator '(' ')'
+        { $$ = new FunctionDeclarator($1, nullptr); }
+	| direct_declarator '(' identifier_list ')'
+        // Old K&R style function declaration
+    | pointer direct_declarator '(' parameter_type_list ')'
+        /* { $$ = new FunctionDeclarator($2, $4, $1); } */
+    | pointer direct_declarator '(' ')'
+        /* { $$ = new FunctionDeclarator($2, nullptr, $1); } */
+    ;
+
 declarator
 	: pointer direct_declarator
-        { $$ = new PointerDeclarator($1, $2); }
+        /* { $$ = new PointerDeclarator($1, $2); } */
     | direct_declarator
         { $$ = $1; }
 	;
@@ -491,15 +512,9 @@ direct_declarator
 	| '(' declarator ')'
         { $$ = $2; }
 	| direct_declarator '[' constant_expression ']'
-        { $$ = new ArrayDeclarator($1, $3); }
+        /* { $$ = new ArrayDeclarator($1, $3); } */
     | direct_declarator '[' ']'
-        { $$ = new ArrayDeclarator($1); }
-	| direct_declarator '(' parameter_type_list ')'
-        { $$ = new FunctionDeclarator($1, $3); }
-	| direct_declarator '(' identifier_list ')'
-        // Old K&R style function declaration
-    | direct_declarator '(' ')'
-        { $$ = new FunctionDeclarator($1); }
+        /* { $$ = new ArrayDeclarator($1); } */
     ;
 
 // Ignore const/volatile for now
@@ -573,65 +588,65 @@ direct_abstract_declarator
 // Doesn't change anything in lowering but keeps parser happy
 initializer
 	: assignment_expression
-        { $$ = new NodeList<Node>($1); }
+        { $$ = $1; }
 	| '{' initializer_list '}'
-        { $$ = new NodeList<Node>($2); }
+        /* { $$ = new NodeList<Node>($2); } */
     | '{' initializer_list ',' '}'
-        { $$ = new NodeList<Node>($2); }
+        /* { $$ = new NodeList<Node>($2); } */
     ;
 
 initializer_list
 	: initializer
-        { $$ = new ArrayInitializerList($1); }
+        /* { $$ = new ArrayInitializerList($1); } */
 	| initializer_list ',' initializer
-        { $1->push_back($3); $$ = $1; }
+        /* { $1->push_back($3); $$ = $1; } */
 	;
 
 statement
 	: labeled_statement
-        { $$ = new Statement($1); }
+        { $$ = $1; }
 	| compound_statement
-        { $$ = new Statement($1); }
+        { $$ = $1; }
     | expression_statement
-        { $$ = new Statement($1); }
+		{ $$ = $1; }
     | selection_statement
-        { $$ = new Statement($1); }
-    | iteration_statement
-        { $$ = new Statement($1); }
-    | jump_statement
-        { $$ = new Statement($1); }
+		{ $$ = $1; }
+	| iteration_statement
+		{ $$ = $1; }
+	| jump_statement
+		{ $$ = $1; }
 	;
 
 labeled_statement
 	: IDENTIFIER ':' statement
 	| CASE constant_expression ':' statement
-        { $$ = new Case($2, $4); }
+        /* { $$ = new Case($2, $4); } */
 	| DEFAULT ':' statement
-        { $$ = new Default($3); }
+        /* { $$ = new Default($3); } */
 	;
 
 compound_statement
 	: '{' '}'
-        { $$ = new Scope(); }
+        { $$ = new CompoundStatement(); }
 	| '{' statement_list '}'
-        { $$ = new Scope(NULL, $2); }
+        { $$ = new CompoundStatement(NULL, $2); }
 	| '{' declaration_list '}'
-        { $$ = new Scope($2, NULL); }
+        { $$ = new CompoundStatement($2, NULL); }
 	| '{' declaration_list statement_list '}'
         // This is a C90 quirk - declarations have to appear before.
-        { $$ = new Scope($2, $3); }
+        { $$ = new CompoundStatement($2, $3); }
 	;
 
 declaration_list
 	: declaration
-        { $$ = new NodeList<Declaration>(dynamic_cast<const Declaration*>($1)); }
+        { $$ = new DeclarationList($1); }
 	| declaration_list declaration
-        { $1->push_back(dynamic_cast<const Declaration*>($2)); $$ = $1; }
+        { $1->push_back($2); $$ = $1; }
 	;
 
 statement_list
 	: statement
-        { $$ = new NodeList<Statement>(dynamic_cast<const Statement*>($1)); }
+        { $$ = new StatementList(dynamic_cast<const Statement*>($1)); }
 	| statement_list statement
         { $1->push_back(dynamic_cast<const Statement*>($2)); $$ = $1; }
 	;
@@ -645,29 +660,29 @@ expression_statement
 
 selection_statement
 	: IF '(' expression ')' statement
-        { $$ = new If($3, $5); }
+        /* { $$ = new If($3, $5); } */
 	| IF '(' expression ')' statement ELSE statement
-        { $$ = new If($3, $5, $7); }
+        /* { $$ = new If($3, $5, $7); } */
     | SWITCH '(' expression ')' statement
-        { $$ = new Switch($3, $5); }
+        /* { $$ = new Switch($3, $5); } */
     ;
 
 iteration_statement
 	: WHILE '(' expression ')' statement
-        { $$ = new While($3, $5); }
+        /* { $$ = new While($3, $5); } */
     | DO statement WHILE '(' expression ')' ';'
-        { $$ = new DoWhile($2, $5); }
+        /* { $$ = new DoWhile($2, $5); } */
 	| FOR '(' expression_statement expression_statement ')' statement
-        { $$ = new For($3, $4, $6); }
+        /* { $$ = new For($3, $4, $6); } */
     | FOR '(' expression_statement expression_statement expression ')' statement
-        { $$ = new For($3, $4, $5, $7); }
+        /* { $$ = new For($3, $4, $5, $7); } */
     ;
 
 jump_statement
 	: GOTO IDENTIFIER ';'
 	| CONTINUE ';'
 	| BREAK ';'
-        { $$ = new Break(); }
+        /* { $$ = new Break(); } */
 	| RETURN ';'
         { $$ = new Return(); }
 	| RETURN expression ';'
@@ -683,14 +698,14 @@ translation_unit
 
 external_declaration
 	: function_definition
-        { $$ = new std::variant<Declaration*, FunctionDefinition*>($1); }
+        { $$ = new std::variant<DeclarationNode*, FunctionDefinition*>($1); }
 	| declaration
-        { $$ = new std::variant<Declaration*, FunctionDefinition*>($1); }
+        { $$ = new std::variant<DeclarationNode*, FunctionDefinition*>($1); }
 	;
 
 function_definition
-	: declaration_specifiers declarator declaration_list compound_statement
-	| declaration_specifiers declarator compound_statement
+	: declaration_specifiers function_declarator declaration_list compound_statement
+	| declaration_specifiers function_declarator compound_statement
         { $$ = new FunctionDefinition($1, $2, $3); }
 	| declarator declaration_list compound_statement
 	| declarator compound_statement

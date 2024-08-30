@@ -21,7 +21,7 @@ namespace ast
         void lower(Context &context) const;
 
     private:
-        std::unique_ptr<const Type> type;
-        std::unique_ptr<const StructItemList> declarators;
+        std::shared_ptr<const Type> type;
+        std::shared_ptr<const StructItemList> declarators;
     };
 }

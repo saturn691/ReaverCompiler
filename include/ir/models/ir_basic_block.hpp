@@ -14,12 +14,16 @@ namespace ir
     public:
         BasicBlock();
 
+        BasicBlock(const BasicBlock &other);
+
+        ~BasicBlock() = default;
+
         void print(std::ostream &dst, int indent_level) const override;
 
     private:
-        std::vector<Statement> statements;
+        std::vector<std::shared_ptr<Statement>> statements;
 
         // Optional terminator
-        std::unique_ptr<const Terminator> terminator;
+        std::shared_ptr<Terminator> terminator;
     };
 }

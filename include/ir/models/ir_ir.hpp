@@ -1,7 +1,7 @@
 #pragma once
 
 #include <ir/models/traits/ir_has_print.hpp>
-#include <ir/models/ir_function.hpp>
+#include <ir/models/function/ir_function.hpp>
 
 namespace ir
 {

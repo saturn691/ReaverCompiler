@@ -4,7 +4,6 @@
 #include <iostream>
 
 #include <ast/utils/ast_context.hpp>
-#include <ast/models/traits/ast_has_print.hpp>
 
 /**
  *  Base class for nodes in the AST. Only contains virtual functions.
@@ -13,12 +12,14 @@
  */
 namespace ast
 {
-    class Node : public HasPrint
+    class Node
     {
     public:
         virtual ~Node() = default;
 
-        // Turns the AST node to IR
+        virtual void print(std::ostream &dst, int indent_level) const = 0;
+
+        // Turns the AST node to IR (never called - just a placeholder)
         template <typename... Args>
         decltype(auto) lower(Context &context, Args &&...args) const;
     };

@@ -4,13 +4,13 @@ namespace ast
 {
     Sizeof::Sizeof(
         const Type *type)
-        : type(std::unique_ptr<const Type>(type))
+        : type(std::shared_ptr<const Type>(type))
     {
     }
 
     Sizeof::Sizeof(
         const Node *expression)
-        : expression(std::unique_ptr<const Node>(expression))
+        : expression(std::shared_ptr<const Node>(expression))
     {
     }
 

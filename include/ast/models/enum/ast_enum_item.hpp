@@ -21,6 +21,6 @@ namespace ast
 
     private:
         std::string identifier;
-        std::unique_ptr<const Node> expr;
+        std::shared_ptr<const Node> expr;
     };
 }

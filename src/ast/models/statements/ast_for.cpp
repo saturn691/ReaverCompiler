@@ -6,10 +6,10 @@ namespace ast
         const Node *init,
         const Node *condition,
         const Node *statement)
-        : init(std::unique_ptr<const Node>(init)),
-          condition(std::unique_ptr<const Node>(condition)),
+        : init(std::shared_ptr<const Node>(init)),
+          condition(std::shared_ptr<const Node>(condition)),
           iteration(nullptr),
-          statement(std::unique_ptr<const Node>(statement))
+          statement(std::shared_ptr<const Node>(statement))
     {
     }
 
@@ -18,10 +18,10 @@ namespace ast
         const Node *condition,
         const Node *iteration,
         const Node *statement)
-        : init(std::unique_ptr<const Node>(init)),
-          condition(std::unique_ptr<const Node>(condition)),
-          iteration(std::unique_ptr<const Node>(iteration)),
-          statement(std::unique_ptr<const Node>(statement))
+        : init(std::shared_ptr<const Node>(init)),
+          condition(std::shared_ptr<const Node>(condition)),
+          iteration(std::shared_ptr<const Node>(iteration)),
+          statement(std::shared_ptr<const Node>(statement))
     {
     }
 

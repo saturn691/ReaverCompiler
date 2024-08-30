@@ -14,12 +14,10 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        std::vector<ir::Declaration> lower(Context &context) const override;
-
         std::string get_id() const override;
 
     private:
         int amount;
-        std::unique_ptr<const Declarator> declarator;
+        std::shared_ptr<const Declarator> declarator;
     };
 }

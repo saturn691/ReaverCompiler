@@ -26,6 +26,6 @@ namespace ast
 
     private:
         std::string identifier;
-        std::unique_ptr<const EnumList> enum_list;
+        std::shared_ptr<const EnumList> enum_list;
     };
 }

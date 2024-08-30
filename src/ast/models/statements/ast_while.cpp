@@ -5,8 +5,8 @@ namespace ast
     While::While(
         const Node *condition,
         const Node *statement)
-        : condition(std::unique_ptr<const Node>(condition)),
-          statement(std::unique_ptr<const Node>(statement))
+        : condition(std::shared_ptr<const Node>(condition)),
+          statement(std::shared_ptr<const Node>(statement))
     {
     }
 

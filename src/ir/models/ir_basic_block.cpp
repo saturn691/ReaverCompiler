@@ -3,6 +3,13 @@
 namespace ir
 {
     BasicBlock::BasicBlock()
+        : terminator(nullptr)
+    {
+    }
+
+    BasicBlock::BasicBlock(const BasicBlock &other)
+        : statements(),
+          terminator()
     {
     }
 

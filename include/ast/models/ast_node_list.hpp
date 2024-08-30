@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include <ast/models/ast_node.hpp>
+#include <ast/utils/ast_utils.hpp>
 
 namespace ast
 {
@@ -19,7 +20,7 @@ namespace ast
     public:
         NodeList() = default;
 
-        virtual ~NodeList() = default;
+        ~NodeList() = default;
 
         /**
          * Constructor for a list with a single node. Only used in the parser.
@@ -38,10 +39,10 @@ namespace ast
         virtual void print(std::ostream &dst, int indent_level) const override;
 
         template <typename... Args>
-        void lower(Context &context, Args &&...args) const;
+        void lower(Args &&...args) const;
 
     protected:
-        std::vector<std::variant<std::unique_ptr<const Ts>...>> nodes;
+        std::vector<std::variant<std::shared_ptr<const Ts>...>> nodes;
 
         /**
          * Prints a list of nodes with a delimiter between each node, with an
@@ -68,12 +69,12 @@ namespace ast
         {
             std::visit([this](auto *arg)
                        { using U = std::remove_pointer_t<decltype(arg)>;
-                        this->nodes.push_back(std::unique_ptr<const U>(arg)); },
+                        this->nodes.push_back(std::shared_ptr<const U>(arg)); },
                        *node);
         }
         else
         {
-            nodes.push_back(std::unique_ptr<const T>(node));
+            nodes.push_back(std::shared_ptr<const T>(node));
         }
     }
 
@@ -89,11 +90,12 @@ namespace ast
 
     template <typename... Ts>
     template <typename... Args>
-    void NodeList<Ts...>::lower(Context &context, Args &&...args) const
+    void NodeList<Ts...>::lower(Args &&...args) const
     {
         for (const auto &node : nodes)
         {
-            node->lower(context, std::forward<Args>(args)...);
+            std::visit([&](const auto &n)
+                       { n->lower(std::forward<Args>(args)...); }, node);
         }
     }
 

@@ -5,8 +5,8 @@ namespace ast
     StructItem::StructItem(
         const Type *type,
         const StructItemList *declarators)
-        : type(std::unique_ptr<const Type>(type)),
-          declarators(std::unique_ptr<const StructItemList>(declarators))
+        : type(std::shared_ptr<const Type>(type)),
+          declarators(std::shared_ptr<const StructItemList>(declarators))
     {
     }
 

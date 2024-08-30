@@ -17,9 +17,9 @@ namespace ast
 
     private:
         // constant expression
-        std::unique_ptr<const Node> expression;
+        std::shared_ptr<const Node> expression;
 
     protected:
-        std::unique_ptr<const Node> statement;
+        std::shared_ptr<const Node> statement;
     };
 }

@@ -6,8 +6,8 @@ namespace ast
         const Node *left,
         const Node *right,
         const AssignmentType op)
-        : left(std::unique_ptr<const Node>(left)),
-          right(std::unique_ptr<const Node>(right)),
+        : left(std::shared_ptr<const Node>(left)),
+          right(std::shared_ptr<const Node>(right)),
           op(op)
     {
     }

@@ -1,4 +1,7 @@
-#include <ast/models/declaration/ast_translation_unit.hpp>
+#include <ast/models/ast_translation_unit.hpp>
+#include <ast/models/ast_declaration.hpp>
+
+#include <ir/models/ir_ir.hpp>
 
 namespace ast
 {

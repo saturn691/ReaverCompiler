@@ -17,6 +17,6 @@ namespace ast
         void lower(Context &context) const;
 
     private:
-        std::unique_ptr<const Node> declarator;
+        std::shared_ptr<const Node> declarator;
     };
 }

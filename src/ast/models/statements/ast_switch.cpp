@@ -5,8 +5,8 @@ namespace ast
     Switch::Switch(
         const Node *expression,
         const Node *statement)
-        : expression(std::unique_ptr<const Node>(expression)),
-          statement(std::unique_ptr<const Node>(statement))
+        : expression(std::shared_ptr<const Node>(expression)),
+          statement(std::shared_ptr<const Node>(statement))
     {
     }
 

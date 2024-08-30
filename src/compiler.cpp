@@ -19,6 +19,7 @@ void compile(std::string sourcePath, std::ostream &out)
     Context context;
 
     ir::IR ir = ast->lower(context);
+    ir.print(std::cout, 0);
 }
 
 extern FILE *yyin;

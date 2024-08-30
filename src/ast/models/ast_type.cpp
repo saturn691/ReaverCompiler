@@ -1,46 +1,18 @@
-#include <ast/models/type/ast_basic_type.hpp>
+#include <ast/models/ast_type.hpp>
+#include <ast/utils/ast_utils.hpp>
 
 namespace ast
 {
+    /*************************************************************************
+     * BasicType implementation
+     ************************************************************************/
+
     BasicType::BasicType(const Types type)
         : type(type)
     {
     }
 
-    unsigned int BasicType::get_size() const
-    {
-        switch (type)
-        {
-        case Types::VOID:
-            return 0;
-        case Types::UNSIGNED_CHAR:
-            return 1;
-        case Types::CHAR:
-            return 1;
-        case Types::UNSIGNED_SHORT:
-            return 2;
-        case Types::SHORT:
-            return 2;
-        case Types::UNSIGNED_INT:
-            return 4;
-        case Types::INT:
-            return 4;
-        case Types::UNSIGNED_LONG:
-            return 4;
-        case Types::LONG:
-            return 4;
-        case Types::FLOAT:
-            return 4;
-        case Types::DOUBLE:
-            return 8;
-        case Types::LONG_DOUBLE:
-            return 8;
-        }
-
-        return 0;
-    }
-
-    ir::Type BasicType::lower(Context &context) const
+    ir::Type BasicType::lower() const
     {
         ir::Types t;
 
