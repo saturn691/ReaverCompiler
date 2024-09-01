@@ -4,6 +4,7 @@
 
 #include "cli.h"
 #include "ast/ast.hpp"
+#include "codegen/codegen_ir.hpp"
 
 void compile(std::string sourcePath, std::ostream &out)
 {
@@ -18,8 +19,15 @@ void compile(std::string sourcePath, std::ostream &out)
 
     Context context;
 
-    ir::IR ir = ast->lower(context);
-    ir.print(std::cout, 0);
+    std::unique_ptr<ir::IR> ir = ast->lower(context);
+    ir->print(std::cout, 0);
+
+    codegen::IRCodegen codegen(std::move(ir));
+    codegen.codegen();
+    codegen.optimize();
+    codegen.print(out);
+
+    std::cout << std::endl;
 }
 
 extern FILE *yyin;

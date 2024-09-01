@@ -16,7 +16,7 @@ namespace ast
         void lower(Context &context) const;
 
     private:
-        std::shared_ptr<const Node> array;
-        std::shared_ptr<const Node> expr;
+        std::unique_ptr<const Node> array;
+        std::unique_ptr<const Node> expr;
     };
 }

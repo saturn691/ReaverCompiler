@@ -20,6 +20,6 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        ir::IR lower(Context &context) const;
+        std::unique_ptr<ir::IR> lower(Context &context) const;
     };
 }

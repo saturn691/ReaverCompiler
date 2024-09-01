@@ -25,7 +25,7 @@ namespace ast
         void lower(Context &context) const;
 
     private:
-        std::shared_ptr<const Node> expr;
+        std::unique_ptr<const Node> expr;
         StructAccessType access_type;
         std::string identifier;
     };

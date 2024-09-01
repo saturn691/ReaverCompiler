@@ -6,24 +6,24 @@ namespace ir
     {
         for (const auto &declaration : declarations)
         {
-            declaration.print(dst, indent_level);
+            declaration->print(dst, indent_level);
             dst << std::endl;
         }
 
         for (const auto &function : functions)
         {
-            function.print(dst, indent_level);
+            function->print(dst, indent_level);
             dst << std::endl;
         }
     }
 
-    void IR::add_function(const Function &function)
+    void IR::add_function(std::unique_ptr<Function> function)
     {
-        functions.push_back(function);
+        functions.push_back(std::move(function));
     }
 
-    void IR::add_declaration(const Declaration &declaration)
+    void IR::add_declaration(std::unique_ptr<Declaration> declaration)
     {
-        declarations.push_back(declaration);
+        declarations.push_back(std::move(declaration));
     }
 }

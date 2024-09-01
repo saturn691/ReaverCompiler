@@ -76,12 +76,12 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context, ir::IR &ir) const;
+        void lower(Context &context, std::unique_ptr<ir::IR> &ir) const;
 
     private:
-        std::shared_ptr<const Type> specifiers;
-        std::shared_ptr<const FunctionDeclarator> declarator;
-        std::shared_ptr<const CompoundStatement> statement;
+        std::unique_ptr<const Type> specifiers;
+        std::unique_ptr<const FunctionDeclarator> declarator;
+        std::unique_ptr<const CompoundStatement> statement;
     };
 
     /**
@@ -104,8 +104,8 @@ namespace ast
         std::vector<ir::Declaration> lower() const;
 
     private:
-        std::shared_ptr<const Declarator> decl;
-        std::shared_ptr<const FunctionParamList> params;
+        std::unique_ptr<const Declarator> decl;
+        std::unique_ptr<const FunctionParamList> params;
     };
 
     /**
@@ -133,13 +133,15 @@ namespace ast
 
         FunctionParam(const Type *type, const Declarator *decl);
 
-        void print(std::ostream &dst, int indent_level) const override;
+        void print(
+            std::ostream &dst,
+            [[maybe_unused]] int indent_level) const override;
 
         ir::Declaration lower() const;
 
     private:
-        std::shared_ptr<const Type> type;
-        std::shared_ptr<const Declarator> decl;
+        std::unique_ptr<const Type> type;
+        std::unique_ptr<const Declarator> decl;
     };
 
     /**
@@ -159,8 +161,8 @@ namespace ast
         std::string get_id() const override;
 
     private:
-        std::shared_ptr<const Declarator> decl;
-        std::shared_ptr<const Expression> init;
+        std::unique_ptr<const Declarator> decl;
+        std::unique_ptr<const Expression> init;
     };
 
     /**
@@ -188,10 +190,10 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context, ir::IR &ir) const;
+        void lower(Context &context, std::unique_ptr<ir::IR> &ir) const;
 
     private:
-        std::shared_ptr<const Type> specifiers;
-        std::shared_ptr<const InitDeclaratorList> decls;
+        std::unique_ptr<const Type> specifiers;
+        std::unique_ptr<const InitDeclaratorList> decls;
     };
 }

@@ -22,9 +22,9 @@ namespace ast
         const Type *specifiers,
         const FunctionDeclarator *declarator,
         const CompoundStatement *statement)
-        : specifiers(std::shared_ptr<const Type>(specifiers)),
-          declarator(std::shared_ptr<const FunctionDeclarator>(declarator)),
-          statement(std::shared_ptr<const CompoundStatement>(statement))
+        : specifiers(std::unique_ptr<const Type>(specifiers)),
+          declarator(std::unique_ptr<const FunctionDeclarator>(declarator)),
+          statement(std::unique_ptr<const CompoundStatement>(statement))
     {
     }
 
@@ -40,7 +40,7 @@ namespace ast
         dst << std::endl;
     }
 
-    void FunctionDefinition::lower(Context &context, ir::IR &ir) const
+    void FunctionDefinition::lower(Context &context, std::unique_ptr<ir::IR> &ir) const
     {
         ir::Declaration return_type = ir::Declaration(
             std::nullopt,
@@ -49,10 +49,11 @@ namespace ast
         std::string name = declarator->get_id();
         ir::FunctionHeader header = ir::FunctionHeader(name, return_type, args);
 
-        std::vector<ir::BasicBlock> bbs;
+        ir::BasicBlocks bbs;
         ir::FunctionLocals locals = statement->lower(context, header, bbs);
 
-        ir.add_function(ir::Function(header, locals, std::move(bbs)));
+        ir->add_function(
+            std::make_unique<ir::Function>(header, locals, std::move(bbs)));
     }
 
     /*************************************************************************
@@ -61,15 +62,15 @@ namespace ast
 
     FunctionDeclarator::FunctionDeclarator(
         const Declarator *decl)
-        : decl(std::shared_ptr<const Declarator>(decl))
+        : decl(std::unique_ptr<const Declarator>(decl))
     {
     }
 
     FunctionDeclarator::FunctionDeclarator(
         const Declarator *decl,
         const FunctionParamList *params)
-        : decl(std::shared_ptr<const Declarator>(decl)),
-          params(std::shared_ptr<const FunctionParamList>(params))
+        : decl(std::unique_ptr<const Declarator>(decl)),
+          params(std::unique_ptr<const FunctionParamList>(params))
     {
     }
 
@@ -125,19 +126,21 @@ namespace ast
      ************************************************************************/
 
     FunctionParam::FunctionParam(const Type *type)
-        : type(std::shared_ptr<const Type>(type))
+        : type(std::unique_ptr<const Type>(type))
     {
     }
 
     FunctionParam::FunctionParam(
         const Type *type,
         const Declarator *decl)
-        : type(std::shared_ptr<const Type>(type)),
-          decl(std::shared_ptr<const Declarator>(decl))
+        : type(std::unique_ptr<const Type>(type)),
+          decl(std::unique_ptr<const Declarator>(decl))
     {
     }
 
-    void FunctionParam::print(std::ostream &dst, int indent_level) const
+    void FunctionParam::print(
+        std::ostream &dst,
+        [[maybe_unused]] int indent_level) const
     {
         type->print(dst, 0);
         if (decl != nullptr)
@@ -155,7 +158,7 @@ namespace ast
             id = decl->get_id();
         }
 
-        return ir::Declaration(id, type->lower());
+        return ir::Declaration(id.value(), type->lower());
     }
 
     /*************************************************************************
@@ -164,20 +167,22 @@ namespace ast
 
     InitDeclarator::InitDeclarator(
         const Declarator *decl)
-        : decl(std::shared_ptr<const Declarator>(decl))
+        : decl(std::unique_ptr<const Declarator>(decl))
     {
     }
 
     InitDeclarator::InitDeclarator(
         const Declarator *decl,
         const Expression *init)
-        : decl(std::shared_ptr<const Declarator>(decl)),
-          init(std::shared_ptr<const Expression>(init))
+        : decl(std::unique_ptr<const Declarator>(decl)),
+          init(std::unique_ptr<const Expression>(init))
     {
     }
 
     void InitDeclarator::print(std::ostream &dst, int indent_level) const
     {
+        std::string indent = Utils::get_indent(indent_level);
+        dst << indent;
         decl->print(dst, 0);
         if (init != nullptr)
         {
@@ -197,15 +202,15 @@ namespace ast
 
     DeclarationNode::DeclarationNode(
         const Type *specifiers)
-        : specifiers(std::shared_ptr<const Type>(specifiers))
+        : specifiers(std::unique_ptr<const Type>(specifiers))
     {
     }
 
     DeclarationNode::DeclarationNode(
         const Type *specifiers,
         const InitDeclaratorList *decls)
-        : specifiers(std::shared_ptr<const Type>(specifiers)),
-          decls(std::shared_ptr<const InitDeclaratorList>(decls))
+        : specifiers(std::unique_ptr<const Type>(specifiers)),
+          decls(std::unique_ptr<const InitDeclaratorList>(decls))
     {
     }
 
@@ -219,7 +224,7 @@ namespace ast
         dst << ";";
     }
 
-    void DeclarationNode::lower(Context &context, ir::IR &ir) const
+    void DeclarationNode::lower(Context &context, std::unique_ptr<ir::IR> &ir) const
     {
         // std::vector<ir::Declaration> decls = decls->lower(context);
         // for (const auto &decl : decls)

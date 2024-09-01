@@ -6,7 +6,7 @@ namespace ast
         const Node *expr,
         const StructAccessType access_type,
         const std::string identifier)
-        : expr(std::shared_ptr<const Node>(expr)),
+        : expr(std::unique_ptr<const Node>(expr)),
           access_type(access_type),
           identifier(identifier)
     {

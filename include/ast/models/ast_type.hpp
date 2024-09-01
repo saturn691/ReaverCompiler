@@ -51,6 +51,8 @@ namespace ast
 
         ir::Type lower() const override;
 
+        static ir::Type to_ir_type(Types type);
+
         void print(std::ostream &dst, int indent_level) const override;
 
     private:

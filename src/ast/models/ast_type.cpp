@@ -14,8 +14,12 @@ namespace ast
 
     ir::Type BasicType::lower() const
     {
-        ir::Types t;
+        return to_ir_type(this->type);
+    }
 
+    ir::Type BasicType::to_ir_type(Types type)
+    {
+        ir::Types t;
         switch (type)
         {
         case Types::VOID:
@@ -58,7 +62,6 @@ namespace ast
 
         return ir::Type(t);
     }
-
     void BasicType::print(std::ostream &dst, int indent_level) const
     {
         std::string indent = Utils::get_indent(indent_level);

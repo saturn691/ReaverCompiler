@@ -131,7 +131,7 @@ root
 
 primary_expression
 	: IDENTIFIER
-        { $$ = new Identifier(*$1); }
+        { $$ = new Identifier(std::string(*$1)); }
 	| CONSTANT
         /* { $$ = new Constant(*$1); } */
 	| STRING_LITERAL
@@ -508,7 +508,7 @@ declarator
 
 direct_declarator
 	: IDENTIFIER
-        { $$ = new Identifier(*$1); }
+        { $$ = new Identifier(std::string(*$1)); }
 	| '(' declarator ')'
         { $$ = $2; }
 	| direct_declarator '[' constant_expression ']'

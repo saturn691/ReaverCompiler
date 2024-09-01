@@ -18,6 +18,6 @@ namespace ast
 
     private:
         int amount;
-        std::shared_ptr<const Declarator> declarator;
+        std::unique_ptr<const Declarator> declarator;
     };
 }

@@ -16,7 +16,7 @@ namespace ast
         void lower(Context &context) const;
 
     private:
-        std::shared_ptr<const Node> condition;
-        std::shared_ptr<const Node> statement;
+        std::unique_ptr<const Node> condition;
+        std::unique_ptr<const Node> statement;
     };
 }

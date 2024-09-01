@@ -17,6 +17,6 @@ namespace ast
         decltype(auto) lower(Context &context, Args &&...args) const;
 
     private:
-        std::shared_ptr<const Node> expr;
+        std::unique_ptr<const Node> expr;
     };
 }

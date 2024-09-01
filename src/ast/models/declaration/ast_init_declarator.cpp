@@ -5,8 +5,8 @@ namespace ast
     InitDeclarator::InitDeclarator(
         const Declarator *declarator,
         const Node *initializer)
-        : declarator(std::shared_ptr<const Declarator>(declarator)),
-          initializer(std::shared_ptr<const Node>(initializer))
+        : declarator(std::unique_ptr<const Declarator>(declarator)),
+          initializer(std::unique_ptr<const Node>(initializer))
     {
     }
 

@@ -11,8 +11,8 @@ namespace ast
         const Expression *left,
         const Expression *right,
         const BinaryOpType op)
-        : left(std::shared_ptr<const Expression>(left)),
-          right(std::shared_ptr<const Expression>(right)),
+        : left(std::unique_ptr<const Expression>(left)),
+          right(std::unique_ptr<const Expression>(right)),
           op(op)
     {
     }
@@ -82,11 +82,86 @@ namespace ast
         right->print(dst, 0);
     }
 
+    ir::BinaryOpType BinaryOp::to_ir_type(BinaryOpType op)
+    {
+        switch (op)
+        {
+        case BinaryOpType::ADD:
+            return ir::BinaryOpType::ADD;
+        case BinaryOpType::SUB:
+            return ir::BinaryOpType::SUB;
+        case BinaryOpType::MUL:
+            return ir::BinaryOpType::MUL;
+        case BinaryOpType::DIV:
+            return ir::BinaryOpType::DIV;
+        case BinaryOpType::MOD:
+            return ir::BinaryOpType::MOD;
+        case BinaryOpType::BITWISE_AND:
+            return ir::BinaryOpType::BITWISE_AND;
+        case BinaryOpType::BITWISE_OR:
+            return ir::BinaryOpType::BITWISE_OR;
+        case BinaryOpType::BITWISE_XOR:
+            return ir::BinaryOpType::BITWISE_XOR;
+        case BinaryOpType::LSL:
+            return ir::BinaryOpType::LSL;
+        case BinaryOpType::LSR:
+            return ir::BinaryOpType::LSR;
+        case BinaryOpType::EQ:
+            return ir::BinaryOpType::EQ;
+        case BinaryOpType::NE:
+            return ir::BinaryOpType::NE;
+        case BinaryOpType::LT:
+            return ir::BinaryOpType::LT;
+        case BinaryOpType::GT:
+            return ir::BinaryOpType::GT;
+        case BinaryOpType::LE:
+            return ir::BinaryOpType::LE;
+        case BinaryOpType::GE:
+            return ir::BinaryOpType::GE;
+        case BinaryOpType::LOGICAL_AND:
+            return ir::BinaryOpType::LOGICAL_AND;
+        case BinaryOpType::LOGICAL_OR:
+            return ir::BinaryOpType::LOGICAL_OR;
+        }
+    }
+
+    Types_t BinaryOp::get_type(Context &context) const
+    {
+        return left->get_type(context);
+    }
+
+    ExprLower_t BinaryOp::lower(
+        Context &context,
+        const ir::FunctionHeader &header,
+        ir::FunctionLocals &locals,
+        const std::unique_ptr<ir::BasicBlock> &block,
+        const Dest dest) const
+    {
+        ir::Declaration dest_l = Utils::get_temp_decl(
+            left->get_type(context), locals);
+        ir::Declaration dest_r = Utils::get_temp_decl(
+            right->get_type(context), locals);
+
+        auto l = left->lower(
+            context, header, locals, block, dest_l);
+        auto r = right->lower(
+            context, header, locals, block, dest_r);
+        auto res = std::make_unique<ir::BinaryOp>(
+            std::make_unique<const ir::Use>(dest_l),
+            to_ir_type(op),
+            std::make_unique<const ir::Use>(dest_r));
+
+        block->statements.push_back(
+            std::make_unique<ir::Assign>(dest.value(), std::move(res)));
+
+        return res;
+    }
+
     /*************************************************************************
      * Identifier implementation
      ************************************************************************/
 
-    Identifier::Identifier(std::string id)
+    Identifier::Identifier(const std::string &id)
         : id(id)
     {
     }
@@ -97,8 +172,47 @@ namespace ast
         dst << indent << id;
     }
 
+    Types_t Identifier::get_type(Context &context) const
+    {
+        return context.get_type(id);
+    }
+
     std::string Identifier::get_id() const
     {
         return id;
+    }
+
+    ExprLower_t Identifier::lower(
+        Context &context,
+        const ir::FunctionHeader &header,
+        ir::FunctionLocals &locals,
+        const std::unique_ptr<ir::BasicBlock> &block,
+        const Dest dest) const
+    {
+        for (const auto &param : header.params)
+        {
+            if (param.name.value() == id)
+            {
+                auto assign = std::make_unique<ir::Assign>(
+                    dest.value(), std::make_unique<ir::Use>(param));
+
+                block->statements.push_back(std::move(assign));
+
+                return std::make_unique<const ir::Use>(param);
+            }
+        }
+
+        for (const auto &local : locals.locals)
+        {
+            if (local.name.value() == id)
+            {
+                auto assign = std::make_unique<ir::Assign>(
+                    dest.value(), std::make_unique<ir::Use>(local));
+
+                block->statements.push_back(std::move(assign));
+
+                return std::make_unique<const ir::Use>(local);
+            }
+        }
     }
 }

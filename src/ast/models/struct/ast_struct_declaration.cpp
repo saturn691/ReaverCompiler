@@ -6,7 +6,7 @@ namespace ast
         StructOrUnionType type,
         const StructDeclarationList *declarations)
         : type(type),
-          declarations(std::shared_ptr<const StructDeclarationList>(declarations))
+          declarations(std::unique_ptr<const StructDeclarationList>(declarations))
     {
     }
 
@@ -16,7 +16,7 @@ namespace ast
         const StructDeclarationList *declarations)
         : type(type),
           identifier(identifier),
-          declarations(std::shared_ptr<const StructDeclarationList>(declarations))
+          declarations(std::unique_ptr<const StructDeclarationList>(declarations))
     {
     }
 

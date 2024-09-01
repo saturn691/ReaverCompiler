@@ -51,7 +51,7 @@ if not sys.stdout.isatty():
 
 # "File" will suggest the absolute path to the file, including the extension.
 SCRIPT_LOCATION = Path(__file__).resolve().parent
-PROJECT_LOCATION = SCRIPT_LOCATION.joinpath("..").resolve()
+PROJECT_LOCATION = SCRIPT_LOCATION
 OUTPUT_FOLDER = PROJECT_LOCATION.joinpath("bin/output").resolve()
 J_UNIT_OUTPUT_FILE = PROJECT_LOCATION.joinpath(
     "bin/junit_results.xml").resolve()
@@ -233,7 +233,7 @@ def run_test(driver: Path) -> Result:
 
     # Compile
     return_code, _, timed_out = run_subprocess(
-        cmd=[COMPILER_FILE, "-S", to_assemble, "-o", f"{log_path}.s"],
+        cmd=[COMPILER_FILE, "-S", to_assemble, "-o", f"{log_path}.ll"],
         timeout=RUN_TIMEOUT_SECONDS,
         env=custom_env,
         log_path=f"{log_path}.compiler",
@@ -244,18 +244,11 @@ def run_test(driver: Path) -> Result:
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)
 
-    # GCC Reference Output
-    # Remove the "-ansi -std=c90" flags to allow // comments
+    # Reference LLVM IR
     return_code, _, timed_out = run_subprocess(
-        cmd=["riscv64-unknown-elf-gcc",
-             "-pedantic",
-             "-O0",
-             "-march=rv32imfd",
-             "-mabi=ilp32d", "-o",
-             f"{log_path}.gcc.s", "-S",
-             to_assemble],
+        cmd=["clang-18", "-S", "-emit-llvm", to_assemble,"-o", f"{log_path}.ref.ll"],
         timeout=RUN_TIMEOUT_SECONDS,
-        log_path=f"{log_path}.reference",)
+        log_path=f"{log_path}.ref",)
     if return_code != 0:
         msg = f"\t> Failed to generate reference: \n\t {compiler_log_file_str} \n\t {relevant_files('reference')}"
         return Result(
@@ -265,11 +258,24 @@ def run_test(driver: Path) -> Result:
     # Assemble
     return_code, _, timed_out = run_subprocess(
         cmd=[
-            "riscv64-unknown-elf-gcc", "-march=rv32imfd", "-mabi=ilp32d",
-            "-o", f"{log_path}.o", "-c", f"{log_path}.s"
+            "llvm-as-18", "-o", f"{log_path}.bc", f"{log_path}.ll"
         ],
         timeout=RUN_TIMEOUT_SECONDS,
-        log_path=f"{log_path}.assembler",
+        log_path=f"{log_path}.as",
+    )
+    if return_code != 0:
+        msg = f"\t> Failed to assemble: \n\t {compiler_log_file_str} \n\t {relevant_files('assembler')}"
+        return Result(
+            test_case_name=test_name, return_code=return_code, passed=False,
+            timeout=timed_out, error_log=msg)
+
+    # Assemble
+    return_code, _, timed_out = run_subprocess(
+        cmd=[
+            "llc-18", "-filetype=obj", "-o", f"{log_path}.o", f"{log_path}.bc"
+        ],
+        timeout=RUN_TIMEOUT_SECONDS,
+        log_path=f"{log_path}.llc",
     )
     if return_code != 0:
         msg = f"\t> Failed to assemble: \n\t {compiler_log_file_str} \n\t {relevant_files('assembler')}"
@@ -298,8 +304,7 @@ def link_and_simulate(log_path: Path,
     """
     # Link
     return_code, _, timed_out = run_subprocess(
-        cmd=["riscv64-unknown-elf-gcc", "-march=rv32imfd", "-mabi=ilp32d",
-             "-static", "-o", f"{log_path}", f"{log_path}.o", str(driver)],
+        cmd=["clang-18", "-o", f"{log_path}", f"{log_path}.o", str(driver)],
         timeout=RUN_TIMEOUT_SECONDS, log_path=f"{log_path}.linker",)
     if return_code != 0:
         msg = f"\t> Failed to link driver: \n\t {compiler_log_file_str} \n\t {relevant_files('linker')}"
@@ -347,7 +352,6 @@ def simulate_and_check(to_assemble: Path,
         command.append(str(client))
 
     # Link
-
     return_code, _, timed_out = run_subprocess(
         cmd=command,
         timeout=RUN_TIMEOUT_SECONDS, log_path=f"{log_path}.linker",)

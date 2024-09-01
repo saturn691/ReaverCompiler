@@ -2,8 +2,13 @@
 
 #include <string>
 
+#include <ir/models/ir_declaration.hpp>
+#include <ir/models/ir_function.hpp>
+
 namespace ast
 {
+    enum class Types;
+
     class Utils
     {
     public:
@@ -13,6 +18,10 @@ namespace ast
             std::ostream &dst,
             int indent_level,
             const std::string &delim);
+
+        static ir::Declaration get_temp_decl(
+            Types type,
+            ir::FunctionLocals &locals);
 
     private:
         static const int spaces = 4;

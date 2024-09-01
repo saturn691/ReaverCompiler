@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ir/models/traits/ir_has_print.hpp>
+#include <ir/models/ir_has_print.hpp>
 
 namespace ir
 {
@@ -29,7 +29,6 @@ namespace ir
 
         void print(std::ostream &dst, int indent_level) const override;
 
-    private:
-        Types type;
+        const Types type;
     };
 }

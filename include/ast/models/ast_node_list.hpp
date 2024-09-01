@@ -42,7 +42,7 @@ namespace ast
         void lower(Args &&...args) const;
 
     protected:
-        std::vector<std::variant<std::shared_ptr<const Ts>...>> nodes;
+        std::vector<std::variant<std::unique_ptr<const Ts>...>> nodes;
 
         /**
          * Prints a list of nodes with a delimiter between each node, with an
@@ -69,12 +69,12 @@ namespace ast
         {
             std::visit([this](auto *arg)
                        { using U = std::remove_pointer_t<decltype(arg)>;
-                        this->nodes.push_back(std::shared_ptr<const U>(arg)); },
+                        this->nodes.push_back(std::unique_ptr<const U>(arg)); },
                        *node);
         }
         else
         {
-            nodes.push_back(std::shared_ptr<const T>(node));
+            nodes.push_back(std::unique_ptr<const T>(node));
         }
     }
 

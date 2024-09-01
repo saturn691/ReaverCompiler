@@ -3,9 +3,9 @@
 #include <vector>
 #include <memory>
 
-#include <ir/models/statement/ir_statement.hpp>
-#include <ir/models/terminator/ir_terminator.hpp>
-#include <ir/models/traits/ir_has_print.hpp>
+#include <ir/models/ir_statement.hpp>
+#include <ir/models/ir_terminator.hpp>
+#include <ir/models/ir_has_print.hpp>
 
 namespace ir
 {
@@ -13,17 +13,21 @@ namespace ir
     {
     public:
         BasicBlock();
-
-        BasicBlock(const BasicBlock &other);
-
         ~BasicBlock() = default;
+
+        BasicBlock(BasicBlock &&other) noexcept;
+        BasicBlock &operator=(BasicBlock &&other) noexcept;
+
+        BasicBlock(const BasicBlock &other) = delete;
+        BasicBlock &operator=(const BasicBlock &other) = delete;
 
         void print(std::ostream &dst, int indent_level) const override;
 
-    private:
-        std::vector<std::shared_ptr<Statement>> statements;
+        std::vector<std::unique_ptr<const Statement>> statements;
 
         // Optional terminator
-        std::shared_ptr<Terminator> terminator;
+        std::unique_ptr<Terminator> terminator;
     };
+
+    using BasicBlocks = std::vector<std::unique_ptr<BasicBlock>>;
 }

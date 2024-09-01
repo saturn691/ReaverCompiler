@@ -4,7 +4,7 @@ namespace ast
 {
     ArrayDeclarator::ArrayDeclarator(
         const Declarator *declarator)
-        : declarator(std::shared_ptr<const Declarator>(declarator)),
+        : declarator(std::unique_ptr<const Declarator>(declarator)),
           size(nullptr)
     {
     }
@@ -12,8 +12,8 @@ namespace ast
     ArrayDeclarator::ArrayDeclarator(
         const Declarator *declarator,
         const Node *size)
-        : declarator(std::shared_ptr<const Declarator>(declarator)),
-          size(std::shared_ptr<const Node>(size))
+        : declarator(std::unique_ptr<const Declarator>(declarator)),
+          size(std::unique_ptr<const Node>(size))
     {
     }
 

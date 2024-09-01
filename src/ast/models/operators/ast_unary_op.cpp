@@ -6,7 +6,7 @@ namespace ast
         const UnaryOpType op,
         const Node *expr)
         : op(op),
-          expr(std::shared_ptr<const Node>(expr))
+          expr(std::unique_ptr<const Node>(expr))
     {
     }
 

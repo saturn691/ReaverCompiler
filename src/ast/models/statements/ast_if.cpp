@@ -5,8 +5,8 @@ namespace ast
     If::If(
         const Node *condition,
         const Node *statement)
-        : condition(std::shared_ptr<const Node>(condition)),
-          statement(std::shared_ptr<const Node>(statement)),
+        : condition(std::unique_ptr<const Node>(condition)),
+          statement(std::unique_ptr<const Node>(statement)),
           else_statement(nullptr)
     {
     }
@@ -15,9 +15,9 @@ namespace ast
         const Node *condition,
         const Node *statement,
         const Node *else_statement)
-        : condition(std::shared_ptr<const Node>(condition)),
-          statement(std::shared_ptr<const Node>(statement)),
-          else_statement(std::shared_ptr<const Node>(else_statement))
+        : condition(std::unique_ptr<const Node>(condition)),
+          statement(std::unique_ptr<const Node>(statement)),
+          else_statement(std::unique_ptr<const Node>(else_statement))
     {
     }
 

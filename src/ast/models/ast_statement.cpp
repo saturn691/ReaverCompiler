@@ -3,6 +3,8 @@
 #include <ast/models/ast_expression.hpp>
 #include <ast/utils/ast_utils.hpp>
 
+#include <ir/models/ir_terminator.hpp>
+
 namespace ast
 {
     /*************************************************************************
@@ -22,8 +24,8 @@ namespace ast
     CompoundStatement::CompoundStatement(
         const DeclarationList *decls,
         const StatementList *stmts)
-        : decls(std::shared_ptr<const DeclarationList>(decls)),
-          stmts(std::shared_ptr<const StatementList>(stmts))
+        : decls(std::unique_ptr<const DeclarationList>(decls)),
+          stmts(std::unique_ptr<const StatementList>(stmts))
     {
     }
 
@@ -44,11 +46,12 @@ namespace ast
         dst << indent << "}";
     }
 
+    // Call from FunctionDefinition::lower
     ir::FunctionLocals
     CompoundStatement::lower(
         Context &context,
         const ir::FunctionHeader &header,
-        std::vector<ir::BasicBlock> &bbs) const
+        ir::BasicBlocks &bbs) const
     {
         ir::FunctionLocals locals = ir::FunctionLocals();
 
@@ -58,6 +61,8 @@ namespace ast
         }
         if (stmts != nullptr)
         {
+            bbs.emplace_back(std::make_unique<ir::BasicBlock>());
+            context.bb = 0;
             stmts->lower(context, header, locals, bbs);
         }
 
@@ -67,8 +72,8 @@ namespace ast
     void CompoundStatement::lower(
         Context &context,
         const ir::FunctionHeader &header,
-        const ir::FunctionLocals &locals,
-        std::vector<ir::BasicBlock> &bbs) const
+        ir::FunctionLocals &locals,
+        ir::BasicBlocks &bbs) const
     {
     }
 
@@ -78,7 +83,7 @@ namespace ast
 
     ExpressionStatement::ExpressionStatement(
         const Expression *expr)
-        : expr(std::shared_ptr<const Expression>(expr))
+        : expr(std::unique_ptr<const Expression>(expr))
     {
     }
 
@@ -94,8 +99,8 @@ namespace ast
     void ExpressionStatement::lower(
         Context &context,
         const ir::FunctionHeader &header,
-        const ir::FunctionLocals &locals,
-        std::vector<ir::BasicBlock> &bbs) const
+        ir::FunctionLocals &locals,
+        ir::BasicBlocks &bbs) const
     {
     }
 
@@ -104,7 +109,7 @@ namespace ast
      ************************************************************************/
 
     Return::Return(const Expression *expr)
-        : expr(std::shared_ptr<const Expression>(expr))
+        : expr(std::unique_ptr<const Expression>(expr))
     {
     }
 
@@ -122,8 +127,14 @@ namespace ast
     void Return::lower(
         Context &context,
         const ir::FunctionHeader &header,
-        const ir::FunctionLocals &locals,
-        std::vector<ir::BasicBlock> &bbs) const
+        ir::FunctionLocals &locals,
+        ir::BasicBlocks &bbs) const
     {
+        if (expr != nullptr)
+        {
+            expr->lower(
+                context, header, locals, bbs[context.bb], header.ret);
+        }
+        bbs[context.bb]->terminator = std::make_unique<ir::Return>();
     }
 }

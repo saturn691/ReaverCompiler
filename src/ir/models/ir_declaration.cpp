@@ -1,4 +1,5 @@
 #include <ir/models/ir_declaration.hpp>
+#include <ir/ir_visitor.hpp>
 
 namespace ir
 {
@@ -19,5 +20,10 @@ namespace ir
         {
             dst << " " << name.value();
         }
+    }
+
+    std::optional<std::string> Declaration::accept(Visitor &visitor) const
+    {
+        return visitor.codegen(*this);
     }
 }

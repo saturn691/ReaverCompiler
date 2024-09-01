@@ -3,7 +3,7 @@
 namespace ast
 {
     Parenthesis::Parenthesis(const Node *expr)
-        : expr(std::shared_ptr<const Node>(expr))
+        : expr(std::unique_ptr<const Node>(expr))
     {
     }
 

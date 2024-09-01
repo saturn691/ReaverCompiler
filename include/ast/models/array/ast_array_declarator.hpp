@@ -18,7 +18,7 @@ namespace ast
         std::string get_id() const override;
 
     private:
-        std::shared_ptr<const Declarator> declarator;
-        std::shared_ptr<const Node> size;
+        std::unique_ptr<const Declarator> declarator;
+        std::unique_ptr<const Node> size;
     };
 }

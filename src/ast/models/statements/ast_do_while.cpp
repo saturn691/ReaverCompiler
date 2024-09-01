@@ -5,8 +5,8 @@ namespace ast
     DoWhile::DoWhile(
         const Node *statement,
         const Node *condition)
-        : statement(std::shared_ptr<const Node>(statement)),
-          condition(std::shared_ptr<const Node>(condition))
+        : statement(std::unique_ptr<const Node>(statement)),
+          condition(std::unique_ptr<const Node>(condition))
     {
     }
 

@@ -6,7 +6,7 @@ namespace ast
         int amount,
         const Declarator *declarator)
         : amount(amount),
-          declarator(std::shared_ptr<const Declarator>(declarator))
+          declarator(std::unique_ptr<const Declarator>(declarator))
     {
     }
 

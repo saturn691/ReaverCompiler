@@ -14,9 +14,15 @@
 #include <ast/models/ast_node.hpp>
 #include <ast/models/ast_statement.hpp>
 #include <ast/models/ast_declaration.hpp>
+#include <ast/utils/ast_context.hpp>
+
+#include <ir/models/ir_statement.hpp>
 
 namespace ast
 {
+    using Dest = std::optional<ir::Declaration>;
+    using ExprLower_t = std::unique_ptr<const ir::Rvalue>;
+
     /**
      * Base class for all expressions.
      */
@@ -26,6 +32,15 @@ namespace ast
         virtual ~Expression() = default;
 
         virtual void print(std::ostream &dst, int indent_level) const override = 0;
+
+        virtual Types_t get_type(Context &context) const = 0;
+
+        virtual ExprLower_t lower(
+            Context &context,
+            const ir::FunctionHeader &header,
+            ir::FunctionLocals &locals,
+            const std::unique_ptr<ir::BasicBlock> &block,
+            const Dest dest) const = 0;
     };
 
     enum class BinaryOpType
@@ -64,9 +79,20 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
+        static ir::BinaryOpType to_ir_type(BinaryOpType op);
+
+        Types_t get_type(Context &context) const override;
+
+        ExprLower_t lower(
+            Context &context,
+            const ir::FunctionHeader &header,
+            ir::FunctionLocals &locals,
+            const std::unique_ptr<ir::BasicBlock> &block,
+            const Dest dest) const override;
+
     private:
-        std::shared_ptr<const Expression> left;
-        std::shared_ptr<const Expression> right;
+        std::unique_ptr<const Expression> left;
+        std::unique_ptr<const Expression> right;
         BinaryOpType op;
     };
 
@@ -78,11 +104,20 @@ namespace ast
                        virtual public Declarator
     {
     public:
-        Identifier(const std::string id);
+        Identifier(const std::string &id);
 
         void print(std::ostream &dst, int indent_level) const override;
 
+        Types_t get_type(Context &context) const override;
+
         std::string get_id() const override;
+
+        ExprLower_t lower(
+            Context &context,
+            const ir::FunctionHeader &header,
+            ir::FunctionLocals &locals,
+            const std::unique_ptr<ir::BasicBlock> &block,
+            const Dest dest) const override;
 
     private:
         std::string id;

@@ -31,6 +31,6 @@ namespace ast
 
     private:
         UnaryOpType op;
-        std::shared_ptr<const Node> expr;
+        std::unique_ptr<const Node> expr;
     };
 }

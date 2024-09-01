@@ -10,9 +10,9 @@ namespace ast
         print_delim(dst, indent_level, "\n");
     }
 
-    ir::IR TranslationUnit::lower(Context &context) const
+    std::unique_ptr<ir::IR> TranslationUnit::lower(Context &context) const
     {
-        ir::IR ir = ir::IR();
+        std::unique_ptr<ir::IR> ir = std::make_unique<ir::IR>();
         for (const auto &node : nodes)
         {
             std::visit(

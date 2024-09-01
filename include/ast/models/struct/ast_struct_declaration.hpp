@@ -31,6 +31,6 @@ namespace ast
     private:
         StructOrUnionType type;
         std::string identifier;
-        std::shared_ptr<const StructDeclarationList> declarations;
+        std::unique_ptr<const StructDeclarationList> declarations;
     };
 }
