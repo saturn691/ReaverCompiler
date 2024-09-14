@@ -4,7 +4,7 @@
 namespace ir
 {
     Declaration::Declaration(
-        const std::optional<std::string> &name,
+        const std::string &name,
         const Type &type)
         : name(name),
           type(type)
@@ -16,13 +16,13 @@ namespace ir
         std::string indent = get_indent(indent_level);
         dst << indent;
         type.print(dst, 0);
-        if (name.has_value())
+        if (name != "")
         {
-            dst << " " << name.value();
+            dst << " " << name;
         }
     }
 
-    std::optional<std::string> Declaration::accept(Visitor &visitor) const
+    std::string Declaration::accept(Visitor &visitor) const
     {
         return visitor.codegen(*this);
     }

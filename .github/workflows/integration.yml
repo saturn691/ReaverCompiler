@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - william/final
+      - v2.0
   pull_request:
 
 jobs:
@@ -14,18 +14,14 @@ jobs:
       statuses: write
       checks: write
       contents: read
-    container:
-      image: ghcr.io/langproc/langproc-2022-cw/environment:v1.0.0
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
 
       - name: Build and test
         id: test
-        timeout-minutes: 1
+        timeout-minutes: 5
         run: |
+          bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
           ./scripts/test.py
 
       - name: Perm issue fix

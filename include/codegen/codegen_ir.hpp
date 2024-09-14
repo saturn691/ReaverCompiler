@@ -31,15 +31,16 @@ namespace codegen
         llvm::Function *codegen(const ir::Function &function);
 
         llvm::Value *codegen(const ir::BinaryOp &expr) override;
+        llvm::Value *codegen(const ir::Cast &expr) override;
         llvm::Value *codegen(const ir::Constant &expr) override;
         llvm::Value *codegen(const ir::Use &expr) override;
         llvm::Value *codegen(const ir::Assign &stmt) override;
 
-        std::optional<std::string> codegen(const ir::Declaration &stmt) override;
+        std::string codegen(const ir::Declaration &stmt) override;
 
     private:
         llvm::Type *to_llvm_type(const ir::Type &type);
-        llvm::Type *to_llvm_type(const ir::Types &type);
+        llvm::Type *to_llvm_type(const ty::Types &type);
 
         std::unique_ptr<ir::IR> ir;
         std::unique_ptr<llvm::LLVMContext> context;

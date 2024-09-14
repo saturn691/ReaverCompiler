@@ -2,10 +2,12 @@
 
 #include <string>
 
+#include <ty/ty.hpp>
+
 namespace ast
 {
     enum class Types;
-    using Types_t = Types;
+    using Types_t = ty::Types;
 
     /**
      * Contextual information to be passed down when recursively searching through

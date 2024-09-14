@@ -20,7 +20,7 @@ namespace ast
     class DeclarationList;
     class Expression;
 
-    using ExprLower_t = std::unique_ptr<const ir::Rvalue>;
+    using ExprLowerR_t = std::unique_ptr<const ir::Rvalue>;
 
     /**
      * Base class for all statements.

@@ -26,6 +26,20 @@ namespace ir
     };
 
     /**
+     * All lvalues in the IR
+     * TODO support more than just variables
+     */
+    class Lvalue : public HasPrint
+    {
+    public:
+        Lvalue(Declaration decl);
+
+        void print(std::ostream &dst, int indent_level) const override;
+
+        const Declaration decl;
+    };
+
+    /**
      * Base class for all rvalues in the IR
      */
     class Rvalue : public HasPrint
@@ -70,8 +84,6 @@ namespace ir
         GT,
         LE,
         GE,
-        LOGICAL_AND,
-        LOGICAL_OR
     };
 
     /**
@@ -102,14 +114,14 @@ namespace ir
     {
     public:
         Assign(
-            Declaration lhs,
+            Lvalue lhs,
             std::unique_ptr<const Rvalue> rhs);
 
         void print(std::ostream &dst, int indent_level) const override;
 
         llvm::Value *accept(Visitor &visitor) const override;
 
-        const Declaration lhs;
+        const Lvalue lhs;
         const std::unique_ptr<const Rvalue> rhs;
     };
 
@@ -129,11 +141,19 @@ namespace ir
     };
 
     /**
-     * All lvalues are rvalues, but not all rvalues are lvalues
+     * Represents a cast operation
+     * e.g. `(int) a`
      */
-    class Lvalue : public Rvalue
+    class Cast : public Rvalue
     {
     public:
-        virtual void print(std::ostream &dst, int indent_level) const override = 0;
+        Cast(Type type, Use val);
+
+        void print(std::ostream &dst, int indent_level) const override;
+
+        llvm::Value *accept(Visitor &visitor) const override;
+
+        const Type type;
+        const Use val;
     };
 }

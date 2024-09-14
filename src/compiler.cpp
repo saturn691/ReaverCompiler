@@ -24,7 +24,7 @@ void compile(std::string sourcePath, std::ostream &out)
 
     codegen::IRCodegen codegen(std::move(ir));
     codegen.codegen();
-    codegen.optimize();
+    // codegen.optimize();
     codegen.print(out);
 
     std::cout << std::endl;

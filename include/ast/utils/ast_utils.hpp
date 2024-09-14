@@ -5,10 +5,10 @@
 #include <ir/models/ir_declaration.hpp>
 #include <ir/models/ir_function.hpp>
 
+#include <ty/ty.hpp>
+
 namespace ast
 {
-    enum class Types;
-
     class Utils
     {
     public:
@@ -20,7 +20,7 @@ namespace ast
             const std::string &delim);
 
         static ir::Declaration get_temp_decl(
-            Types type,
+            ty::Types type,
             ir::FunctionLocals &locals);
 
     private:

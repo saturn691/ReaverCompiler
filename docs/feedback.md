@@ -57,7 +57,7 @@ Considering the complexity of the functionality you implemented (I think you mig
   std::string input_reg = "don't care";
 
   // good
-  std::optional<std::string> input_reg = std::nullopt;
+  std::string input_reg = std::nullopt;
   ```
 
 - Nice use of `enum class`es for things like `Types`, `Scope`, `OperatorType`, etc.

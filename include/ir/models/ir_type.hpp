@@ -2,33 +2,17 @@
 
 #include <ir/models/ir_has_print.hpp>
 
+#include <ty/ty.hpp>
+
 namespace ir
 {
-    enum class Types
-    {
-        VOID,
-        UNSIGNED_CHAR,
-        CHAR,
-        UNSIGNED_SHORT,
-        SHORT,
-        UNSIGNED_INT,
-        INT,
-        UNSIGNED_LONG,
-        LONG,
-        FLOAT,
-        DOUBLE,
-        LONG_DOUBLE
-    };
-
     class Type : public HasPrint
     {
     public:
-        Type() = default;
-
-        Type(const Types type);
+        Type(const ty::Types type);
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        const Types type;
+        const ty::Types type;
     };
 }

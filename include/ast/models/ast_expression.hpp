@@ -20,8 +20,8 @@
 
 namespace ast
 {
-    using Dest = std::optional<ir::Declaration>;
-    using ExprLower_t = std::unique_ptr<const ir::Rvalue>;
+    using ExprLowerR_t = std::unique_ptr<const ir::Rvalue>;
+    using ExprLowerL_t = std::unique_ptr<const ir::Lvalue>;
 
     /**
      * Base class for all expressions.
@@ -35,12 +35,69 @@ namespace ast
 
         virtual Types_t get_type(Context &context) const = 0;
 
-        virtual ExprLower_t lower(
+        virtual ExprLowerR_t lower(
             Context &context,
             const ir::FunctionHeader &header,
             ir::FunctionLocals &locals,
             const std::unique_ptr<ir::BasicBlock> &block,
-            const Dest dest) const = 0;
+            const ir::Lvalue &dest) const = 0;
+
+        virtual ExprLowerL_t lower(
+            Context &context,
+            const ir::FunctionHeader &header,
+            ir::FunctionLocals &locals) const = 0;
+    };
+
+    enum class AssignmentType
+    {
+        ASSIGN,
+        MUL_ASSIGN,
+        DIV_ASSIGN,
+        MOD_ASSIGN,
+        ADD_ASSIGN,
+        SUB_ASSIGN,
+        LEFT_ASSIGN,
+        RIGHT_ASSIGN,
+        AND_ASSIGN,
+        XOR_ASSIGN,
+        OR_ASSIGN
+    };
+
+    /**
+     * An assignment operation, including compound assignments.
+     * Assignments are right-associative (e.g. `a = b = c` = `a = (b = c)`).
+     * The left-hand side must be an lvalue (x, *x, x[i], x.y, x->y).
+     *
+     * e.g. `a = b`, `a += b`, etc.
+     */
+    class Assignment : public Expression
+    {
+    public:
+        Assignment(
+            const Expression *lhs,
+            const AssignmentType op,
+            const Expression *rhs);
+
+        void print(std::ostream &dst, int indent_level) const override;
+
+        Types_t get_type(Context &context) const override;
+
+        ExprLowerR_t lower(
+            Context &context,
+            const ir::FunctionHeader &header,
+            ir::FunctionLocals &locals,
+            const std::unique_ptr<ir::BasicBlock> &block,
+            const ir::Lvalue &dest) const override;
+
+        ExprLowerL_t lower(
+            Context &context,
+            const ir::FunctionHeader &header,
+            ir::FunctionLocals &locals) const override;
+
+    private:
+        std::unique_ptr<const Expression> lhs;
+        AssignmentType op;
+        std::unique_ptr<const Expression> rhs;
     };
 
     enum class BinaryOpType
@@ -83,12 +140,17 @@ namespace ast
 
         Types_t get_type(Context &context) const override;
 
-        ExprLower_t lower(
+        ExprLowerR_t lower(
             Context &context,
             const ir::FunctionHeader &header,
             ir::FunctionLocals &locals,
             const std::unique_ptr<ir::BasicBlock> &block,
-            const Dest dest) const override;
+            const ir::Lvalue &dest) const override;
+
+        ExprLowerL_t lower(
+            Context &context,
+            const ir::FunctionHeader &header,
+            ir::FunctionLocals &locals) const override;
 
     private:
         std::unique_ptr<const Expression> left;
@@ -112,12 +174,17 @@ namespace ast
 
         std::string get_id() const override;
 
-        ExprLower_t lower(
+        ExprLowerR_t lower(
             Context &context,
             const ir::FunctionHeader &header,
             ir::FunctionLocals &locals,
             const std::unique_ptr<ir::BasicBlock> &block,
-            const Dest dest) const override;
+            const ir::Lvalue &dest) const override;
+
+        ExprLowerL_t lower(
+            Context &context,
+            const ir::FunctionHeader &header,
+            ir::FunctionLocals &locals) const override;
 
     private:
         std::string id;

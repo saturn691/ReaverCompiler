@@ -1,6 +1,6 @@
-#include <ast/models/ast_statement.hpp>
 #include <ast/models/ast_declaration.hpp>
 #include <ast/models/ast_expression.hpp>
+#include <ast/models/ast_statement.hpp>
 #include <ast/utils/ast_utils.hpp>
 
 #include <ir/models/ir_terminator.hpp>
@@ -14,7 +14,7 @@ namespace ast
     void StatementList::print(std::ostream &dst, int indent_level) const
     {
         std::string indent = Utils::get_indent(indent_level);
-        print_delim(dst, indent_level, "\n" + indent);
+        print_delim(dst, indent_level, "\n");
     }
 
     /*************************************************************************
@@ -132,8 +132,29 @@ namespace ast
     {
         if (expr != nullptr)
         {
-            expr->lower(
-                context, header, locals, bbs[context.bb], header.ret);
+            // Implicit conversion may be needed
+            auto ty = expr->get_type(context);
+            if (header.ret.type.type != ty)
+            {
+                ir::Declaration decl = Utils::get_temp_decl(ty, locals);
+                expr->lower(
+                    context, header, locals, bbs[context.bb], ir::Lvalue(decl));
+                bbs[context.bb]->statements.push_back(
+                    std::make_unique<ir::Assign>(
+                        ir::Lvalue(header.ret),
+                        std::make_unique<ir::Cast>(
+                            header.ret.type,
+                            ir::Use(decl))));
+            }
+            else
+            {
+                expr->lower(
+                    context,
+                    header,
+                    locals,
+                    bbs[context.bb],
+                    ir::Lvalue(header.ret));
+            }
         }
         bbs[context.bb]->terminator = std::make_unique<ir::Return>();
     }

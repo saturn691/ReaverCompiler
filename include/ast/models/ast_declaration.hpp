@@ -52,17 +52,6 @@ namespace ast
     };
 
     /**
-     * A list of declarations.
-     */
-    class DeclarationList : public NodeList<Declaration>
-    {
-    public:
-        using NodeList::NodeList;
-
-        ir::FunctionLocals lower() const;
-    };
-
-    /**
      * A function definition, including the body.
      * e.g. `int foo(int x) { return x + 1; }`
      */
@@ -158,6 +147,8 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
+        void lower(ir::FunctionLocals &locals) const;
+
         std::string get_id() const override;
 
     private:
@@ -169,10 +160,12 @@ namespace ast
      * A list of init declarators.
      * e.g. `int x = 0, y = 1`
      */
-    class InitDeclaratorList : public NodeList<Declarator>
+    class InitDeclaratorList : public NodeList<InitDeclarator>
     {
     public:
         using NodeList::NodeList;
+
+        void lower(ir::FunctionLocals &locals) const;
     };
 
     /**
@@ -190,10 +183,25 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(Context &context, std::unique_ptr<ir::IR> &ir) const;
+        void lower(
+            Context &context,
+            std::unique_ptr<ir::IR> &ir) const;
+
+        void lower(ir::FunctionLocals &locals) const;
 
     private:
         std::unique_ptr<const Type> specifiers;
         std::unique_ptr<const InitDeclaratorList> decls;
+    };
+
+    /**
+     * A list of declarations.
+     */
+    class DeclarationList : public NodeList<DeclarationNode>
+    {
+    public:
+        using NodeList::NodeList;
+
+        ir::FunctionLocals lower() const;
     };
 }

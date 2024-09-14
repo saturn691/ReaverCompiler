@@ -229,7 +229,7 @@ def run_test(driver: Path) -> Result:
 
     def relevant_files(component):
         return f"{log_path}.{component}.stderr.log \n\t {log_path}.{component}.stdout.log"
-    compiler_log_file_str = f"{relevant_files('compiler')} \n\t {log_path}.s \n\t {log_path}.s.printed"
+    compiler_log_file_str = f"{relevant_files('compiler')}"
 
     # Compile
     return_code, _, timed_out = run_subprocess(
@@ -264,7 +264,7 @@ def run_test(driver: Path) -> Result:
         log_path=f"{log_path}.as",
     )
     if return_code != 0:
-        msg = f"\t> Failed to assemble: \n\t {compiler_log_file_str} \n\t {relevant_files('assembler')}"
+        msg = f"\t> Failed to assemble: \n\t {compiler_log_file_str} \n\t {relevant_files('as')}"
         return Result(
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)
@@ -278,7 +278,7 @@ def run_test(driver: Path) -> Result:
         log_path=f"{log_path}.llc",
     )
     if return_code != 0:
-        msg = f"\t> Failed to assemble: \n\t {compiler_log_file_str} \n\t {relevant_files('assembler')}"
+        msg = f"\t> Failed to assemble: \n\t {compiler_log_file_str} \n\t {relevant_files('llc')}"
         return Result(
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)
@@ -314,12 +314,12 @@ def link_and_simulate(log_path: Path,
 
     # Simulate
     return_code, _, timed_out = run_subprocess(
-        cmd=["spike", "pk", log_path],
+        cmd=[log_path],
         timeout=RUN_TIMEOUT_SECONDS,
-        log_path=f"{log_path}.simulation",
+        log_path=f"{log_path}.sim",
     )
     if return_code != 0:
-        msg = f"\t> Failed to simulate: \n\t {compiler_log_file_str} \n\t {relevant_files('simulation')}"
+        msg = f"\t> Failed to simulate: \n\t {compiler_log_file_str} \n\t {relevant_files('sim')}"
         return Result(
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)
@@ -590,11 +590,10 @@ def parse_args():
         version=f"BetterTesting {__version__}"
     )
     parser.add_argument(
-        '--no_clean',
+        '--clean',
         action="store_true",
         default=False,
-        help="Don't clean the repository before testing. This will make it "
-        "faster but it can be safer to clean if you have any compilation issues."
+        help="Clean the repository before testing."
     )
     parser.add_argument(
         "--coverage",
@@ -612,12 +611,11 @@ def main():
     shutil.rmtree(OUTPUT_FOLDER, ignore_errors=True)
     Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
 
-    if not args.no_clean and not clean():
+    if args.clean and not clean():
         # Clean the repo if required and exit if this fails.
         exit(2)
-
-    if not make(silent=args.short):
-        exit(3)
+        if not make(silent=args.short):
+            exit(3)
 
     with JUnitXMLFile(J_UNIT_OUTPUT_FILE) as xml_file:
         run_tests(args, xml_file)

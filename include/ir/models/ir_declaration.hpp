@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-
 #include <ir/models/ir_has_print.hpp>
 #include <ir/models/ir_type.hpp>
 
@@ -18,15 +16,13 @@ namespace ir
     class Declaration : public HasPrint
     {
     public:
-        Declaration() = default;
-
-        Declaration(const std::optional<std::string> &name, const Type &type);
+        Declaration(const std::string &name, const Type &type);
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        std::optional<std::string> accept(Visitor &visitor) const;
+        std::string accept(Visitor &visitor) const;
 
-        std::optional<std::string> name;
+        std::string name;
         Type type;
     };
 }

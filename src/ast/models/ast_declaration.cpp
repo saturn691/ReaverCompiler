@@ -4,15 +4,6 @@
 
 namespace ast
 {
-    /*************************************************************************
-     * DeclarationList implementation
-     ************************************************************************/
-
-    ir::FunctionLocals
-    DeclarationList::lower() const
-    {
-        return ir::FunctionLocals();
-    }
 
     /*************************************************************************
      * FunctionDefinition implementation
@@ -43,7 +34,7 @@ namespace ast
     void FunctionDefinition::lower(Context &context, std::unique_ptr<ir::IR> &ir) const
     {
         ir::Declaration return_type = ir::Declaration(
-            std::nullopt,
+            "",
             specifiers->lower());
         std::vector<ir::Declaration> args = declarator->lower();
         std::string name = declarator->get_id();
@@ -152,13 +143,13 @@ namespace ast
 
     ir::Declaration FunctionParam::lower() const
     {
-        std::optional<std::string> id = std::nullopt;
+        std::string id = "";
         if (decl != nullptr)
         {
             id = decl->get_id();
         }
 
-        return ir::Declaration(id.value(), type->lower());
+        return ir::Declaration(id, type->lower());
     }
 
     /*************************************************************************
@@ -191,9 +182,25 @@ namespace ast
         }
     }
 
+    void InitDeclarator::lower(ir::FunctionLocals &locals) const
+    {
+    }
+
     std::string InitDeclarator::get_id() const
     {
         return decl->get_id();
+    }
+
+    /*************************************************************************
+     * InitDeclaratorList implementation
+     ************************************************************************/
+
+    void InitDeclaratorList::lower(ir::FunctionLocals &locals) const
+    {
+        for (const auto &decl : nodes)
+        {
+        std::get<0>(decl)->lower(locals);
+        }
     }
 
     /*************************************************************************
@@ -224,13 +231,43 @@ namespace ast
         dst << ";";
     }
 
-    void DeclarationNode::lower(Context &context, std::unique_ptr<ir::IR> &ir) const
+    void DeclarationNode::lower(
+        Context &context,
+        std::unique_ptr<ir::IR> &ir) const
     {
         // std::vector<ir::Declaration> decls = decls->lower(context);
         // for (const auto &decl : decls)
         // {
         //     ir.add_declaration(decl);
         // }
+    }
+
+    void DeclarationNode::lower(ir::FunctionLocals &locals) const
+    {
+        if (decls)
+        {
+            decls->lower(locals);
+        }
+        else
+        {
+            // Struct or union declaration
+        }
+    }
+
+    /*************************************************************************
+     * DeclarationList implementation
+     ************************************************************************/
+
+    ir::FunctionLocals
+    DeclarationList::lower() const
+    {
+        ir::FunctionLocals locals;
+        for (const auto &decl : nodes)
+        {
+            std::get<0>(decl)->lower(locals);
+        }
+
+        return locals;
     }
 
 }

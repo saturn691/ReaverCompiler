@@ -2,6 +2,7 @@
 
 %code requires{
   #include "ast/ast.hpp"
+  #include "ty/ty.hpp"
 
   #include <cassert>
   #include <variant>
@@ -26,6 +27,7 @@
 
     Type                    *type;
     Declarator              *decl;
+    InitDeclarator          *i_decl;
     Expression              *expr;
     FunctionDefinition      *func_def;
     FunctionDeclarator      *func_decl;
@@ -35,7 +37,7 @@
     Statement               *stmt;
 
     // UnaryOpType             unary_op;
-    // AssignmentType          assignment_op;
+    AssignmentType          assignment_op;
     // StructOrUnionType       struct_or_union;
 
     // ArrayInitializerList    *array_initializer_list;
@@ -43,7 +45,7 @@
     // EnumList                *enum_list;
     // FunctionCallList        *function_call_list;
     FunctionParamList       *function_param_list;
-    InitDeclaratorList      *init_declarator_list;
+    InitDeclaratorList      *init_decl_list;
     StatementList           *stmt_list;
     // StructDeclarationList   *struct_declaration_list;
     // StructItemList          *struct_item_list;
@@ -101,7 +103,7 @@
 
 %type <declaration_list> declaration_list
 %type <enum_list> enumerator_list
-%type <init_declarator_list> init_declarator_list
+%type <init_decl_list> init_declarator_list
 %type <function_param_list> parameter_list parameter_type_list
 %type <array_initializer_list> initializer_list
 %type <function_call_list> argument_expression_list
@@ -114,7 +116,8 @@
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
 %type <type> struct_or_union_specifier
 %type <assignment_op> assignment_operator
-%type <decl> declarator direct_declarator init_declarator
+%type <decl> declarator direct_declarator
+%type <i_decl> init_declarator
 %type <scope> compound_statement
 %type <unary_op> unary_operator
 %type <func_def> function_definition
@@ -300,32 +303,32 @@ assignment_expression
 	: conditional_expression
         { $$ = $1; }
 	| unary_expression assignment_operator assignment_expression
-        /* { $$ = new Assignment($1, $3, $2); } */
+        { $$ = new Assignment($1, $2, $3); }
 	;
 
 assignment_operator
 	: '='
-        /* { $$ = AssignmentType::ASSIGN; } */
+        { $$ = AssignmentType::ASSIGN; }
 	| MUL_ASSIGN
-        /* { $$ = AssignmentType::MUL_ASSIGN; } */
+        { $$ = AssignmentType::MUL_ASSIGN; }
 	| DIV_ASSIGN
-        /* { $$ = AssignmentType::DIV_ASSIGN; } */
+        { $$ = AssignmentType::DIV_ASSIGN; }
 	| MOD_ASSIGN
-        /* { $$ = AssignmentType::MOD_ASSIGN; } */
+        { $$ = AssignmentType::MOD_ASSIGN; }
 	| ADD_ASSIGN
-        /* { $$ = AssignmentType::ADD_ASSIGN; } */
+        { $$ = AssignmentType::ADD_ASSIGN; }
 	| SUB_ASSIGN
-        /* { $$ = AssignmentType::SUB_ASSIGN; } */
+        { $$ = AssignmentType::SUB_ASSIGN; }
 	| LEFT_ASSIGN
-        /* { $$ = AssignmentType::LEFT_ASSIGN; } */
+        { $$ = AssignmentType::LEFT_ASSIGN; }
 	| RIGHT_ASSIGN
-        /* { $$ = AssignmentType::RIGHT_ASSIGN; } */
+        { $$ = AssignmentType::RIGHT_ASSIGN; }
 	| AND_ASSIGN
-        /* { $$ = AssignmentType::AND_ASSIGN; } */
+        { $$ = AssignmentType::AND_ASSIGN; }
 	| XOR_ASSIGN
-        /* { $$ = AssignmentType::XOR_ASSIGN; } */
+        { $$ = AssignmentType::XOR_ASSIGN; }
 	| OR_ASSIGN
-        /* { $$ = AssignmentType::OR_ASSIGN; } */
+        { $$ = AssignmentType::OR_ASSIGN; }
 	;
 
 expression
@@ -366,7 +369,7 @@ init_declarator_list
 
 init_declarator
 	: declarator
-        { $$ = $1; }
+        { $$ = new InitDeclarator($1); }
 	| declarator '=' initializer
         { $$ = new InitDeclarator($1, $3); }
     ;
@@ -381,23 +384,23 @@ storage_class_specifier
 
 type_specifier
 	: VOID
-        {$$ = new BasicType(Types::VOID); }
+        {$$ = new BasicType(ty::Types::VOID); }
 	| CHAR
-        {$$ = new BasicType(Types::CHAR); }
+        {$$ = new BasicType(ty::Types::CHAR); }
 	| SHORT
-        {$$ = new BasicType(Types::SHORT); }
+        {$$ = new BasicType(ty::Types::SHORT); }
 	| INT
-        {$$ = new BasicType(Types::INT); }
+        {$$ = new BasicType(ty::Types::INT); }
 	| LONG
-        {$$ = new BasicType(Types::LONG); }
+        {$$ = new BasicType(ty::Types::LONG); }
 	| FLOAT
-        {$$ = new BasicType(Types::FLOAT); }
+        {$$ = new BasicType(ty::Types::FLOAT); }
 	| DOUBLE
-        {$$ = new BasicType(Types::DOUBLE); }
+        {$$ = new BasicType(ty::Types::DOUBLE); }
 	| SIGNED
-        {$$ = new BasicType(Types::INT); }
+        {$$ = new BasicType(ty::Types::INT); }
 	| UNSIGNED
-        {$$ = new BasicType(Types::UNSIGNED_INT); }
+        {$$ = new BasicType(ty::Types::UNSIGNED_INT); }
 	| struct_or_union_specifier
         { $$ = $1; }
 	| enum_specifier

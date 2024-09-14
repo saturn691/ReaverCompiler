@@ -4,6 +4,20 @@
 namespace ir
 {
     /*************************************************************************
+     * Lvalue implementation
+     ************************************************************************/
+
+    Lvalue::Lvalue(Declaration decl)
+        : decl(decl)
+    {
+    }
+
+    void Lvalue::print(std::ostream &dst, int indent_level) const
+    {
+        decl.print(dst, 0);
+    }
+
+    /*************************************************************************
      * Constant implementation
      ************************************************************************/
 
@@ -91,12 +105,6 @@ namespace ir
         case BinaryOpType::GE:
             dst << " >= ";
             break;
-        case BinaryOpType::LOGICAL_AND:
-            dst << " && ";
-            break;
-        case BinaryOpType::LOGICAL_OR:
-            dst << " || ";
-            break;
         }
         rhs->print(dst, 0);
     }
@@ -111,7 +119,7 @@ namespace ir
      ************************************************************************/
 
     Assign::Assign(
-        Declaration lhs,
+        ir::Lvalue lhs,
         std::unique_ptr<const Rvalue> rhs)
         : lhs(lhs),
           rhs(std::move(rhs))
@@ -134,7 +142,7 @@ namespace ir
     }
 
     /*************************************************************************
-     * Assign implementation
+     * Use implementation
      ************************************************************************/
 
     Use::Use(Declaration decl)
@@ -151,6 +159,30 @@ namespace ir
     }
 
     llvm::Value *Use::accept(Visitor &visitor) const
+    {
+        return visitor.codegen(*this);
+    }
+
+    /*************************************************************************
+     * Cast implementation
+     ************************************************************************/
+
+    Cast::Cast(Type type, Use use)
+        : type(type),
+          val(use)
+    {
+    }
+
+    void Cast::print(std::ostream &dst, int indent_level) const
+    {
+        std::string indent = get_indent(indent_level);
+        dst << indent << "(";
+        type.print(dst, 0);
+        dst << ") ";
+        val.print(dst, 0);
+    }
+
+    llvm::Value *Cast::accept(Visitor &visitor) const
     {
         return visitor.codegen(*this);
     }

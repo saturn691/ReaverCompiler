@@ -5,6 +5,6 @@ namespace ast
 {
     Types_t Context::get_type(const std::string &id) const
     {
-        return Types::INT;
+        return ty::Types::INT;
     }
 }

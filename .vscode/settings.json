@@ -77,7 +77,8 @@
         "optional": "cpp",
         "typeindex": "cpp",
         "*.ipp": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "*.def": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++20"
 }

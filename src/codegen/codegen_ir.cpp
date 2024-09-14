@@ -90,9 +90,9 @@ namespace codegen
         unsigned i = 0;
         for (auto &arg : f->args())
         {
-            if (header.params[i].name)
+            if (header.params[i].name != "")
             {
-                arg.setName(header.params[i].name.value());
+                arg.setName(header.params[i].name);
             }
             i++;
         }
@@ -118,7 +118,7 @@ namespace codegen
         for (const auto &local : function.locals.locals)
         {
             llvm::Type *type = to_llvm_type(local.type);
-            std::string name = local.name.value();
+            std::string name = local.name;
             auto *alloca = builder->CreateAlloca(type, nullptr, name);
             named_values[name] = alloca;
         }
@@ -177,6 +177,8 @@ namespace codegen
             return builder->CreateShl(lhs, rhs, "lsl");
         case ir::BinaryOpType::LSR:
             return builder->CreateLShr(lhs, rhs, "lsr");
+
+        // Comparison operators - returns `i1` type
         case ir::BinaryOpType::EQ:
             return builder->CreateICmpEQ(lhs, rhs, "eq");
         case ir::BinaryOpType::NE:
@@ -189,11 +191,16 @@ namespace codegen
             return builder->CreateICmpSLE(lhs, rhs, "le");
         case ir::BinaryOpType::GE:
             return builder->CreateICmpSGE(lhs, rhs, "ge");
-        case ir::BinaryOpType::LOGICAL_AND:
-            return builder->CreateAnd(lhs, rhs, "and");
-        case ir::BinaryOpType::LOGICAL_OR:
-            return builder->CreateOr(lhs, rhs, "or");
         }
+    }
+
+    llvm::Value *IRCodegen::codegen(const ir::Cast &expr)
+    {
+        return builder->CreateCast(
+            llvm::Instruction::CastOps::ZExt,
+            expr.val.accept(*this),
+            to_llvm_type(expr.type),
+            "cast");
     }
 
     llvm::Value *IRCodegen::codegen(const ir::Constant &expr)
@@ -203,12 +210,12 @@ namespace codegen
 
     llvm::Value *IRCodegen::codegen(const ir::Use &expr)
     {
-        if (!named_values.count(expr.decl.name.value()))
+        if (!named_values.count(expr.decl.name))
         {
             return nullptr;
         }
 
-        std::string name = expr.decl.name.value();
+        std::string name = expr.decl.name;
         llvm::AllocaInst *alloca = named_values[name];
         if (!alloca)
         {
@@ -220,23 +227,23 @@ namespace codegen
 
     llvm::Value *IRCodegen::codegen(const ir::Assign &stmt)
     {
-        std::optional<std::string> lhs = stmt.lhs.accept(*this);
+        std::string lhs = stmt.lhs.decl.accept(*this);
         llvm::Value *rhs = stmt.rhs->accept(*this);
 
         // Return case
-        if (!lhs.has_value())
+        if (lhs == "")
         {
             builder->CreateRet(rhs);
         }
         else
         {
-            llvm::Value *alloca = named_values[lhs.value()];
+            llvm::Value *alloca = named_values[lhs];
             builder->CreateStore(rhs, alloca);
         }
         return nullptr;
     }
 
-    std::optional<std::string> IRCodegen::codegen(const ir::Declaration &stmt)
+    std::string IRCodegen::codegen(const ir::Declaration &stmt)
     {
         return stmt.name;
     }
@@ -246,29 +253,31 @@ namespace codegen
         return to_llvm_type(type.type);
     }
 
-    llvm::Type *IRCodegen::to_llvm_type(const ir::Types &type)
+    llvm::Type *IRCodegen::to_llvm_type(const ty::Types &type)
     {
         switch (type)
         {
-        case ir::Types::VOID:
+        case ty::Types::VOID:
             return llvm::Type::getVoidTy(*context);
-        case ir::Types::UNSIGNED_CHAR:
-        case ir::Types::CHAR:
+        case ty::Types::_BOOL:
+            return llvm::Type::getInt1Ty(*context);
+        case ty::Types::UNSIGNED_CHAR:
+        case ty::Types::CHAR:
             return llvm::Type::getInt8Ty(*context);
-        case ir::Types::UNSIGNED_SHORT:
-        case ir::Types::SHORT:
+        case ty::Types::UNSIGNED_SHORT:
+        case ty::Types::SHORT:
             return llvm::Type::getInt16Ty(*context);
-        case ir::Types::UNSIGNED_INT:
-        case ir::Types::INT:
+        case ty::Types::UNSIGNED_INT:
+        case ty::Types::INT:
             return llvm::Type::getInt32Ty(*context);
-        case ir::Types::UNSIGNED_LONG:
-        case ir::Types::LONG:
+        case ty::Types::UNSIGNED_LONG:
+        case ty::Types::LONG:
             return llvm::Type::getInt64Ty(*context);
-        case ir::Types::FLOAT:
+        case ty::Types::FLOAT:
             return llvm::Type::getFloatTy(*context);
-        case ir::Types::DOUBLE:
+        case ty::Types::DOUBLE:
             return llvm::Type::getDoubleTy(*context);
-        case ir::Types::LONG_DOUBLE:
+        case ty::Types::LONG_DOUBLE:
             return llvm::Type::getFP128Ty(*context);
         }
     }
