@@ -13,7 +13,7 @@ trim_trailing_whitespace = true
 indent_style = tab
 indent_size = 8
 
-[*.{cpp,h,py,y}]
+[*.{cpp,h,py,y,hpp}]
 indent_style = space
 indent_size = 4
 trim_trailing_whitespace = true

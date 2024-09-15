@@ -1,7 +1,9 @@
 bin/
+output/
 build/
 __pycache__/
 .cache/
+.vscode/
 
 *.o
 /*.s
@@ -9,4 +11,4 @@ __pycache__/
 src/lexer.yy.cpp
 src/parser.tab.cpp
 src/parser.tab.hpp
-src/parser.output
+src/parser.outpu

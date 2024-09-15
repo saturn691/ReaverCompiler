@@ -68,17 +68,17 @@ namespace ast
 
     ExprLowerR_t Assignment::lower(
         Context &context,
-        const ir::FunctionHeader &header,
-        ir::FunctionLocals &locals,
         const std::unique_ptr<ir::BasicBlock> &block,
-        const ir::Lvalue &dest) const
+        const std::optional<ir::Lvalue> &dest) const
     {
+        // dest CAN be std::nullopt if we are discarding the value
+        auto l = *lhs->lower(context);
+        rhs->lower(context, block, ir::Lvalue(l));
+        // TODO: static cast required here
+        return std::make_unique<ir::Use>(l.decl);
     }
 
-    ExprLowerL_t Assignment::lower(
-        Context &context,
-        const ir::FunctionHeader &header,
-        ir::FunctionLocals &locals) const
+    ExprLowerL_t Assignment::lower(Context &context) const
     {
         // Not a valid lvalue
         return nullptr;
@@ -165,9 +165,6 @@ namespace ast
 
     ir::BinaryOpType BinaryOp::to_ir_type(BinaryOpType op)
     {
-        assert(op != BinaryOpType::LOGICAL_AND &&
-               op != BinaryOpType::LOGICAL_OR);
-
         switch (op)
         {
         case BinaryOpType::ADD:
@@ -202,6 +199,9 @@ namespace ast
             return ir::BinaryOpType::LE;
         case BinaryOpType::GE:
             return ir::BinaryOpType::GE;
+        case BinaryOpType::LOGICAL_AND:
+        case BinaryOpType::LOGICAL_OR:
+            throw std::runtime_error("Invalid operation in BinaryOp::to_ir_type()");
         }
     }
 
@@ -239,20 +239,20 @@ namespace ast
 
     ExprLowerR_t BinaryOp::lower(
         Context &context,
-        const ir::FunctionHeader &header,
-        ir::FunctionLocals &locals,
         const std::unique_ptr<ir::BasicBlock> &block,
-        const ir::Lvalue &dest) const
+        const std::optional<ir::Lvalue> &dest) const
     {
+        // dest != std::nullopt here (wouldn't make sense)
         ty::Types ty = ty::promote(
             left->get_type(context),
             right->get_type(context));
 
-        ir::Declaration tmp_l = Utils::get_temp_decl(ty, locals);
-        ir::Declaration tmp_r = Utils::get_temp_decl(ty, locals);
+        // Cast into NON reference
+        ir::Declaration tmp_l = context.get_temp_decl(ty);
+        ir::Declaration tmp_r = context.get_temp_decl(ty);
 
-        auto l = left->lower(context, header, locals, block, ir::Lvalue(tmp_l));
-        auto r = right->lower(context, header, locals, block, ir::Lvalue(tmp_r));
+        auto l = left->lower(context, block, ir::Lvalue(tmp_l));
+        auto r = right->lower(context, block, ir::Lvalue(tmp_r));
         auto res = std::make_unique<ir::BinaryOp>(
             std::make_unique<const ir::Use>(tmp_l),
             to_ir_type(op),
@@ -260,16 +260,13 @@ namespace ast
 
         block->statements.push_back(
             std::make_unique<ir::Assign>(
-                dest,
+                dest.value(),
                 std::move(res)));
 
         return res;
     }
 
-    ExprLowerL_t BinaryOp::lower(
-        Context &context,
-        const ir::FunctionHeader &header,
-        ir::FunctionLocals &locals) const
+    ExprLowerL_t BinaryOp::lower(Context &context) const
     {
         // Not a valid lvalue
         return nullptr;
@@ -302,58 +299,32 @@ namespace ast
 
     ExprLowerR_t Identifier::lower(
         Context &context,
-        const ir::FunctionHeader &header,
-        ir::FunctionLocals &locals,
         const std::unique_ptr<ir::BasicBlock> &block,
-        const ir::Lvalue &dest) const
+        const std::optional<ir::Lvalue> &dest) const
     {
-        for (const auto &param : header.params)
+        // dest != std::nullopt here (wouldn't make sense)
+        for (const auto &decl : context.decls)
         {
-            if (param.name == id)
+            if (decl.name == id)
             {
                 auto assign = std::make_unique<ir::Assign>(
-                    dest, std::make_unique<ir::Use>(param));
-
+                    dest.value(), std::make_unique<ir::Use>(decl));
                 block->statements.push_back(std::move(assign));
 
-                return std::make_unique<const ir::Use>(param);
-            }
-        }
-
-        for (const auto &local : locals.locals)
-        {
-            if (local.name == id)
-            {
-                auto assign = std::make_unique<ir::Assign>(
-                    dest, std::make_unique<ir::Use>(local));
-
-                block->statements.push_back(std::move(assign));
-
-                return std::make_unique<const ir::Use>(local);
+                return std::make_unique<const ir::Use>(decl);
             }
         }
 
         return nullptr;
     }
 
-    ExprLowerL_t Identifier::lower(
-        Context &context,
-        const ir::FunctionHeader &header,
-        ir::FunctionLocals &locals) const
+    ExprLowerL_t Identifier::lower(Context &context) const
     {
-        for (const auto &param : header.params)
+        for (const auto &decl : context.decls)
         {
-            if (param.name == id)
+            if (decl.name == id)
             {
-                return std::make_unique<ir::Lvalue>(param);
-            }
-        }
-
-        for (const auto &local : locals.locals)
-        {
-            if (local.name == id)
-            {
-                return std::make_unique<ir::Lvalue>(local);
+                return std::make_unique<ir::Lvalue>(decl);
             }
         }
 

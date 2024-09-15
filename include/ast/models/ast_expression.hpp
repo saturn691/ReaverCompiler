@@ -35,17 +35,13 @@ namespace ast
 
         virtual Types_t get_type(Context &context) const = 0;
 
+        // Entry point (from Statement)
         virtual ExprLowerR_t lower(
             Context &context,
-            const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals,
             const std::unique_ptr<ir::BasicBlock> &block,
-            const ir::Lvalue &dest) const = 0;
+            const std::optional<ir::Lvalue> &dest) const = 0;
 
-        virtual ExprLowerL_t lower(
-            Context &context,
-            const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals) const = 0;
+        virtual ExprLowerL_t lower(Context &context) const = 0;
     };
 
     enum class AssignmentType
@@ -84,15 +80,10 @@ namespace ast
 
         ExprLowerR_t lower(
             Context &context,
-            const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals,
             const std::unique_ptr<ir::BasicBlock> &block,
-            const ir::Lvalue &dest) const override;
+            const std::optional<ir::Lvalue> &dest) const override;
 
-        ExprLowerL_t lower(
-            Context &context,
-            const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals) const override;
+        ExprLowerL_t lower(Context &context) const override;
 
     private:
         std::unique_ptr<const Expression> lhs;
@@ -142,15 +133,10 @@ namespace ast
 
         ExprLowerR_t lower(
             Context &context,
-            const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals,
             const std::unique_ptr<ir::BasicBlock> &block,
-            const ir::Lvalue &dest) const override;
+            const std::optional<ir::Lvalue> &dest) const override;
 
-        ExprLowerL_t lower(
-            Context &context,
-            const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals) const override;
+        ExprLowerL_t lower(Context &context) const override;
 
     private:
         std::unique_ptr<const Expression> left;
@@ -176,15 +162,10 @@ namespace ast
 
         ExprLowerR_t lower(
             Context &context,
-            const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals,
             const std::unique_ptr<ir::BasicBlock> &block,
-            const ir::Lvalue &dest) const override;
+            const std::optional<ir::Lvalue> &dest) const override;
 
-        ExprLowerL_t lower(
-            Context &context,
-            const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals) const override;
+        ExprLowerL_t lower(Context &context) const override;
 
     private:
         std::string id;

@@ -1,3 +1,4 @@
+#include "ir/models/ir_function.hpp"
 #include <ast/models/ast_declaration.hpp>
 #include <ast/models/ast_expression.hpp>
 #include <ast/utils/ast_utils.hpp>
@@ -40,8 +41,17 @@ namespace ast
         std::string name = declarator->get_id();
         ir::FunctionHeader header = ir::FunctionHeader(name, return_type, args);
 
+        // Important step: we copy the parameters into Context, as they act
+        // like function locals at this point
+        for (const auto& arg : args)
+        {
+            context.decls.push_back(arg);
+        }
+
         ir::BasicBlocks bbs;
-        ir::FunctionLocals locals = statement->lower(context, header, bbs);
+        statement->lower(context, header, bbs);
+        ir::FunctionLocals locals = ir::FunctionLocals();
+        locals.locals = std::move(context.decls);
 
         ir->add_function(
             std::make_unique<ir::Function>(header, locals, std::move(bbs)));
@@ -182,8 +192,16 @@ namespace ast
         }
     }
 
-    void InitDeclarator::lower(ir::FunctionLocals &locals) const
+    void InitDeclarator::lower(
+        Context &context,
+        const std::unique_ptr<ir::BasicBlock> &bb,
+        const std::unique_ptr<const Type> &ty) const
     {
+        ir::Declaration& declaration = context.add_declaration(ty, decl);
+        if (init)
+        {
+            init->lower(context, bb, declaration);
+        }
     }
 
     std::string InitDeclarator::get_id() const
@@ -195,11 +213,14 @@ namespace ast
      * InitDeclaratorList implementation
      ************************************************************************/
 
-    void InitDeclaratorList::lower(ir::FunctionLocals &locals) const
+    void InitDeclaratorList::lower(
+        Context &context,
+        const std::unique_ptr<ir::BasicBlock> &bb,
+        const std::unique_ptr<const Type> &ty) const
     {
         for (const auto &decl : nodes)
         {
-        std::get<0>(decl)->lower(locals);
+            std::get<0>(decl)->lower(context, bb, ty);
         }
     }
 
@@ -231,6 +252,7 @@ namespace ast
         dst << ";";
     }
 
+    // Globals
     void DeclarationNode::lower(
         Context &context,
         std::unique_ptr<ir::IR> &ir) const
@@ -242,15 +264,18 @@ namespace ast
         // }
     }
 
-    void DeclarationNode::lower(ir::FunctionLocals &locals) const
+    void DeclarationNode::lower(
+        Context &context,
+        const std::unique_ptr<ir::BasicBlock> &bb) const
     {
         if (decls)
         {
-            decls->lower(locals);
+            decls->lower(context, bb, specifiers);
         }
         else
         {
             // Struct or union declaration
+            /*decls->lower(bb);   */
         }
     }
 
@@ -258,16 +283,14 @@ namespace ast
      * DeclarationList implementation
      ************************************************************************/
 
-    ir::FunctionLocals
-    DeclarationList::lower() const
+    void DeclarationList::lower(
+        Context &context,
+        const std::unique_ptr<ir::BasicBlock> &bb) const
     {
-        ir::FunctionLocals locals;
         for (const auto &decl : nodes)
         {
-            std::get<0>(decl)->lower(locals);
+            std::get<0>(decl)->lower(context, bb);
         }
-
-        return locals;
     }
 
 }

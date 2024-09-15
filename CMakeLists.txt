@@ -13,16 +13,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Generate the file for clangd (the LSP)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Mode
+set(CMAKE_BUILD_TYPE Debug)
+
+# LLVM
 find_package(LLVM REQUIRED CONFIG)
 include_directories(${LLVM_INCLUDE_DIRS})
 llvm_map_components_to_libnames(llvm_libs all)
-
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
+# Parser/Lexer
 find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
-
 BISON_TARGET(Parser src/parser.y
   ${CMAKE_CURRENT_BINARY_DIR}/parser.tab.cpp
   COMPILE_FLAGS "-v"
@@ -52,7 +55,6 @@ target_link_libraries(ast PUBLIC ir)
 # rcc
 add_executable(rcc
   src/compiler.cpp
-  src/compiler.h
   src/cli.cpp
   ${BISON_Parser_OUTPUTS}
   ${FLEX_Lexer_OUTPUTS}

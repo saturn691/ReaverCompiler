@@ -52,13 +52,13 @@ if not sys.stdout.isatty():
 # "File" will suggest the absolute path to the file, including the extension.
 SCRIPT_LOCATION = Path(__file__).resolve().parent
 PROJECT_LOCATION = SCRIPT_LOCATION
-OUTPUT_FOLDER = PROJECT_LOCATION.joinpath("bin/output").resolve()
+OUTPUT_FOLDER = PROJECT_LOCATION.joinpath("output").resolve()
 J_UNIT_OUTPUT_FILE = PROJECT_LOCATION.joinpath(
-    "bin/junit_results.xml").resolve()
+    "output/junit_results.xml").resolve()
 COMPILER_TEST_FOLDER = PROJECT_LOCATION.joinpath("compiler_tests").resolve()
 ADD_TEST_FOLDER = PROJECT_LOCATION.joinpath(
     "writing-a-c-compiler-tests/tests").resolve()
-COMPILER_FILE = PROJECT_LOCATION.joinpath("bin/c_compiler").resolve()
+COMPILER_FILE = PROJECT_LOCATION.joinpath("build/rcc").resolve()
 COVERAGE_FOLDER = PROJECT_LOCATION.joinpath("coverage").resolve()
 RESULTS_FILE = ADD_TEST_FOLDER.joinpath("../expected_results.json").resolve()
 

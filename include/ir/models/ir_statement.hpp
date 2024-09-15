@@ -32,7 +32,7 @@ namespace ir
     class Lvalue : public HasPrint
     {
     public:
-        Lvalue(Declaration decl);
+        Lvalue(const Declaration decl);
 
         void print(std::ostream &dst, int indent_level) const override;
 

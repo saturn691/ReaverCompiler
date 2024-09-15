@@ -8,6 +8,7 @@
  * For reference: https://en.cppreference.com/w/c/language/declarations
  */
 
+#include "ir/models/ir_basic_block.hpp"
 #include <memory>
 
 #include <ast/models/ast_node.hpp>
@@ -147,7 +148,10 @@ namespace ast
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(ir::FunctionLocals &locals) const;
+        void lower(
+            Context &context,
+            const std::unique_ptr<ir::BasicBlock>& bb,
+            const std::unique_ptr<const Type>& ty) const;
 
         std::string get_id() const override;
 
@@ -165,7 +169,10 @@ namespace ast
     public:
         using NodeList::NodeList;
 
-        void lower(ir::FunctionLocals &locals) const;
+        void lower(
+            Context &context,
+            const std::unique_ptr<ir::BasicBlock>& bb,
+            const std::unique_ptr<const Type>& ty) const;
     };
 
     /**
@@ -187,7 +194,9 @@ namespace ast
             Context &context,
             std::unique_ptr<ir::IR> &ir) const;
 
-        void lower(ir::FunctionLocals &locals) const;
+        void lower(
+            Context& context,
+            const std::unique_ptr<ir::BasicBlock> &bb) const;
 
     private:
         std::unique_ptr<const Type> specifiers;
@@ -202,6 +211,8 @@ namespace ast
     public:
         using NodeList::NodeList;
 
-        ir::FunctionLocals lower() const;
+        void lower(
+            Context& context,
+            const std::unique_ptr<ir::BasicBlock> &bb) const;
     };
 }

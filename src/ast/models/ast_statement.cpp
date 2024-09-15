@@ -1,3 +1,4 @@
+#include "ir/models/ir_basic_block.hpp"
 #include <ast/models/ast_declaration.hpp>
 #include <ast/models/ast_expression.hpp>
 #include <ast/models/ast_statement.hpp>
@@ -47,34 +48,24 @@ namespace ast
     }
 
     // Call from FunctionDefinition::lower
-    ir::FunctionLocals
-    CompoundStatement::lower(
-        Context &context,
-        const ir::FunctionHeader &header,
-        ir::BasicBlocks &bbs) const
-    {
-        ir::FunctionLocals locals = ir::FunctionLocals();
-
-        if (decls != nullptr)
-        {
-            locals = decls->lower();
-        }
-        if (stmts != nullptr)
-        {
-            bbs.emplace_back(std::make_unique<ir::BasicBlock>());
-            context.bb = 0;
-            stmts->lower(context, header, locals, bbs);
-        }
-
-        return locals;
-    }
-
     void CompoundStatement::lower(
         Context &context,
         const ir::FunctionHeader &header,
-        ir::FunctionLocals &locals,
         ir::BasicBlocks &bbs) const
     {
+        bbs.emplace_back(std::make_unique<ir::BasicBlock>());
+        context.bb = 0;
+
+        if (decls != nullptr)
+        {
+            // InitDeclarators need access to the first BasicBlock
+            // as there could be `int x = 0`
+            decls->lower(context, bbs[0]);
+        }
+        if (stmts != nullptr)
+        {
+            stmts->lower(context, header, bbs);
+        }
     }
 
     /*************************************************************************
@@ -99,9 +90,9 @@ namespace ast
     void ExpressionStatement::lower(
         Context &context,
         const ir::FunctionHeader &header,
-        ir::FunctionLocals &locals,
         ir::BasicBlocks &bbs) const
     {
+        expr->lower(context, bbs[context.bb], std::nullopt);
     }
 
     /*************************************************************************
@@ -127,7 +118,6 @@ namespace ast
     void Return::lower(
         Context &context,
         const ir::FunctionHeader &header,
-        ir::FunctionLocals &locals,
         ir::BasicBlocks &bbs) const
     {
         if (expr != nullptr)
@@ -136,9 +126,12 @@ namespace ast
             auto ty = expr->get_type(context);
             if (header.ret.type.type != ty)
             {
-                ir::Declaration decl = Utils::get_temp_decl(ty, locals);
+                // Cast into NON reference
+                ir::Declaration decl = context.get_temp_decl(ty);
+
+                // Looking for an Rvalue
                 expr->lower(
-                    context, header, locals, bbs[context.bb], ir::Lvalue(decl));
+                    context, bbs[context.bb], ir::Lvalue(decl));
                 bbs[context.bb]->statements.push_back(
                     std::make_unique<ir::Assign>(
                         ir::Lvalue(header.ret),
@@ -150,8 +143,6 @@ namespace ast
             {
                 expr->lower(
                     context,
-                    header,
-                    locals,
                     bbs[context.bb],
                     ir::Lvalue(header.ret));
             }

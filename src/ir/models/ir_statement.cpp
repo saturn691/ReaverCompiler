@@ -1,5 +1,5 @@
-#include <ir/models/ir_statement.hpp>
 #include <ir/ir_visitor.hpp>
+#include <ir/models/ir_statement.hpp>
 
 namespace ir
 {
@@ -7,7 +7,7 @@ namespace ir
      * Lvalue implementation
      ************************************************************************/
 
-    Lvalue::Lvalue(Declaration decl)
+    Lvalue::Lvalue(const Declaration decl)
         : decl(decl)
     {
     }

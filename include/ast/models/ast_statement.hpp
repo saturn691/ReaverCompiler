@@ -33,7 +33,6 @@ namespace ast
         virtual void lower(
             Context &context,
             const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals,
             ir::BasicBlocks &bbs) const = 0;
     };
 
@@ -64,16 +63,9 @@ namespace ast
         void print(std::ostream &dst, int indent_level) const override;
 
         // The compound statement of a function definition
-        ir::FunctionLocals lower(
-            Context &context,
-            const ir::FunctionHeader &header,
-            ir::BasicBlocks &bbs) const;
-
-        // Other compound statements
         void lower(
             Context &context,
             const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals,
             ir::BasicBlocks &bbs) const override;
 
     private:
@@ -93,7 +85,6 @@ namespace ast
         void lower(
             Context &context,
             const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals,
             ir::BasicBlocks &bbs) const override;
 
     private:
@@ -116,7 +107,6 @@ namespace ast
         void lower(
             Context &context,
             const ir::FunctionHeader &header,
-            ir::FunctionLocals &locals,
             ir::BasicBlocks &bbs) const override;
 
     private:

@@ -115,8 +115,13 @@ namespace codegen
             named_values[std::string(arg.getName())] = alloca;
             builder->CreateStore(&arg, alloca);
         }
-        for (const auto &local : function.locals.locals)
+
+        // function.locals.locals contain the header arguments, filter it out
+        for (size_t i = function.header.params.size();
+            i < function.locals.locals.size();
+            i++)
         {
+            auto local = function.locals.locals[i];
             llvm::Type *type = to_llvm_type(local.type);
             std::string name = local.name;
             auto *alloca = builder->CreateAlloca(type, nullptr, name);
