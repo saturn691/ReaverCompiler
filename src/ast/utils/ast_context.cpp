@@ -1,3 +1,4 @@
+#include "ir/models/ir_basic_block.hpp"
 #include <ast/models/ast_declaration.hpp>
 #include <ast/models/ast_type.hpp>
 #include <ast/utils/ast_context.hpp>
@@ -27,5 +28,12 @@ namespace ast
             ir::Type(type)));
 
         return decls.back();
+    }
+
+    int Context::create_new_bb(ir::BasicBlocks &bbs)
+    {
+        bbs.push_back(std::make_unique<ir::BasicBlock>());
+        bb = bbs.size() - 1;
+        return bb;
     }
 }

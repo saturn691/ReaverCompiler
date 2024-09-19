@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ir/models/ir_basic_block.hpp"
 #include <memory>
 #include <string>
 
@@ -33,10 +34,13 @@ namespace ast
 
         ir::Declaration &get_temp_decl(ty::Types type);
 
+        int create_new_bb(ir::BasicBlocks &bbs);
+
         // This is the same signature as FunctionLocals.declarations
         // So we insert these at the end
         std::vector<ir::Declaration> decls;
 
-        int bb;
+        // Points to the current BasicBlock (doesn't have to be the last)
+        int bb = -1;
     };
 }

@@ -11,105 +11,124 @@
 #include <ast/models/ast_node.hpp>
 #include <ast/models/ast_node_list.hpp>
 
-#include <ir/models/ir_function.hpp>
 #include <ir/models/ir_basic_block.hpp>
+#include <ir/models/ir_function.hpp>
 
 namespace ast
 {
-    // Forward declaration
-    class DeclarationList;
-    class Expression;
+// Forward declaration
+class DeclarationList;
+class Expression;
 
-    using ExprLowerR_t = std::unique_ptr<const ir::Rvalue>;
+using ExprLowerR_t = std::unique_ptr<const ir::Rvalue>;
 
-    /**
-     * Base class for all statements.
-     */
-    class Statement : public Node
-    {
-    public:
-        virtual void print(std::ostream &dst, int indent_level) const override = 0;
+/**
+ * Base class for all statements.
+ */
+class Statement : public Node
+{
+public:
+    virtual void print(std::ostream &dst, int indent_level) const override = 0;
 
-        virtual void lower(
-            Context &context,
-            const ir::FunctionHeader &header,
-            ir::BasicBlocks &bbs) const = 0;
-    };
+    virtual void lower(Context &context,
+        const ir::FunctionHeader &header,
+        ir::BasicBlocks &bbs) const = 0;
+};
 
-    /**
-     * A list of statements.
-     */
-    class StatementList : public NodeList<Statement>
-    {
-    public:
-        using NodeList::NodeList;
+/**
+ * A list of statements.
+ */
+class StatementList : public NodeList<Statement>
+{
+public:
+    using NodeList::NodeList;
 
-        void print(std::ostream &dst, int indent_level) const override;
-    };
+    void print(std::ostream &dst, int indent_level) const override;
+};
 
-    /**
-     * A sequence of statements in braces. Creates a new scope.
-     * e.g. `{ int x = 0; x++; }`
-     */
-    class CompoundStatement : public Statement
-    {
-    public:
-        CompoundStatement() = default;
+/**
+ * A sequence of statements in braces. Creates a new scope.
+ * e.g. `{ int x = 0; x++; }`
+ */
+class CompoundStatement : public Statement
+{
+public:
+    CompoundStatement() = default;
 
-        CompoundStatement(
-            const DeclarationList *decls,
-            const StatementList *stmts);
+    CompoundStatement(const DeclarationList *decls, const StatementList *stmts);
 
-        void print(std::ostream &dst, int indent_level) const override;
+    void print(std::ostream &dst, int indent_level) const override;
 
-        // The compound statement of a function definition
-        void lower(
-            Context &context,
-            const ir::FunctionHeader &header,
-            ir::BasicBlocks &bbs) const override;
+    // The compound statement of a function definition
+    void lower(Context &context,
+        const ir::FunctionHeader &header,
+        ir::BasicBlocks &bbs) const override;
 
-    private:
-        std::unique_ptr<const DeclarationList> decls;
-        std::unique_ptr<const StatementList> stmts;
-    };
+private:
+    std::unique_ptr<const DeclarationList> decls;
+    std::unique_ptr<const StatementList> stmts;
+};
 
-    class ExpressionStatement : public Statement
-    {
-    public:
-        ExpressionStatement() = default;
+class ExpressionStatement : public Statement
+{
+public:
+    ExpressionStatement() = default;
 
-        ExpressionStatement(const Expression *expr);
+    ExpressionStatement(const Expression *expr);
 
-        void print(std::ostream &dst, int indent_level) const override;
+    void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(
-            Context &context,
-            const ir::FunctionHeader &header,
-            ir::BasicBlocks &bbs) const override;
+    void lower(Context &context,
+        const ir::FunctionHeader &header,
+        ir::BasicBlocks &bbs) const override;
 
-    private:
-        std::unique_ptr<const Expression> expr;
-    };
+private:
+    std::unique_ptr<const Expression> expr;
+};
 
-    /**
-     * A return statement, with an optional expression.
-     * e.g. `return 0;`
-     */
-    class Return : public Statement
-    {
-    public:
-        Return() = default;
+/**
+ * An if-else statement (else optional)
+ * e.g. `if (1) {} else {}`
+ */
+class If : public Statement
+{
+public:
+    If(const Expression *condition, const Statement *statement);
 
-        Return(const Expression *expr);
+    If(const Expression *condition,
+        const Statement *statement,
+        const Statement *else_statement);
 
-        void print(std::ostream &dst, int indent_level) const override;
+    void print(std::ostream &dst, int indent_level) const override;
 
-        void lower(
-            Context &context,
-            const ir::FunctionHeader &header,
-            ir::BasicBlocks &bbs) const override;
+    void lower(Context &context,
+        const ir::FunctionHeader &header,
+        ir::BasicBlocks &bbs) const override;
 
-    private:
-        std::unique_ptr<const Expression> expr;
-    };
-}
+private:
+    std::unique_ptr<const Expression> condition;
+    std::unique_ptr<const Statement> statement;
+    std::unique_ptr<const Statement> else_statement;
+};
+
+/**
+ * A return statement, with an optional expression.
+ * e.g. `return 0;`
+ */
+class Return : public Statement
+{
+public:
+    Return() = default;
+
+    Return(const Expression *expr);
+
+    void print(std::ostream &dst, int indent_level) const override;
+
+    void lower(Context &context,
+        const ir::FunctionHeader &header,
+        ir::BasicBlocks &bbs) const override;
+
+private:
+    std::unique_ptr<const Expression> expr;
+};
+} // namespace ast

@@ -1,3 +1,5 @@
+# Reference: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+
 # Based on Visual Studio style (VSCode default)
 
 BasedOnStyle: LLVM
@@ -7,7 +9,17 @@ TabWidth: 4
 BreakBeforeBraces: Allman
 AllowShortIfStatementsOnASingleLine: false
 IndentCaseLabels: false
-ColumnLimit: 0
 AccessModifierOffset: -4
-NamespaceIndentation: All
-FixNamespaceComments: false
+
+# L VSCode take: I will do the norm
+NamespaceIndentation: None
+FixNamespaceComments: true
+
+# Custom preferences
+CompactNamespaces: true
+ColumnLimit: 80
+BinPackParameters: false             # Force each parameter to be on a new line
+BinPackArguments: false              # Force each argument to be on a new line
+AlignAfterOpenBracket: DontAlign
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortFunctionsOnASingleLine: false

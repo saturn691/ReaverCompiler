@@ -11,9 +11,9 @@
  * For reference: https://en.cppreference.com/w/c/language/expressions
  */
 
+#include <ast/models/ast_declaration.hpp>
 #include <ast/models/ast_node.hpp>
 #include <ast/models/ast_statement.hpp>
-#include <ast/models/ast_declaration.hpp>
 #include <ast/utils/ast_context.hpp>
 
 #include <ir/models/ir_statement.hpp>
@@ -142,6 +142,33 @@ namespace ast
         std::unique_ptr<const Expression> left;
         std::unique_ptr<const Expression> right;
         BinaryOpType op;
+    };
+
+    /**
+     * Constants
+     * e.g. `1.0f`, `1.0`, `1`
+     */
+    class Constant : public Expression
+
+    {
+    public:
+        Constant(const std::string value);
+
+        void print(
+            std::ostream &dst,
+            [[maybe_unused]] int indent_level) const override;
+
+        Types_t get_type(Context &context) const override;
+
+        ExprLowerR_t lower(
+            Context &context,
+            const std::unique_ptr<ir::BasicBlock> &block,
+            const std::optional<ir::Lvalue> &dest) const override;
+
+        ExprLowerL_t lower(Context &context) const override;
+
+    private:
+        const std::string value;
     };
 
     /**

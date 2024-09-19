@@ -58,6 +58,7 @@ J_UNIT_OUTPUT_FILE = PROJECT_LOCATION.joinpath(
 COMPILER_TEST_FOLDER = PROJECT_LOCATION.joinpath("compiler_tests").resolve()
 ADD_TEST_FOLDER = PROJECT_LOCATION.joinpath(
     "writing-a-c-compiler-tests/tests").resolve()
+BUILD_DIR = PROJECT_LOCATION.joinpath("build").resolve()
 COMPILER_FILE = PROJECT_LOCATION.joinpath("build/rcc").resolve()
 COVERAGE_FOLDER = PROJECT_LOCATION.joinpath("coverage").resolve()
 RESULTS_FILE = ADD_TEST_FOLDER.joinpath("../expected_results.json").resolve()
@@ -424,15 +425,8 @@ def clean() -> bool:
     Return True if successful, False otherwise
     """
     print(GREEN + "Cleaning project..." + RESET)
-    return_code, error_msg, _ = run_subprocess(
-        cmd=["make", "-C", PROJECT_LOCATION, "clean"],
-        timeout=BUILD_TIMEOUT_SECONDS,
-        silent=True,
-    )
-
-    if return_code != 0:
-        print(RED + "Error when cleaning:", error_msg + RESET)
-        return False
+    if BUILD_DIR.exists():
+        shutil.rmtree(BUILD_DIR)
     return True
 
 
@@ -443,9 +437,16 @@ def make(silent: bool) -> bool:
     Return True if successful, False otherwise
     """
     print(GREEN + "Running make..." + RESET)
+    if not BUILD_DIR.exists():
+        os.mkdir(BUILD_DIR)
+    os.chdir(BUILD_DIR)
     return_code, error_msg, _ = run_subprocess(
-        cmd=["make", "-C", PROJECT_LOCATION, "bin/c_compiler"],
+        cmd=["cmake", ".."],
         timeout=BUILD_TIMEOUT_SECONDS, silent=silent)
+    return_code, error_msg, _ = run_subprocess(
+        cmd=["cmake", "--build", "."],
+        timeout=BUILD_TIMEOUT_SECONDS, silent=silent)
+    os.chdir(PROJECT_LOCATION)
     if return_code != 0:
         print(RED + "Error when making:", error_msg + RESET)
         return False
@@ -612,10 +613,10 @@ def main():
     Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
 
     if args.clean and not clean():
-        # Clean the repo if required and exit if this fails.
         exit(2)
-        if not make(silent=args.short):
-            exit(3)
+
+    if not make(silent=args.short):
+        exit(3)
 
     with JUnitXMLFile(J_UNIT_OUTPUT_FILE) as xml_file:
         run_tests(args, xml_file)

@@ -4,11 +4,11 @@ Reaver C Compiler (`rcc`) is a C90 compiler.
 
 To browse the compiler at the time of submission, which scored 90\% (181/201),
 navigate to tag [`v1.0`](https://github.com/saturn691/ReaverCompiler/tree/v1.0).
-The development was largely driven by the [specification](docs/c_compiler.md).
 
 Changes from `v1.0`:
 - Targets all architectures, not only RISC-V by using a LLVM backend.
 - Fixes to globals, enums, structs, arrays and pointers.
+- A new build system, CMake, to accommodate the new features.
 
 ## Getting started
 
@@ -39,6 +39,12 @@ For example, this will compile the example program:
 
 ```bash
 bin/rcc -S "./compiler_tests/_example/example.c" -o "./example.s"
+```
+
+To test the compiler, run the following command:
+
+```bash
+./test.py
 ```
 
 ## Credits

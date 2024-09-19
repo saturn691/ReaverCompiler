@@ -21,7 +21,7 @@ jobs:
         id: test
         timeout-minutes: 5
         run: |
-          bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
           ./scripts/test.py
 
       - name: Perm issue fix

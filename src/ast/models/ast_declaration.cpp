@@ -49,6 +49,7 @@ namespace ast
         }
 
         ir::BasicBlocks bbs;
+        context.create_new_bb(bbs);
         statement->lower(context, header, bbs);
         ir::FunctionLocals locals = ir::FunctionLocals();
         locals.locals = std::move(context.decls);

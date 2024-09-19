@@ -136,7 +136,7 @@ primary_expression
 	: IDENTIFIER
         { $$ = new Identifier(std::string(*$1)); }
 	| CONSTANT
-        /* { $$ = new Constant(*$1); } */
+        { $$ = new Constant(*$1); }
 	| STRING_LITERAL
         /* { $$ = new String(*$1); } */
 	| CHAR_LITERAL
@@ -663,9 +663,9 @@ expression_statement
 
 selection_statement
 	: IF '(' expression ')' statement
-        /* { $$ = new If($3, $5); } */
+        { $$ = new If($3, $5); }
 	| IF '(' expression ')' statement ELSE statement
-        /* { $$ = new If($3, $5, $7); } */
+        { $$ = new If($3, $5, $7); }
     | SWITCH '(' expression ')' statement
         /* { $$ = new Switch($3, $5); } */
     ;

@@ -63,3 +63,6 @@ add_executable(rcc
 # Affects the whole directory - allows everything to see include/
 include_directories(PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(rcc PRIVATE ir ast codegen ty LLVM)
+
+# Adds debug information so that LLDB can see std::string contents
+target_compile_options(rcc PUBLIC -fstandalone-debug)
