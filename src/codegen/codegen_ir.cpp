@@ -270,6 +270,7 @@ void IRCodegen::codegen(const ir::Return &stmt)
 
 void IRCodegen::codegen(const ir::Goto &stmt)
 {
+    builder->CreateBr(bbs[stmt.bb]);
 }
 
 void IRCodegen::codegen(const ir::SwitchInt &stmt)

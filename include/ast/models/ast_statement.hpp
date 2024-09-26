@@ -82,6 +82,10 @@ public:
         const ir::FunctionHeader &header,
         ir::BasicBlocks &bbs) const override;
 
+    ExprLowerR_t lower(Context &context,
+        const std::unique_ptr<ir::BasicBlock> &block,
+        const std::optional<ir::Lvalue> &dest) const;
+
 private:
     std::unique_ptr<const Expression> expr;
 };
@@ -109,6 +113,55 @@ private:
     std::unique_ptr<const Expression> condition;
     std::unique_ptr<const Statement> statement;
     std::unique_ptr<const Statement> else_statement;
+};
+
+/**
+ * A for statement
+ * e.g. `for (i = 0; i < 2; i++) {}`
+ */
+class For : public Statement
+{
+public:
+    For(const ExpressionStatement *init,
+        const ExpressionStatement *cond,
+        const Statement *stmt);
+
+    For(const ExpressionStatement *init,
+        const ExpressionStatement *cond,
+        const Expression *loop,
+        const Statement *stmt);
+
+    void print(std::ostream &dst, int indent_level) const override;
+
+    void lower(Context &context,
+        const ir::FunctionHeader &header,
+        ir::BasicBlocks &bbs) const override;
+
+private:
+    std::unique_ptr<const ExpressionStatement> init;
+    std::unique_ptr<const ExpressionStatement> cond;
+    std::unique_ptr<const Expression> loop;
+    std::unique_ptr<const Statement> stmt;
+};
+
+/**
+ * A while statement
+ * e.g. `while (1) {}`
+ */
+class While : public Statement
+{
+public:
+    While(const Expression *condition, const Statement *statement);
+
+    void print(std::ostream &dst, int indent_level) const override;
+
+    void lower(Context &context,
+        const ir::FunctionHeader &header,
+        ir::BasicBlocks &bbs) const override;
+
+private:
+    std::unique_ptr<const Expression> condition;
+    std::unique_ptr<const Statement> statement;
 };
 
 /**

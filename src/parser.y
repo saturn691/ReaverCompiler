@@ -34,6 +34,7 @@
     Declaration             *declar;
     DeclarationNode         *decl_node;
     CompoundStatement       *scope;
+    ExpressionStatement     *e_stmt;
     Statement               *stmt;
 
     // UnaryOpType             unary_op;
@@ -96,9 +97,9 @@
 /* %type <node> abstract_declarator direct_abstract_declarator */
 
 %type <stmt> statement labeled_statement
-%type <stmt> expression_statement selection_statement iteration_statement
+%type <stmt> selection_statement iteration_statement
 %type <stmt> jump_statement
-
+%type <e_stmt> expression_statement
 %type <nodes> identifier_list
 
 %type <declaration_list> declaration_list
@@ -672,13 +673,13 @@ selection_statement
 
 iteration_statement
 	: WHILE '(' expression ')' statement
-        /* { $$ = new While($3, $5); } */
+        { $$ = new While($3, $5); }
     | DO statement WHILE '(' expression ')' ';'
         /* { $$ = new DoWhile($2, $5); } */
 	| FOR '(' expression_statement expression_statement ')' statement
-        /* { $$ = new For($3, $4, $6); } */
+        { $$ = new For($3, $4, $6); }
     | FOR '(' expression_statement expression_statement expression ')' statement
-        /* { $$ = new For($3, $4, $5, $7); } */
+        { $$ = new For($3, $4, $5, $7); }
     ;
 
 jump_statement

@@ -47,7 +47,7 @@ void CompoundStatement::print(std::ostream &dst, int indent_level) const
         stmts->print(dst, indent_level + 1);
         dst << std::endl;
     }
-    dst << indent << "}";
+    dst << indent << "}" << std::endl;
 }
 
 // Call from FunctionDefinition::lower
@@ -90,6 +90,13 @@ void ExpressionStatement::lower(Context &context,
     ir::BasicBlocks &bbs) const
 {
     expr->lower(context, bbs[context.bb], std::nullopt);
+}
+
+ExprLowerR_t ExpressionStatement::lower(Context &context,
+    const std::unique_ptr<ir::BasicBlock> &block,
+    const std::optional<ir::Lvalue> &dest) const
+{
+    return expr->lower(context, block, dest);
 }
 
 /*************************************************************************
@@ -144,39 +151,164 @@ void If::lower(Context &context,
     int statement_bb = context.bb;
     int else_statement_bb;
 
+    // Link the start node to the TRUE node
+    std::map<int, int> start_map = {{1, statement_bb}};
+
     // FALSE node
     if (else_statement)
     {
         context.create_new_bb(bbs);
         else_statement->lower(context, header, bbs);
         else_statement_bb = context.bb;
+        start_map[0] = else_statement_bb;
     }
 
     // END node
-    int end_bb = context.create_new_bb(bbs);
-
-    std::map<int, int> mp =
-        (else_statement)
-            ? std::map<int, int>{{0, else_statement_bb},
-                  {1, statement_bb}}
-            : std::map<int, int>{{0, end_bb}, {1, statement_bb}};
-
-    bbs[start_bb]->terminator = std::make_unique<ir::SwitchInt>(
-        std::make_unique<ir::Use>(is_true), mp);
-
-    // Here's the tricky bit: if the nodes uses a goto/return/etc., we
-    // want to keep the terminator, otherwise we send it to the end.
-    if (bbs[statement_bb]->terminator == nullptr)
-    {
-        bbs[statement_bb]->terminator = std::make_unique<ir::Goto>(end_bb);
-    }
-    if (else_statement != nullptr &&
+    if (bbs[statement_bb]->terminator == nullptr || else_statement == nullptr ||
         bbs[else_statement_bb]->terminator == nullptr)
     {
-        bbs[else_statement_bb]->terminator = std::make_unique<ir::Goto>(end_bb);
+        int end_bb = context.create_new_bb(bbs);
+
+        // Here's the tricky bit: if the nodes uses a goto/return/etc., we
+        // want to keep the terminator, otherwise we send it to the end.
+        if (bbs[statement_bb]->terminator == nullptr)
+        {
+            bbs[statement_bb]->terminator = std::make_unique<ir::Goto>(end_bb);
+        }
+        if (else_statement == nullptr)
+        {
+            start_map[0] = end_bb;
+        }
+        if (else_statement != nullptr &&
+            bbs[else_statement_bb]->terminator == nullptr)
+        {
+            bbs[else_statement_bb]->terminator =
+                std::make_unique<ir::Goto>(end_bb);
+        }
     }
+
+    // Link the start node in the IR
+    bbs[start_bb]->terminator = std::make_unique<ir::SwitchInt>(
+        std::make_unique<ir::Use>(is_true), start_map);
 }
 
+/*************************************************************************
+ * For implementation
+ ************************************************************************/
+
+For::For(const ExpressionStatement *init,
+    const ExpressionStatement *cond,
+    const Statement *stmt)
+    : init(std::unique_ptr<const ExpressionStatement>(cond)),
+      stmt(std::unique_ptr<const Statement>(stmt))
+{
+}
+
+For::For(const ExpressionStatement *init,
+    const ExpressionStatement *cond,
+    const Expression *loop,
+    const Statement *stmt)
+    : init(std::unique_ptr<const ExpressionStatement>(init)),
+      cond(std::unique_ptr<const ExpressionStatement>(cond)),
+      loop(std::unique_ptr<const Expression>(loop)),
+      stmt(std::unique_ptr<const Statement>(stmt))
+{
+}
+
+void For::print(std::ostream &dst, int indent_level) const
+{
+    dst << Utils::get_indent(indent_level) << "for (";
+    init->print(dst, 0);
+    dst << " ";
+    cond->print(dst, 0);
+    if (loop)
+    {
+        dst << " ";
+        loop->print(dst, 0);
+    }
+    dst << ")" << std::endl;
+    stmt->print(dst, indent_level);
+}
+
+void For::lower(Context &context,
+    const ir::FunctionHeader &header,
+    ir::BasicBlocks &bbs) const
+{
+    init->lower(context, header, bbs);
+
+    // Entry node must not have predecessors so create new BasicBlock
+    int prev_bb = context.bb;
+    int start_bb = context.create_new_bb(bbs);
+    bbs[prev_bb]->terminator = std::make_unique<ir::Goto>(start_bb);
+
+    ir::Declaration is_true = context.get_temp_decl(ty::Types::_BOOL);
+    cond->lower(context, bbs[context.bb], is_true);
+
+    // TRUE node (we want the ENTRY node)
+    int statement_bb = context.create_new_bb(bbs);
+    stmt->lower(context, header, bbs);
+    if (bbs[statement_bb]->terminator == nullptr)
+    {
+        loop->lower(context, bbs[context.bb], std::nullopt);
+        bbs[statement_bb]->terminator = std::make_unique<ir::Goto>(start_bb);
+    }
+
+    // FALSE node
+    int end_bb = context.create_new_bb(bbs);
+
+    // Link the start node in the IR
+    bbs[start_bb]->terminator =
+        std::make_unique<ir::SwitchInt>(std::make_unique<ir::Use>(is_true),
+            std::map<int, int>{{0, end_bb}, {1, statement_bb}});
+}
+
+/*************************************************************************
+ * While implementation
+ ************************************************************************/
+
+While::While(const Expression *condition, const Statement *statement)
+    : condition(std::unique_ptr<const Expression>(condition)),
+      statement(std::unique_ptr<const Statement>(statement))
+{
+}
+
+void While::print(std::ostream &dst, int indent_level) const
+{
+    std::string indent = Utils::get_indent(indent_level);
+    dst << indent << "while (";
+    condition->print(dst, 0);
+    dst << ")" << std::endl;
+    statement->print(dst, indent_level);
+}
+
+void While::lower(Context &context,
+    const ir::FunctionHeader &header,
+    ir::BasicBlocks &bbs) const
+{
+    // Entry node must not have predecessors so create new BasicBlock
+    int prev_bb = context.bb;
+    int start_bb = context.create_new_bb(bbs);
+    bbs[prev_bb]->terminator = std::make_unique<ir::Goto>(start_bb);
+
+    ir::Declaration is_true = context.get_temp_decl(ty::Types::_BOOL);
+    condition->lower(context, bbs[context.bb], is_true);
+
+    // TRUE node (we want the ENTRY node)
+    int statement_bb = context.create_new_bb(bbs);
+    statement->lower(context, header, bbs);
+    if (bbs[statement_bb]->terminator == nullptr)
+    {
+        bbs[statement_bb]->terminator = std::make_unique<ir::Goto>(start_bb);
+    }
+
+    // FALSE node
+    int end_bb = context.create_new_bb(bbs);
+
+    // Link the start node in the IR
+    bbs[start_bb]->terminator =
+        std::make_unique<ir::SwitchInt>(std::make_unique<ir::Use>(is_true),
+            std::map<int, int>{{0, end_bb}, {1, statement_bb}});
+}
 /*************************************************************************
  * Return implementation
  ************************************************************************/

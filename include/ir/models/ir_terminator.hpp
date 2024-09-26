@@ -60,9 +60,8 @@ public:
 
     void accept(Visitor &visitor) const override;
 
-private:
     // Pointer to a BasicBlock inside ir::Function
-    int bb;
+    const int bb;
 };
 
 /**
