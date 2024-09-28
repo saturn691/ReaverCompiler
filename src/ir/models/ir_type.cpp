@@ -2,7 +2,7 @@
 
 namespace ir
 {
-    Type::Type(const ty::Types type)
+    Type::Type(const ty::CompoundType type)
         : type(type)
     {
     }

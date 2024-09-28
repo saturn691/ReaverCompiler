@@ -30,7 +30,8 @@ class Statement : public Node
 public:
     virtual void print(std::ostream &dst, int indent_level) const override = 0;
 
-    virtual void lower(Context &context,
+    virtual void lower(
+        Context &context,
         const ir::FunctionHeader &header,
         ir::BasicBlocks &bbs) const = 0;
 };
@@ -60,7 +61,8 @@ public:
     void print(std::ostream &dst, int indent_level) const override;
 
     // The compound statement of a function definition
-    void lower(Context &context,
+    void lower(
+        Context &context,
         const ir::FunctionHeader &header,
         ir::BasicBlocks &bbs) const override;
 
@@ -78,11 +80,13 @@ public:
 
     void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context,
+    void lower(
+        Context &context,
         const ir::FunctionHeader &header,
         ir::BasicBlocks &bbs) const override;
 
-    ExprLowerR_t lower(Context &context,
+    ExprLowerR_t lower(
+        Context &context,
         const std::unique_ptr<ir::BasicBlock> &block,
         const std::optional<ir::Lvalue> &dest) const;
 
@@ -100,12 +104,13 @@ public:
     If(const Expression *condition, const Statement *statement);
 
     If(const Expression *condition,
-        const Statement *statement,
-        const Statement *else_statement);
+       const Statement *statement,
+       const Statement *else_statement);
 
     void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context,
+    void lower(
+        Context &context,
         const ir::FunctionHeader &header,
         ir::BasicBlocks &bbs) const override;
 
@@ -133,7 +138,8 @@ public:
 
     void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context,
+    void lower(
+        Context &context,
         const ir::FunctionHeader &header,
         ir::BasicBlocks &bbs) const override;
 
@@ -155,7 +161,8 @@ public:
 
     void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context,
+    void lower(
+        Context &context,
         const ir::FunctionHeader &header,
         ir::BasicBlocks &bbs) const override;
 
@@ -177,7 +184,8 @@ public:
 
     void print(std::ostream &dst, int indent_level) const override;
 
-    void lower(Context &context,
+    void lower(
+        Context &context,
         const ir::FunctionHeader &header,
         ir::BasicBlocks &bbs) const override;
 

@@ -20,9 +20,11 @@ class Visitor
 {
 public:
     virtual llvm::Value *codegen(const BinaryOp &expr) = 0;
+    virtual llvm::Value *codegen(const Call &expr) = 0;
     virtual llvm::Value *codegen(const Constant &expr) = 0;
     virtual llvm::Value *codegen(const Use &expr) = 0;
     virtual llvm::Value *codegen(const Cast &expr) = 0;
+    virtual llvm::Value *codegen(const Lvalue &expr) = 0;
 
     virtual llvm::Value *codegen(const Assign &stmt) = 0;
     virtual std::string codegen(const Declaration &stmt) = 0;

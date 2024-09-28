@@ -7,7 +7,6 @@
 #include <ir/models/ir_terminator.hpp>
 
 #include <memory>
-#include <ratio>
 #include <ty/ty.hpp>
 
 namespace ast
@@ -26,7 +25,8 @@ void StatementList::print(std::ostream &dst, int indent_level) const
  * CompoundStatement implementation
  ************************************************************************/
 
-CompoundStatement::CompoundStatement(const DeclarationList *decls,
+CompoundStatement::CompoundStatement(
+    const DeclarationList *decls,
     const StatementList *stmts)
     : decls(std::unique_ptr<const DeclarationList>(decls)),
       stmts(std::unique_ptr<const StatementList>(stmts))
@@ -51,10 +51,13 @@ void CompoundStatement::print(std::ostream &dst, int indent_level) const
 }
 
 // Call from FunctionDefinition::lower
-void CompoundStatement::lower(Context &context,
+void CompoundStatement::lower(
+    Context &context,
     const ir::FunctionHeader &header,
     ir::BasicBlocks &bbs) const
 {
+    context.push_type_scope();
+
     if (decls != nullptr)
     {
         // InitDeclarators need access to the first BasicBlock
@@ -65,6 +68,8 @@ void CompoundStatement::lower(Context &context,
     {
         stmts->lower(context, header, bbs);
     }
+
+    context.pop_type_scope();
 }
 
 /*************************************************************************
@@ -85,14 +90,16 @@ void ExpressionStatement::print(std::ostream &dst, int indent_level) const
     dst << ";";
 }
 
-void ExpressionStatement::lower(Context &context,
+void ExpressionStatement::lower(
+    Context &context,
     const ir::FunctionHeader &header,
     ir::BasicBlocks &bbs) const
 {
     expr->lower(context, bbs[context.bb], std::nullopt);
 }
 
-ExprLowerR_t ExpressionStatement::lower(Context &context,
+ExprLowerR_t ExpressionStatement::lower(
+    Context &context,
     const std::unique_ptr<ir::BasicBlock> &block,
     const std::optional<ir::Lvalue> &dest) const
 {
@@ -109,7 +116,8 @@ If::If(const Expression *condition, const Statement *statement)
 {
 }
 
-If::If(const Expression *condition,
+If::If(
+    const Expression *condition,
     const Statement *statement,
     const Statement *else_statement)
     : condition(std::unique_ptr<const Expression>(condition)),
@@ -135,7 +143,8 @@ void If::print(std::ostream &dst, int indent_level) const
     }
 }
 
-void If::lower(Context &context,
+void If::lower(
+    Context &context,
     const ir::FunctionHeader &header,
     ir::BasicBlocks &bbs) const
 {
@@ -196,7 +205,8 @@ void If::lower(Context &context,
  * For implementation
  ************************************************************************/
 
-For::For(const ExpressionStatement *init,
+For::For(
+    const ExpressionStatement *init,
     const ExpressionStatement *cond,
     const Statement *stmt)
     : init(std::unique_ptr<const ExpressionStatement>(cond)),
@@ -204,7 +214,8 @@ For::For(const ExpressionStatement *init,
 {
 }
 
-For::For(const ExpressionStatement *init,
+For::For(
+    const ExpressionStatement *init,
     const ExpressionStatement *cond,
     const Expression *loop,
     const Statement *stmt)
@@ -230,7 +241,8 @@ void For::print(std::ostream &dst, int indent_level) const
     stmt->print(dst, indent_level);
 }
 
-void For::lower(Context &context,
+void For::lower(
+    Context &context,
     const ir::FunctionHeader &header,
     ir::BasicBlocks &bbs) const
 {
@@ -257,9 +269,9 @@ void For::lower(Context &context,
     int end_bb = context.create_new_bb(bbs);
 
     // Link the start node in the IR
-    bbs[start_bb]->terminator =
-        std::make_unique<ir::SwitchInt>(std::make_unique<ir::Use>(is_true),
-            std::map<int, int>{{0, end_bb}, {1, statement_bb}});
+    bbs[start_bb]->terminator = std::make_unique<ir::SwitchInt>(
+        std::make_unique<ir::Use>(is_true),
+        std::map<int, int>{{0, end_bb}, {1, statement_bb}});
 }
 
 /*************************************************************************
@@ -281,7 +293,8 @@ void While::print(std::ostream &dst, int indent_level) const
     statement->print(dst, indent_level);
 }
 
-void While::lower(Context &context,
+void While::lower(
+    Context &context,
     const ir::FunctionHeader &header,
     ir::BasicBlocks &bbs) const
 {
@@ -305,9 +318,9 @@ void While::lower(Context &context,
     int end_bb = context.create_new_bb(bbs);
 
     // Link the start node in the IR
-    bbs[start_bb]->terminator =
-        std::make_unique<ir::SwitchInt>(std::make_unique<ir::Use>(is_true),
-            std::map<int, int>{{0, end_bb}, {1, statement_bb}});
+    bbs[start_bb]->terminator = std::make_unique<ir::SwitchInt>(
+        std::make_unique<ir::Use>(is_true),
+        std::map<int, int>{{0, end_bb}, {1, statement_bb}});
 }
 /*************************************************************************
  * Return implementation
@@ -329,7 +342,8 @@ void Return::print(std::ostream &dst, int indent_level) const
     dst << ";";
 }
 
-void Return::lower(Context &context,
+void Return::lower(
+    Context &context,
     const ir::FunctionHeader &header,
     ir::BasicBlocks &bbs) const
 {

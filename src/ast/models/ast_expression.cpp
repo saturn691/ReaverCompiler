@@ -8,7 +8,8 @@ namespace ast
  * Assignment implementation
  ************************************************************************/
 
-Assignment::Assignment(const Expression *lhs,
+Assignment::Assignment(
+    const Expression *lhs,
     const AssignmentType op,
     const Expression *rhs)
     : lhs(std::unique_ptr<const Expression>(lhs)), op(op),
@@ -65,7 +66,8 @@ Types_t Assignment::get_type(Context &context) const
     return lhs->get_type(context);
 }
 
-ExprLowerR_t Assignment::lower(Context &context,
+ExprLowerR_t Assignment::lower(
+    Context &context,
     const std::unique_ptr<ir::BasicBlock> &block,
     const std::optional<ir::Lvalue> &dest) const
 {
@@ -86,7 +88,8 @@ ExprLowerL_t Assignment::lower(Context &context) const
  * BinaryOp implementation
  ************************************************************************/
 
-BinaryOp::BinaryOp(const Expression *left,
+BinaryOp::BinaryOp(
+    const Expression *left,
     const Expression *right,
     const BinaryOpType op)
     : left(std::unique_ptr<const Expression>(left)),
@@ -216,8 +219,8 @@ Types_t BinaryOp::get_type(Context &context) const
     case BinaryOpType::LSL:
     case BinaryOpType::LSR:
     {
-        Types_t lhs = left->get_type(context);
-        Types_t rhs = right->get_type(context);
+        ty::Types lhs = std::get<ty::Types>(left->get_type(context));
+        ty::Types rhs = std::get<ty::Types>(right->get_type(context));
         return ty::promote(lhs, rhs);
     }
 
@@ -233,13 +236,16 @@ Types_t BinaryOp::get_type(Context &context) const
     }
 }
 
-ExprLowerR_t BinaryOp::lower(Context &context,
+ExprLowerR_t BinaryOp::lower(
+    Context &context,
     const std::unique_ptr<ir::BasicBlock> &block,
     const std::optional<ir::Lvalue> &dest) const
 {
     // dest != std::nullopt here (wouldn't make sense)
-    ty::Types ty =
-        ty::promote(left->get_type(context), right->get_type(context));
+    // This std::get works, because BinaryOp is only defined on simple types
+    ty::Types ty = ty::promote(
+        std::get<ty::Types>(left->get_type(context)),
+        std::get<ty::Types>(right->get_type(context)));
 
     // Cast into NON reference
     ir::Declaration tmp_l = context.get_temp_decl(ty);
@@ -247,10 +253,10 @@ ExprLowerR_t BinaryOp::lower(Context &context,
 
     auto l = left->lower(context, block, ir::Lvalue(tmp_l));
     auto r = right->lower(context, block, ir::Lvalue(tmp_r));
-    auto res =
-        std::make_unique<ir::BinaryOp>(std::make_unique<const ir::Use>(tmp_l),
-            to_ir_type(op),
-            std::make_unique<const ir::Use>(tmp_r));
+    auto res = std::make_unique<ir::BinaryOp>(
+        std::make_unique<const ir::Use>(tmp_l),
+        to_ir_type(op),
+        std::make_unique<const ir::Use>(tmp_r));
 
     block->statements.push_back(
         std::make_unique<ir::Assign>(dest.value(), std::move(res)));
@@ -259,6 +265,71 @@ ExprLowerR_t BinaryOp::lower(Context &context,
 }
 
 ExprLowerL_t BinaryOp::lower(Context &context) const
+{
+    // Not a valid lvalue
+    return nullptr;
+}
+
+/*************************************************************************
+ * FunctionCallList implementation
+ ************************************************************************/
+
+void FunctionCallList::print(std::ostream &dst, int indent_level) const
+{
+    print_delim(dst, indent_level, ", ");
+}
+
+std::vector<ExprLowerR_t> FunctionCallList::lower(
+    Context &context,
+    const std::unique_ptr<ir::BasicBlock> &block,
+    const std::optional<ir::Lvalue> &dest) const
+{
+    return std::vector<ExprLowerR_t>();
+}
+
+/*************************************************************************
+ * FunctionCall implementation
+ ************************************************************************/
+
+FunctionCall::FunctionCall(const Expression *expr, const FunctionCallList *lst)
+    : expr(std::unique_ptr<const Expression>(expr)),
+      lst(std::unique_ptr<const FunctionCallList>(lst))
+{
+}
+
+void FunctionCall::print(std::ostream &dst, [[maybe_unused]] int indent_level)
+    const
+{
+    expr->print(dst, 0);
+    dst << "(";
+    lst->print(dst, 0);
+    dst << ")";
+}
+
+Types_t FunctionCall::get_type(Context &context) const
+{
+    // Return type of the function
+    return ty::from_function_type(expr->get_type(context));
+}
+
+ExprLowerR_t FunctionCall::lower(
+    Context &context,
+    const std::unique_ptr<ir::BasicBlock> &block,
+    const std::optional<ir::Lvalue> &dest) const
+{
+    // For a fn ptr call, we need to get the address of the function
+    if (expr->get_type(context) )
+
+
+    std::vector<ExprLowerR_t> args = lst->lower(context, block, std::nullopt);
+
+    block->statements.push_back(std::make_unique<ir::Assign>(
+        dest.value(),
+        std::make_unique<ir::Call>(
+            std::make_unique<ir::Use>(func_ptr), std::move(args))));
+}
+
+ExprLowerL_t FunctionCall::lower(Context &context) const
 {
     // Not a valid lvalue
     return nullptr;
@@ -274,7 +345,6 @@ Constant::Constant(const std::string value) : value(value)
 
 void Constant::print(std::ostream &dst, [[maybe_unused]] int indent_level) const
 {
-
     dst << value;
 }
 
@@ -318,14 +388,16 @@ Types_t Constant::get_type(Context &context) const
     return ty::Types::INT;
 }
 
-ExprLowerR_t Constant::lower(Context &context,
+ExprLowerR_t Constant::lower(
+    Context &context,
     const std::unique_ptr<ir::BasicBlock> &block,
     const std::optional<ir::Lvalue> &dest) const
 {
-    ty::Types ty =
-        (dest == std::nullopt) ? get_type(context) : dest->decl.type.type;
-    block->statements.push_back(std::make_unique<ir::Assign>(dest.value(),
-        std::make_unique<const ir::Constant>(value, ty)));
+    ty::Types ty = (dest == std::nullopt)
+                       ? std::get<ty::Types>(get_type(context))
+                       : std::get<ty::Types>(dest->decl.type.type);
+    block->statements.push_back(std::make_unique<ir::Assign>(
+        dest.value(), std::make_unique<const ir::Constant>(value, ty)));
 
     return std::make_unique<const ir::Constant>(value, ty);
 }
@@ -360,7 +432,8 @@ std::string Identifier::get_id() const
     return id;
 }
 
-ExprLowerR_t Identifier::lower(Context &context,
+ExprLowerR_t Identifier::lower(
+    Context &context,
     const std::unique_ptr<ir::BasicBlock> &block,
     const std::optional<ir::Lvalue> &dest) const
 {

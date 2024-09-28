@@ -9,10 +9,10 @@ namespace ir
     class Type : public HasPrint
     {
     public:
-        Type(const ty::Types type);
+        Type(const ty::CompoundType type);
 
         void print(std::ostream &dst, int indent_level) const override;
 
-        const ty::Types type;
+        const ty::CompoundType type;
     };
 }

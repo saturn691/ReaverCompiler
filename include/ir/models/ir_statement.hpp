@@ -28,20 +28,6 @@ public:
 };
 
 /**
- * All lvalues in the IR
- * TODO support more than just variables
- */
-class Lvalue : public HasPrint
-{
-public:
-    Lvalue(const Declaration decl);
-
-    void print(std::ostream &dst, int indent_level) const override;
-
-    const Declaration decl;
-};
-
-/**
  * Base class for all rvalues in the IR
  */
 class Rvalue : public HasPrint
@@ -50,6 +36,41 @@ public:
     virtual void print(std::ostream &dst, int indent_level) const override = 0;
 
     virtual llvm::Value *accept(Visitor &visitor) const = 0;
+};
+
+/**
+ * All lvalues in the IR
+ * TODO support more than just variables
+ */
+class Lvalue : public Rvalue
+{
+public:
+    Lvalue(const Declaration decl);
+
+    void print(std::ostream &dst, int indent_level) const override;
+
+    llvm::Value *accept(Visitor &visitor) const override;
+
+    const Declaration decl;
+};
+
+/**
+ * Represents a call to a function
+ */
+class Call : public Rvalue
+{
+public:
+    Call(
+        std::unique_ptr<const Rvalue> func,
+        std::vector<std::unique_ptr<const Rvalue>> args);
+
+    void print(std::ostream &dst, int indent_level) const override;
+
+    llvm::Value *accept(Visitor &visitor) const override;
+
+private:
+    const std::unique_ptr<const Rvalue> func;
+    const std::vector<std::unique_ptr<const Rvalue>> args;
 };
 
 /**
@@ -94,7 +115,8 @@ enum class BinaryOpType
 class BinaryOp : public Rvalue
 {
 public:
-    BinaryOp(std::unique_ptr<const Rvalue> lhs,
+    BinaryOp(
+        std::unique_ptr<const Rvalue> lhs,
         const BinaryOpType &op,
         std::unique_ptr<const Rvalue> rhs);
 

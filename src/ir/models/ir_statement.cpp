@@ -16,6 +16,39 @@ void Lvalue::print(std::ostream &dst, int indent_level) const
     decl.print(dst, 0);
 }
 
+llvm::Value *Lvalue::accept(Visitor &visitor) const
+{
+    return visitor.codegen(*this);
+}
+
+/*************************************************************************
+ * Call implementation
+ ************************************************************************/
+
+Call::Call(
+    std::unique_ptr<const Rvalue> func,
+    std::vector<std::unique_ptr<const Rvalue>> args)
+    : func(std::move(func)), args(std::move(args))
+{
+}
+
+void Call::print(std::ostream &dst, int indent_level) const
+{
+    dst << "call ";
+    func->print(dst, 0);
+    dst << "with args";
+    for (auto& arg : args)
+    {
+        arg->print(dst, 0);
+        dst << ", ";
+    }
+}
+
+llvm::Value *Call::accept(Visitor &visitor) const
+{
+    return visitor.codegen(*this);
+}
+
 /*************************************************************************
  * Constant implementation
  ************************************************************************/
@@ -39,7 +72,8 @@ llvm::Value *Constant::accept(Visitor &visitor) const
  * BinaryOp implementation
  ************************************************************************/
 
-BinaryOp::BinaryOp(std::unique_ptr<const Rvalue> lhs,
+BinaryOp::BinaryOp(
+    std::unique_ptr<const Rvalue> lhs,
     const BinaryOpType &op,
     std::unique_ptr<const Rvalue> rhs)
     : lhs(std::move(lhs)), op(op), rhs(std::move(rhs))

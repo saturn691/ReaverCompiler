@@ -1,7 +1,6 @@
 # Reference: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
 
 # Based on Visual Studio style (VSCode default)
-
 BasedOnStyle: LLVM
 UseTab: Never
 IndentWidth: 4
@@ -20,6 +19,6 @@ CompactNamespaces: true
 ColumnLimit: 80
 BinPackParameters: false             # Force each parameter to be on a new line
 BinPackArguments: false              # Force each argument to be on a new line
-AlignAfterOpenBracket: DontAlign
+AlignAfterOpenBracket: AlwaysBreak
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortFunctionsOnASingleLine: false

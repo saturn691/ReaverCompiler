@@ -26,7 +26,8 @@ void Goto::accept(Visitor &visitor) const
  * SwitchInt implementation
  ************************************************************************/
 
-SwitchInt::SwitchInt(std::unique_ptr<const Rvalue> expr,
+SwitchInt::SwitchInt(
+    std::unique_ptr<const Rvalue> expr,
     std::map<int, int> vals_to_bb)
     : expr(std::move(expr)), vals_to_bb(vals_to_bb)
 {

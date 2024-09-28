@@ -1,8 +1,8 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <vector>
-#include <map>
 
 #include <ir/models/ir_declaration.hpp>
 #include <ir/models/ir_has_print.hpp>
@@ -26,27 +26,6 @@ public:
     virtual void accept(Visitor &visitor) const = 0;
 };
 
-/**
- * Represents a call to a function
- */
-class Call : public Terminator
-{
-public:
-    Call(const std::string &func,
-        const std::vector<std::string> &args,
-        const Declaration &ret,
-        const BasicBlock &bb);
-
-    void print(std::ostream &dst, int indent_level) const override;
-
-    void accept(Visitor &visitor) const override;
-
-private:
-    std::string func;
-    std::vector<std::string> args;
-    const Declaration &ret;
-    const BasicBlock &bb;
-};
 
 /**
  * Represents an unconditional branch
@@ -70,7 +49,8 @@ public:
 class SwitchInt : public Terminator
 {
 public:
-    SwitchInt(std::unique_ptr<const Rvalue> expr,
+    SwitchInt(
+        std::unique_ptr<const Rvalue> expr,
         std::map<int, int> vals_to_bb);
 
     void print(std::ostream &dst, int indent_level) const override;

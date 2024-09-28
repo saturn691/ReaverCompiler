@@ -13,6 +13,7 @@
 
 #include <ast/models/ast_declaration.hpp>
 #include <ast/models/ast_node.hpp>
+#include <ast/models/ast_node_list.hpp>
 #include <ast/models/ast_statement.hpp>
 #include <ast/utils/ast_context.hpp>
 
@@ -36,7 +37,8 @@ public:
     virtual Types_t get_type(Context &context) const = 0;
 
     // Entry point (from Statement)
-    virtual ExprLowerR_t lower(Context &context,
+    virtual ExprLowerR_t lower(
+        Context &context,
         const std::unique_ptr<ir::BasicBlock> &block,
         const std::optional<ir::Lvalue> &dest) const = 0;
 
@@ -68,7 +70,8 @@ enum class AssignmentType
 class Assignment : public Expression
 {
 public:
-    Assignment(const Expression *lhs,
+    Assignment(
+        const Expression *lhs,
         const AssignmentType op,
         const Expression *rhs);
 
@@ -76,7 +79,8 @@ public:
 
     Types_t get_type(Context &context) const override;
 
-    ExprLowerR_t lower(Context &context,
+    ExprLowerR_t lower(
+        Context &context,
         const std::unique_ptr<ir::BasicBlock> &block,
         const std::optional<ir::Lvalue> &dest) const override;
 
@@ -117,7 +121,8 @@ enum class BinaryOpType
 class BinaryOp : public Expression
 {
 public:
-    BinaryOp(const Expression *left,
+    BinaryOp(
+        const Expression *left,
         const Expression *right,
         const BinaryOpType op);
 
@@ -127,7 +132,8 @@ public:
 
     Types_t get_type(Context &context) const override;
 
-    ExprLowerR_t lower(Context &context,
+    ExprLowerR_t lower(
+        Context &context,
         const std::unique_ptr<ir::BasicBlock> &block,
         const std::optional<ir::Lvalue> &dest) const override;
 
@@ -140,6 +146,46 @@ private:
 };
 
 /**
+ * Helper class for FunctionCall
+ */
+class FunctionCallList : public NodeList<Expression>
+{
+public:
+    using NodeList::NodeList;
+
+    void print(std::ostream &dst, int indent_level) const override;
+
+    std::vector<ExprLowerR_t> lower(
+        Context &context,
+        const std::unique_ptr<ir::BasicBlock> &block,
+        const std::optional<ir::Lvalue> &dest) const;
+};
+
+/**
+ * A function call. The expression must evaluate to a function address.
+ * e.g. `f(x) or f(x)(y)`
+ */
+class FunctionCall : public Expression
+{
+public:
+    FunctionCall(const Expression *expr, const FunctionCallList *lst);
+
+    void print(std::ostream &dst, int indent_level) const override;
+
+    Types_t get_type(Context &context) const override;
+
+    ExprLowerR_t lower(
+        Context &context,
+        const std::unique_ptr<ir::BasicBlock> &block,
+        const std::optional<ir::Lvalue> &dest) const override;
+
+    ExprLowerL_t lower(Context &context) const override;
+private:
+    std::unique_ptr<const Expression> expr;
+    std::unique_ptr<const FunctionCallList> lst;
+};
+
+/**
  * Constants
  * e.g. `1.0f`, `1.0`, `1`
  */
@@ -149,12 +195,13 @@ class Constant : public Expression
 public:
     Constant(const std::string value);
 
-    void print(std::ostream &dst,
-        [[maybe_unused]] int indent_level) const override;
+    void
+    print(std::ostream &dst, [[maybe_unused]] int indent_level) const override;
 
     Types_t get_type(Context &context) const override;
 
-    ExprLowerR_t lower(Context &context,
+    ExprLowerR_t lower(
+        Context &context,
         const std::unique_ptr<ir::BasicBlock> &block,
         const std::optional<ir::Lvalue> &dest) const override;
 
@@ -179,7 +226,8 @@ public:
 
     std::string get_id() const override;
 
-    ExprLowerR_t lower(Context &context,
+    ExprLowerR_t lower(
+        Context &context,
         const std::unique_ptr<ir::BasicBlock> &block,
         const std::optional<ir::Lvalue> &dest) const override;
 

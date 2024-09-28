@@ -162,18 +162,25 @@ llvm::Value *IRCodegen::codegen(const ir::BinaryOp &expr)
         return nullptr;
     }
 
+    bool is_float = lhs->getType()->isFloatingPointTy();
+
     switch (expr.op)
     {
     case ir::BinaryOpType::ADD:
-        return builder->CreateAdd(lhs, rhs, "add");
+        return is_float ? builder->CreateFAdd(lhs, rhs, "fadd")
+                        : builder->CreateAdd(lhs, rhs, "add");
     case ir::BinaryOpType::SUB:
-        return builder->CreateSub(lhs, rhs, "sub");
+        return is_float ? builder->CreateFSub(lhs, rhs, "fsub")
+                        : builder->CreateSub(lhs, rhs, "sub");
     case ir::BinaryOpType::MUL:
-        return builder->CreateMul(lhs, rhs, "mul");
+        return is_float ? builder->CreateFMul(lhs, rhs, "fmul")
+                        : builder->CreateMul(lhs, rhs, "mul");
     case ir::BinaryOpType::DIV:
-        return builder->CreateSDiv(lhs, rhs, "div");
+        return is_float ? builder->CreateFDiv(lhs, rhs, "fdiv")
+                        : builder->CreateSDiv(lhs, rhs, "sdiv");
     case ir::BinaryOpType::MOD:
-        return builder->CreateSRem(lhs, rhs, "mod");
+        return is_float ? builder->CreateFRem(lhs, rhs, "fmod")
+                        : builder->CreateSRem(lhs, rhs, "mod");
     case ir::BinaryOpType::BITWISE_AND:
         return builder->CreateAnd(lhs, rhs, "and");
     case ir::BinaryOpType::BITWISE_OR:
@@ -201,6 +208,9 @@ llvm::Value *IRCodegen::codegen(const ir::BinaryOp &expr)
     }
 }
 
+llvm::Value *IRCodegen::codegen(const ir::Call &expr)
+{}
+
 llvm::Value *IRCodegen::codegen(const ir::Cast &expr)
 {
     return builder->CreateCast(llvm::Instruction::CastOps::ZExt,
@@ -224,6 +234,9 @@ llvm::Value *IRCodegen::codegen(const ir::Constant &expr)
             llvm::Type::getInt32Ty(*context), std::stoi(expr.value));
     }
 }
+
+llvm::Value *IRCodegen::codegen(const ir::Lvalue &expr)
+{}
 
 llvm::Value *IRCodegen::codegen(const ir::Use &expr)
 {
@@ -285,9 +298,9 @@ llvm::Type *IRCodegen::to_llvm_type(const ir::Type &type)
     return to_llvm_type(type.type);
 }
 
-llvm::Type *IRCodegen::to_llvm_type(const ty::Types &type)
+llvm::Type *IRCodegen::to_llvm_type(const ty::CompoundType &type)
 {
-    switch (type)
+    switch (std::get<ty::Types>(type))
     {
     case ty::Types::VOID:
         return llvm::Type::getVoidTy(*context);

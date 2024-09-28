@@ -44,7 +44,7 @@
     // ArrayInitializerList    *array_initializer_list;
     DeclarationList         *declaration_list;
     // EnumList                *enum_list;
-    // FunctionCallList        *function_call_list;
+    FunctionCallList        *function_call_list;
     FunctionParamList       *function_param_list;
     InitDeclaratorList      *init_decl_list;
     StatementList           *stmt_list;
@@ -152,9 +152,9 @@ postfix_expression
 	| postfix_expression '[' expression ']'
         /* { $$ = new ArrayAccess($1, $3); } */
 	| postfix_expression '(' ')'
-        /* { $$ = new FunctionCall($1, new FunctionCallList()); } */
+        { $$ = new FunctionCall($1, new FunctionCallList()); }
 	| postfix_expression '(' argument_expression_list ')'
-        /* { $$ = new FunctionCall($1, $3); } */
+        { $$ = new FunctionCall($1, $3); }
     | postfix_expression '.' IDENTIFIER
         /* { $$ = new StructAccess($1, StructAccessType::DOT, *$3); } */
     | postfix_expression PTR_OP IDENTIFIER
