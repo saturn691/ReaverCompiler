@@ -1,20 +1,21 @@
 # Reaver C Compiler
 
-Reaver C Compiler (`rcc`) is a C90 to RISC-V compiler. The development was
-largely driven by the [specification](docs/c_compiler.md).
+Reaver C Compiler (`rcc`) is a C99 compiler.
+
+To browse the compiler at the time of submission, which scored 90% (181/201),
+navigate to branch [`v1.0`](https://github.com/saturn691/ReaverCompiler/tree/v1.0).
 
 ## Getting started
-
-### Dependencies
-
-The dependencies are listed in the [Dockerfile](Dockerfile).
 
 ### Usage
 
 To make the compiler, run the following command:
 
 ```bash
-make
+mkdir build
+cd build
+cmake ..
+cmake --build .
 ```
 
 To run the compiler, run the following command, replacing the flags,
@@ -25,7 +26,7 @@ To run the compiler, run the following command, replacing the flags,
 For example, this will compile the example program:
 
 ```bash
-bin/c_compiler -S "./compiler_tests/_example/example.c" -o "./example.s"
+bin/rcc -S "./compiler_tests/_example/example.c" -o "./example.s"
 ```
 
 ## Credits
@@ -35,6 +36,4 @@ bin/c_compiler -S "./compiler_tests/_example/example.c" -o "./example.s"
 
 ## References
 
-ANSI C90 standard: https://www.dii.uchile.cl/~daespino/files/Iso_C_1999_definition.pdf
-
-RISC-V Calling Convention: https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf
+C99 standard: https://port70.net/%7Ensz/c/c99/n1256.html
