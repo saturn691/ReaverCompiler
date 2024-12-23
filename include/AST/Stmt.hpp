@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-
 #include "AST/Node.hpp"
 
 namespace AST
@@ -33,6 +31,17 @@ public:
     Ptr<BlockItemList> nodes_;
 };
 
+class ExprStmt final : public Node<ExprStmt>, public Stmt
+{
+public:
+    ExprStmt() = default;
+    ExprStmt(const Expr *expr) : expr_(expr)
+    {
+    }
+
+    Ptr<Expr> expr_;
+};
+
 class Return final : public Node<Return>, public Stmt
 {
 public:
@@ -41,7 +50,7 @@ public:
     {
     }
 
-    std::optional<Ptr<Expr>> expr_;
+    Ptr<Expr> expr_;
 };
 
 } // namespace AST

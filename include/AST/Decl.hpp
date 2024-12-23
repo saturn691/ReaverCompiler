@@ -1,12 +1,16 @@
 #pragma once
 
+#include <optional>
+
 #include "AST/Node.hpp"
 
 namespace AST
 {
 // Forward declarations
-class TypeNode;
 class CompoundStmt;
+class Expr;
+class InitDeclList;
+class TypeNode;
 
 /**
  * Base class for declarations (including definitions and declarators)
@@ -18,13 +22,25 @@ public:
     virtual std::string getID() const = 0;
 };
 
+/**
+ * Declaration node
+ * e.g. `int a = 1;`
+ */
 class DeclNode final : public Node<DeclNode>, public Decl
 {
 public:
+    DeclNode(const TypeNode *type);
+    DeclNode(const TypeNode *type, const InitDeclList *decl);
+
     std::string getID() const override
     {
         return "";
     }
+
+    std::vector<std::string> getIDs() const;
+
+    Ptr<TypeNode> type_;
+    Ptr<InitDeclList> initDeclList_;
 };
 
 /**
@@ -73,6 +89,39 @@ public:
     Ptr<TypeNode> retType_;
     Ptr<Decl> decl_;
     Ptr<CompoundStmt> body_;
+};
+
+/**
+ * Initializer declarator
+ * e.g. `a = 1`
+ */
+class InitDecl final : public Node<InitDecl>, public Decl
+{
+public:
+    InitDecl(const Decl *decl) : decl_(decl)
+    {
+    }
+    InitDecl(const Decl *decl, const Expr *expr) : decl_(decl), expr_(expr)
+    {
+    }
+
+    std::string getID() const override
+    {
+        return decl_->getID();
+    }
+
+    Ptr<Decl> decl_;
+    Ptr<Expr> expr_;
+};
+
+/**
+ * Initializer declarator list
+ * e.g. `int a = 1, b = 2`
+ */
+class InitDeclList final : public NodeList<InitDecl>, public Node<InitDeclList>
+{
+public:
+    using NodeList::NodeList;
 };
 
 /**

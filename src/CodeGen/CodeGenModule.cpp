@@ -74,6 +74,8 @@ void CodeGenModule::optimize()
 
 void CodeGenModule::visit(const DeclNode &node)
 {
+    // Allocate memory for the variable
+    node.initDeclList_->accept(*this);
 }
 
 void CodeGenModule::visit(const FnDecl &node)
@@ -108,9 +110,42 @@ void CodeGenModule::visit(const FnDef &node)
 
     // Label the function arguments
     node.decl_->accept(*this);
+    symbolTable_.clear();
+    for (auto &arg : fn->args())
+    {
+        std::string paramName = arg.getName().str();
+        symbolTable_[paramName] =
+            builder_->CreateAlloca(arg.getType(), nullptr, arg.getName());
+        builder_->CreateStore(&arg, symbolTable_[paramName]);
+    }
 
     // Generate the function body
     node.body_->accept(*this);
+}
+
+void CodeGenModule::visit(const InitDecl &node)
+{
+    // Allocate memory for the variable
+    llvm::Type *type = getLLVMType(typeMap_[&node].get());
+    llvm::AllocaInst *alloca =
+        builder_->CreateAlloca(type, nullptr, node.getID());
+    symbolTable_[node.getID()] = alloca;
+
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+        builder_->CreateStore(currentValue_, alloca);
+    }
+}
+
+void CodeGenModule::visit(const InitDeclList &node)
+{
+    for (const auto &initDecl : node.nodes_)
+    {
+        std::visit(
+            [this](const auto &initDecl) { initDecl->accept(*this); },
+            initDecl);
+    }
 }
 
 void CodeGenModule::visit(const ParamDecl &node)
@@ -141,20 +176,131 @@ void CodeGenModule::visit(const TranslationUnit &node)
 
 /******************************************************************************
  *                          Expressions                                       *
+ *                  Must separate LValue and RValue handling                  *
  *****************************************************************************/
+
+void CodeGenModule::visit(const Assignment &node)
+{
+    if (valueCategory_ == ValueCategory::LVALUE)
+    {
+        throw std::runtime_error("Assignment to LValue not supported");
+    }
+
+    using Op = Assignment::Op;
+
+    llvm::Value *lhs = visitAsLValue(*node.lhs_);
+    llvm::Value *rhs = visitAsRValue(*node.rhs_);
+
+    switch (node.op_)
+    {
+    case Op::ASSIGN:
+        currentValue_ = builder_->CreateStore(rhs, lhs);
+        break;
+    }
+}
 
 void CodeGenModule::visit(const BinaryOp &node)
 {
+    if (valueCategory_ == ValueCategory::LVALUE)
+    {
+        throw std::runtime_error("BinaryOp to LValue not supported");
+    }
+
+    using Op = BinaryOp::Op;
+
+    llvm::Value *lhs = visitAsRValue(*node.lhs_);
+    llvm::Value *rhs = visitAsRValue(*node.rhs_);
+
+    bool isFloat = lhs->getType()->isFloatingPointTy();
+
+    // TODO types
+    switch (node.op_)
+    {
+    case Op::ADD:
+        currentValue_ = (isFloat) ? builder_->CreateFAdd(lhs, rhs, "add")
+                                  : builder_->CreateAdd(lhs, rhs, "add");
+        break;
+    case Op::SUB:
+        currentValue_ = (isFloat) ? builder_->CreateFSub(lhs, rhs, "sub")
+                                  : builder_->CreateSub(lhs, rhs, "sub");
+        break;
+    case Op::MUL:
+        currentValue_ = (isFloat) ? builder_->CreateFMul(lhs, rhs, "mul")
+                                  : builder_->CreateMul(lhs, rhs, "mul");
+        break;
+    case Op::DIV:
+        currentValue_ = (isFloat) ? builder_->CreateFDiv(lhs, rhs, "div")
+                                  : builder_->CreateSDiv(lhs, rhs, "div");
+        break;
+    case Op::MOD:
+        currentValue_ = (isFloat) ? builder_->CreateFRem(lhs, rhs, "mod")
+                                  : builder_->CreateSRem(lhs, rhs, "mod");
+        break;
+    case Op::AND:
+        currentValue_ = builder_->CreateAnd(lhs, rhs, "and");
+        break;
+    case Op::OR:
+        currentValue_ = builder_->CreateOr(lhs, rhs, "or");
+        break;
+    case Op::XOR:
+        currentValue_ = builder_->CreateXor(lhs, rhs, "xor");
+        break;
+    case Op::SHL:
+        currentValue_ = builder_->CreateShl(lhs, rhs, "shl");
+        break;
+    case Op::SHR:
+        currentValue_ = builder_->CreateAShr(lhs, rhs, "shr");
+        break;
+    case Op::EQ:
+        currentValue_ = builder_->CreateICmpEQ(lhs, rhs, "eq");
+        break;
+    case Op::NE:
+        currentValue_ = builder_->CreateICmpNE(lhs, rhs, "ne");
+        break;
+    case Op::LT:
+        currentValue_ = builder_->CreateICmpSLT(lhs, rhs, "lt");
+        break;
+    case Op::GT:
+        currentValue_ = builder_->CreateICmpSGT(lhs, rhs, "gt");
+        break;
+    case Op::LE:
+        currentValue_ = builder_->CreateICmpSLE(lhs, rhs, "le");
+        break;
+    case Op::GE:
+        currentValue_ = builder_->CreateICmpSGE(lhs, rhs, "ge");
+        break;
+    case Op::LAND:
+        // TODO
+        break;
+    case Op::LOR:
+        // TODO
+        break;
+    }
 }
 
 void CodeGenModule::visit(const Constant &node)
 {
+    if (valueCategory_ == ValueCategory::LVALUE)
+    {
+        throw std::runtime_error("Constant to LValue not supported");
+    }
+
     llvm::Type *type = getLLVMType(typeMap_[&node].get());
     currentValue_ = llvm::ConstantInt::get(type, std::stoi(node.value_));
 }
 
 void CodeGenModule::visit(const Identifier &node)
 {
+    if (valueCategory_ == ValueCategory::LVALUE)
+    {
+        currentValue_ = symbolTable_[node.getID()];
+    }
+    else
+    {
+        llvm::AllocaInst *alloca = symbolTable_[node.getID()];
+        currentValue_ = builder_->CreateLoad(
+            alloca->getAllocatedType(), alloca, node.getID());
+    }
 }
 
 /******************************************************************************
@@ -174,16 +320,28 @@ void CodeGenModule::visit(const CompoundStmt &node)
     node.nodes_->accept(*this);
 }
 
+void CodeGenModule::visit(const ExprStmt &node)
+{
+    node.expr_->accept(*this);
+}
+
 void CodeGenModule::visit(const Return &node)
 {
-    if (node.expr_.has_value())
+    llvm::Value *retValue = nullptr;
+    if (node.expr_)
     {
-        node.expr_->get()->accept(*this);
+        retValue = visitAsRValue(*node.expr_);
     }
 
-    if (currentValue_)
+    if (retValue)
     {
-        builder_->CreateRet(currentValue_);
+        // Check the type of retValue and cast to expected
+        retValue = builder_->CreateCast(
+            llvm::Instruction::CastOps::ZExt,
+            retValue,
+            getLLVMType(node.expr_.get()));
+
+        builder_->CreateRet(retValue);
     }
     else
     {
@@ -206,6 +364,11 @@ void CodeGenModule::visit(const BasicType &node)
 llvm::Function *CodeGenModule::getCurrentFunction()
 {
     return builder_->GetInsertBlock()->getParent();
+}
+
+llvm::Type *CodeGenModule::getLLVMType(const BaseNode *node)
+{
+    return getLLVMType(typeMap_[node].get());
 }
 
 llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
@@ -231,6 +394,26 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
     }
 
     throw std::runtime_error("Unknown type");
+}
+
+llvm::Value *CodeGenModule::visitAsLValue(const Expr &expr)
+{
+    if (expr.isLValue())
+    {
+        valueCategory_ = ValueCategory::LVALUE;
+        expr.accept(*this);
+        return currentValue_;
+    }
+
+    throw std::runtime_error("Expected LValue");
+}
+
+llvm::Value *CodeGenModule::visitAsRValue(const Expr &expr)
+{
+    // Everything can be decayed into an RValue
+    valueCategory_ = ValueCategory::RVALUE;
+    expr.accept(*this);
+    return currentValue_;
 }
 
 } // namespace CodeGen

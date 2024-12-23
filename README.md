@@ -26,7 +26,7 @@ To run the compiler, run the following command, replacing the flags,
 For example, this will compile the example program:
 
 ```bash
-bin/rcc -S "./compiler_tests/_example/example.c" -o "./example.s"
+build/rcc -S "./compiler_tests/_example/example.c" -o "./example.s"
 ```
 
 ## Credits

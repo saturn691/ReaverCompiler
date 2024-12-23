@@ -14,6 +14,13 @@ namespace AST
 
 void Printer::visit(const DeclNode &node)
 {
+    node.type_->accept(*this);
+    if (node.initDeclList_)
+    {
+        os << " ";
+        node.initDeclList_->accept(*this);
+    }
+    os << ";";
 }
 
 void Printer::visit(const FnDecl &node)
@@ -36,11 +43,38 @@ void Printer::visit(const FnDef &node)
     node.body_->accept(*this);
 }
 
+void Printer::visit(const InitDecl &node)
+{
+    node.decl_->accept(*this);
+    if (node.expr_)
+    {
+        os << " = ";
+        node.expr_->accept(*this);
+    }
+}
+
+void Printer::visit(const InitDeclList &node)
+{
+    for (const auto &initDecl : node.nodes_)
+    {
+        std::visit(
+            [this](const auto &initDecl) { initDecl->accept(*this); },
+            initDecl);
+        if (initDecl != node.nodes_.back())
+        {
+            os << ", ";
+        }
+    }
+}
+
 void Printer::visit(const ParamDecl &node)
 {
     node.type_->accept(*this);
-    os << " ";
-    node.decl_->accept(*this);
+    if (node.decl_)
+    {
+        os << " ";
+        node.decl_->accept(*this);
+    }
 }
 
 void Printer::visit(const ParamList &node)
@@ -67,6 +101,48 @@ void Printer::visit(const TranslationUnit &node)
 /******************************************************************************
  *                          Expressions                                       *
  *****************************************************************************/
+
+void Printer::visit(const Assignment &node)
+{
+    node.lhs_->accept(*this);
+    switch (node.op_)
+    {
+    case Assignment::Op::ASSIGN:
+        os << " = ";
+        break;
+    case Assignment::Op::MUL_ASSIGN:
+        os << " *= ";
+        break;
+    case Assignment::Op::DIV_ASSIGN:
+        os << " /= ";
+        break;
+    case Assignment::Op::MOD_ASSIGN:
+        os << " %= ";
+        break;
+    case Assignment::Op::ADD_ASSIGN:
+        os << " += ";
+        break;
+    case Assignment::Op::SUB_ASSIGN:
+        os << " -= ";
+        break;
+    case Assignment::Op::LEFT_ASSIGN:
+        os << " <<= ";
+        break;
+    case Assignment::Op::RIGHT_ASSIGN:
+        os << " >>= ";
+        break;
+    case Assignment::Op::AND_ASSIGN:
+        os << " &= ";
+        break;
+    case Assignment::Op::XOR_ASSIGN:
+        os << " ^= ";
+        break;
+    case Assignment::Op::OR_ASSIGN:
+        os << " |= ";
+        break;
+    }
+    node.rhs_->accept(*this);
+}
 
 void Printer::visit(const BinaryOp &node)
 {
@@ -169,10 +245,19 @@ void Printer::visit(const CompoundStmt &node)
     os << getIndent() << "}";
 }
 
+void Printer::visit(const ExprStmt &node)
+{
+    node.expr_->accept(*this);
+    os << ";";
+}
+
 void Printer::visit(const Return &node)
 {
     os << "return ";
-    node.expr_->get()->accept(*this);
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+    }
     os << ";";
 }
 

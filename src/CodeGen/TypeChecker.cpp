@@ -14,6 +14,18 @@ namespace CodeGen
 
 void TypeChecker::visit(const DeclNode &node)
 {
+    // Pass type information down
+    Ptr<BaseType> type = node.type_->clone();
+    typeMap_[&node] = type->clone();
+
+    auto IDs = node.getIDs();
+    for (const auto &id : IDs)
+    {
+        typeContext_[id] = type->clone();
+    }
+
+    // Type check the initializer list
+    node.initDeclList_->accept(*this);
 }
 
 void TypeChecker::visit(const FnDecl &node)
@@ -38,6 +50,32 @@ void TypeChecker::visit(const FnDef &node)
 
     // Now run the type check (on the body)
     node.body_->accept(*this);
+}
+
+void TypeChecker::visit(const InitDecl &node)
+{
+    Ptr<BaseType> expectedType = typeContext_[node.getID()]->clone();
+    typeMap_[&node] = expectedType->clone();
+    node.decl_->accept(*this);
+
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+
+        // Check the type of the expression
+        auto *actual = typeMap_[node.expr_.get()].get();
+        checkType(actual, expectedType.get());
+    }
+}
+
+void TypeChecker::visit(const InitDeclList &node)
+{
+    for (const auto &initDecl : node.nodes_)
+    {
+        std::visit(
+            [this](const auto &initDecl) { initDecl->accept(*this); },
+            initDecl);
+    }
 }
 
 void TypeChecker::visit(const ParamDecl &node)
@@ -75,6 +113,19 @@ void TypeChecker::visit(const TranslationUnit &node)
 /******************************************************************************
  *                          Expressions                                       *
  *****************************************************************************/
+
+void TypeChecker::visit(const Assignment &node)
+{
+    // Subject to integer promotion rules
+    node.lhs_->accept(*this);
+    node.rhs_->accept(*this);
+
+    auto *lhs = typeMap_[node.lhs_.get()].get();
+    auto *rhs = typeMap_[node.rhs_.get()].get();
+
+    // TODO: Do this properly
+    typeMap_[&node] = lhs->clone();
+}
 
 void TypeChecker::visit(const BinaryOp &node)
 {
@@ -129,12 +180,17 @@ void TypeChecker::visit(const CompoundStmt &node)
     node.nodes_->accept(*this);
 }
 
+void TypeChecker::visit(const ExprStmt &node)
+{
+    node.expr_->accept(*this);
+}
+
 void TypeChecker::visit(const Return &node)
 {
-    node.expr_->get()->accept(*this);
+    node.expr_->accept(*this);
 
     // Return type must match FnDef return type
-    auto *actual = typeMap_[node.expr_->get()].get();
+    auto *actual = typeMap_[node.expr_.get()].get();
 
     // Cast expected to FnType
     auto *fnType =

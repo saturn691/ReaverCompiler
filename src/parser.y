@@ -23,8 +23,11 @@
     DeclNode                     		*decl_node;
 	
 	std::variant<DeclNode*, Stmt*>		*block_item_;
+	Assignment::Op                      assignment_op;
 	BlockItemList					   	*block_item_list_;
 	CompoundStmt					   	*compound_stmt;
+	InitDecl					   		*init_decl;
+	InitDeclList					   	*init_decl_list;
 	ParamDecl					   		*param_decl;
 	ParamList					   		*param_list;
 	
@@ -58,12 +61,15 @@
 
 %type <tu> translation_unit
 %type <func_def> function_definition
+%type <assignment_op> assignment_operator
 %type <block_item_> block_item
 %type <block_item_list_> block_item_list
 %type <compound_stmt> compound_statement
 %type <decl_node> declaration
 %type <ext_decl> external_declaration
 %type <decl> declarator direct_declarator
+%type <init_decl> init_declarator
+%type <init_decl_list> init_declarator_list
 %type <param_decl> parameter_declaration
 %type <param_list> parameter_list parameter_type_list
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
@@ -73,6 +79,7 @@
 %type <expr> and_expression exclusive_or_expression inclusive_or_expression
 %type <expr> logical_and_expression logical_or_expression
 %type <expr> conditional_expression assignment_expression expression
+%type <expr> initializer
 %type <stmt> statement labeled_statement jump_statement
 %type <stmt> expression_statement selection_statement iteration_statement
 
@@ -142,8 +149,11 @@ multiplicative_expression
 	: cast_expression
 	 	{ $$ = $1; }
 	| multiplicative_expression '*' cast_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::MUL); }
 	| multiplicative_expression '/' cast_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::DIV); }
 	| multiplicative_expression '%' cast_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::MOD); }
 	;
 
 additive_expression
@@ -159,53 +169,66 @@ shift_expression
 	: additive_expression
 		{ $$ = $1; }
 	| shift_expression LEFT_OP additive_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::SHL); }
 	| shift_expression RIGHT_OP additive_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::SHR); }
 	;
 
 relational_expression
 	: shift_expression
 		{ $$ = $1; }
 	| relational_expression '<' shift_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::LT); }
 	| relational_expression '>' shift_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::GT); }
 	| relational_expression LE_OP shift_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::LE); }
 	| relational_expression GE_OP shift_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::GE); }
 	;
 
 equality_expression
 	: relational_expression
 		{ $$ = $1; }
 	| equality_expression EQ_OP relational_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::EQ); }
 	| equality_expression NE_OP relational_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::NE); }
 	;
 
 and_expression
 	: equality_expression
 		{ $$ = $1; }
 	| and_expression '&' equality_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::AND); }
 	;
 
 exclusive_or_expression
 	: and_expression
 		{ $$ = $1; }
 	| exclusive_or_expression '^' and_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::XOR); }
 	;
 
 inclusive_or_expression
 	: exclusive_or_expression
 		{ $$ = $1; }
 	| inclusive_or_expression '|' exclusive_or_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::OR); }
 	;
 
 logical_and_expression
 	: inclusive_or_expression
 		{ $$ = $1; }
 	| logical_and_expression AND_OP inclusive_or_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::LAND); }
 	;
 
 logical_or_expression
 	: logical_and_expression
 		{ $$ = $1; }
 	| logical_or_expression OR_OP logical_and_expression
+		{ $$ = new BinaryOp($1, $3, BinaryOp::Op::LOR); }
 	;
 
 conditional_expression
@@ -218,20 +241,32 @@ assignment_expression
 	: conditional_expression
 		{ $$ = $1; }
 	| unary_expression assignment_operator assignment_expression
+		{ $$ = new Assignment($1, $3, $2); }
 	;
 
 assignment_operator
 	: '='
+		{ $$ = Assignment::Op::ASSIGN; }
 	| MUL_ASSIGN
+		{ $$ = Assignment::Op::MUL_ASSIGN; }
 	| DIV_ASSIGN
+		{ $$ = Assignment::Op::DIV_ASSIGN; }
 	| MOD_ASSIGN
+		{ $$ = Assignment::Op::MOD_ASSIGN; }
 	| ADD_ASSIGN
+		{ $$ = Assignment::Op::ADD_ASSIGN; }
 	| SUB_ASSIGN
+		{ $$ = Assignment::Op::SUB_ASSIGN; }
 	| LEFT_ASSIGN
+		{ $$ = Assignment::Op::LEFT_ASSIGN; }
 	| RIGHT_ASSIGN
+		{ $$ = Assignment::Op::RIGHT_ASSIGN; }
 	| AND_ASSIGN
+		{ $$ = Assignment::Op::AND_ASSIGN; }
 	| XOR_ASSIGN
+		{ $$ = Assignment::Op::XOR_ASSIGN; }
 	| OR_ASSIGN
+		{ $$ = Assignment::Op::OR_ASSIGN; }
 	;
 
 expression
@@ -246,7 +281,9 @@ constant_expression
 
 declaration
 	: declaration_specifiers ';'
+		{ $$ = new DeclNode($1); }
 	| declaration_specifiers init_declarator_list ';'
+		{ $$ = new DeclNode($1, $2); }
 	;
 
 declaration_specifiers
@@ -263,12 +300,16 @@ declaration_specifiers
 
 init_declarator_list
 	: init_declarator
+		{ $$ = new InitDeclList($1); }
 	| init_declarator_list ',' init_declarator
+		{ $1->pushBack($3); $$ = $1; }
 	;
 
 init_declarator
 	: declarator
+		{ $$ = new InitDecl($1); }
 	| declarator '=' initializer
+		{ $$ = new InitDecl($1, $3); }
 	;
 
 storage_class_specifier
@@ -470,7 +511,9 @@ direct_abstract_declarator
 
 initializer
 	: assignment_expression
+		{ $$ = $1; }
 	| '{' initializer_list '}'
+		/* Array initializers */
 	| '{' initializer_list ',' '}'
 	;
 
@@ -539,7 +582,9 @@ block_item
 
 expression_statement
 	: ';'
+		{ $$ = new ExprStmt(); }
 	| expression ';'
+		{ $$ = new ExprStmt($1); }
 	;
 
 selection_statement

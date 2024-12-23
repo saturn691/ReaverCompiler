@@ -24,11 +24,14 @@ public:
     void visit(const DeclNode &node) override;
     void visit(const FnDecl &node) override;
     void visit(const FnDef &node) override;
+    void visit(const InitDecl &node) override;
+    void visit(const InitDeclList &node) override;
     void visit(const ParamDecl &node) override;
     void visit(const ParamList &node) override;
     void visit(const TranslationUnit &node) override;
 
     // Expressions
+    void visit(const Assignment &node) override;
     void visit(const BinaryOp &node) override;
     void visit(const Constant &node) override;
     void visit(const Identifier &node) override;
@@ -36,6 +39,7 @@ public:
     // Statements
     void visit(const BlockItemList &node) override;
     void visit(const CompoundStmt &node) override;
+    void visit(const ExprStmt &node) override;
     void visit(const Return &node) override;
 
     // Types

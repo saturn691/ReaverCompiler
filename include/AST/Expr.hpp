@@ -10,6 +10,39 @@ class Expr : public Stmt
 {
 public:
     virtual ~Expr() = default;
+
+    virtual bool isLValue() const
+    {
+        return false;
+    }
+};
+
+class Assignment final : public Node<Assignment>, public Expr
+{
+public:
+    enum class Op
+    {
+        ASSIGN,
+        MUL_ASSIGN,
+        DIV_ASSIGN,
+        MOD_ASSIGN,
+        ADD_ASSIGN,
+        SUB_ASSIGN,
+        LEFT_ASSIGN,
+        RIGHT_ASSIGN,
+        AND_ASSIGN,
+        XOR_ASSIGN,
+        OR_ASSIGN,
+    };
+
+    Assignment(const Expr *lhs, const Expr *rhs, Op op)
+        : lhs_(lhs), rhs_(rhs), op_(op)
+    {
+    }
+
+    Ptr<Expr> lhs_;
+    Ptr<Expr> rhs_;
+    Op op_;
 };
 
 class BinaryOp final : public Node<BinaryOp>, public Expr
@@ -67,6 +100,11 @@ public:
     std::string getID() const override
     {
         return name_;
+    }
+
+    bool isLValue() const override
+    {
+        return true;
     }
 
     std::string name_;
