@@ -120,21 +120,39 @@ void CodeGenModule::visit(const FnDef &node)
     }
 
     // Generate the function body
+    isGlobal_ = false;
     node.body_->accept(*this);
+    isGlobal_ = true;
 }
 
 void CodeGenModule::visit(const InitDecl &node)
 {
-    // Allocate memory for the variable
-    llvm::Type *type = getLLVMType(typeMap_[&node].get());
-    llvm::AllocaInst *alloca =
-        builder_->CreateAlloca(type, nullptr, node.getID());
-    symbolTable_[node.getID()] = alloca;
-
-    if (node.expr_)
+    if (isGlobal_)
     {
-        node.expr_->accept(*this);
-        builder_->CreateStore(currentValue_, alloca);
+        llvm::Type *type = getLLVMType(typeMap_[&node].get());
+        if (type->isFunctionTy())
+        {
+            // Function declaration
+            llvm::Function *fn = llvm::Function::Create(
+                static_cast<llvm::FunctionType *>(type),
+                llvm::Function::ExternalLinkage,
+                node.getID(),
+                module_.get());
+        }
+    }
+    else
+    {
+        // Allocate memory for the variable
+        llvm::Type *type = getLLVMType(typeMap_[&node].get());
+        llvm::AllocaInst *alloca =
+            builder_->CreateAlloca(type, nullptr, node.getID());
+        symbolTable_[node.getID()] = alloca;
+
+        if (node.expr_)
+        {
+            node.expr_->accept(*this);
+            builder_->CreateStore(currentValue_, alloca);
+        }
     }
 }
 
@@ -197,6 +215,11 @@ void CodeGenModule::visit(const Assignment &node)
         currentValue_ = builder_->CreateStore(rhs, lhs);
         break;
     }
+}
+
+void CodeGenModule::visit(const ArgExprList &node)
+{
+    // Intentionally left blank
 }
 
 void CodeGenModule::visit(const BinaryOp &node)
@@ -280,7 +303,7 @@ void CodeGenModule::visit(const BinaryOp &node)
 
 void CodeGenModule::visit(const Constant &node)
 {
-    if (valueCategory_ == ValueCategory::LVALUE)
+    if (valueCategory_ != ValueCategory::RVALUE)
     {
         throw std::runtime_error("Constant to LValue not supported");
     }
@@ -289,17 +312,45 @@ void CodeGenModule::visit(const Constant &node)
     currentValue_ = llvm::ConstantInt::get(type, std::stoi(node.value_));
 }
 
+void CodeGenModule::visit(const FnCall &node)
+{
+    if (valueCategory_ != ValueCategory::RVALUE)
+    {
+        throw std::runtime_error("FnCall to LValue not supported");
+    }
+
+    llvm::Function *fn = visitAsFnDesignator(*node.fn_);
+
+    std::vector<llvm::Value *> args;
+    if (node.args_)
+    {
+        for (const auto &arg : node.args_->nodes_)
+        {
+            std::visit(
+                [this, &args](const auto &arg)
+                { args.push_back(visitAsRValue(*arg)); },
+                arg);
+        }
+    }
+
+    currentValue_ = builder_->CreateCall(fn, args);
+}
+
 void CodeGenModule::visit(const Identifier &node)
 {
     if (valueCategory_ == ValueCategory::LVALUE)
     {
         currentValue_ = symbolTable_[node.getID()];
     }
-    else
+    else if (valueCategory_ == ValueCategory::RVALUE)
     {
         llvm::AllocaInst *alloca = symbolTable_[node.getID()];
         currentValue_ = builder_->CreateLoad(
             alloca->getAllocatedType(), alloca, node.getID());
+    }
+    else
+    {
+        currentValue_ = module_->getFunction(node.getID());
     }
 }
 
@@ -317,12 +368,104 @@ void CodeGenModule::visit(const BlockItemList &node)
 
 void CodeGenModule::visit(const CompoundStmt &node)
 {
-    node.nodes_->accept(*this);
+    if (node.nodes_)
+    {
+        node.nodes_->accept(*this);
+    }
 }
 
 void CodeGenModule::visit(const ExprStmt &node)
 {
     node.expr_->accept(*this);
+}
+
+void CodeGenModule::visit(const For &node)
+{
+    // Initialize
+    std::visit([this](const auto &init) { init->accept(*this); }, node.init_);
+
+    // Create an explict fall through to the condition
+    llvm::Function *fn = getCurrentFunction();
+    llvm::BasicBlock *condBB = llvm::BasicBlock::Create(*context_, "cond", fn);
+    builder_->CreateBr(condBB);
+
+    // Condition
+    builder_->SetInsertPoint(condBB);
+    llvm::Value *cond = visitAsRValue(*node.cond_->expr_);
+    cond = builder_->CreateICmpNE(
+        cond, llvm::ConstantInt::get(cond->getType(), 0), "loopcond");
+
+    // Loop body
+    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*context_, "loop", fn);
+    llvm::BasicBlock *afterBB =
+        llvm::BasicBlock::Create(*context_, "afterloop");
+    builder_->CreateCondBr(cond, loopBB, afterBB);
+    builder_->SetInsertPoint(loopBB);
+    node.body_->accept(*this);
+    loopBB = builder_->GetInsertBlock();
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+    }
+    if (!loopBB->getTerminator())
+    {
+        builder_->CreateBr(condBB);
+    }
+
+    // After loop
+    fn->insert(fn->end(), afterBB);
+    builder_->SetInsertPoint(afterBB);
+}
+
+void CodeGenModule::visit(const IfElse &node)
+{
+    llvm::Value *cond = visitAsRValue(*node.cond_);
+    cond = builder_->CreateICmpNE(
+        cond, llvm::ConstantInt::get(cond->getType(), 0), "ifcond");
+
+    llvm::Function *fn = getCurrentFunction();
+
+    // Notice only `fn` is passed into thenBB (other blocks are not inserted)
+    llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(*context_, "then", fn);
+    llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(*context_, "ifcont");
+    llvm::BasicBlock *elseBB = llvm::BasicBlock::Create(*context_, "else");
+    if (node.elseStmt_)
+    {
+        builder_->CreateCondBr(cond, thenBB, elseBB);
+    }
+    else
+    {
+        builder_->CreateCondBr(cond, thenBB, mergeBB);
+    }
+
+    // Then block
+    builder_->SetInsertPoint(thenBB);
+    node.thenStmt_->accept(*this);
+    thenBB = builder_->GetInsertBlock();
+    if (!thenBB->getTerminator())
+    {
+        builder_->CreateBr(mergeBB);
+    }
+
+    if (node.elseStmt_)
+    {
+        // Else block
+        fn->insert(fn->end(), elseBB);
+        builder_->SetInsertPoint(elseBB);
+        node.elseStmt_->accept(*this);
+        elseBB = builder_->GetInsertBlock();
+        if (!elseBB->getTerminator())
+        {
+            builder_->CreateBr(mergeBB);
+        }
+    }
+
+    // Merge block
+    if (!thenBB->getTerminator() || !node.elseStmt_ || !elseBB->getTerminator())
+    {
+        fn->insert(fn->end(), mergeBB);
+        builder_->SetInsertPoint(mergeBB);
+    }
 }
 
 void CodeGenModule::visit(const Return &node)
@@ -347,6 +490,38 @@ void CodeGenModule::visit(const Return &node)
     {
         builder_->CreateRetVoid();
     }
+}
+
+void CodeGenModule::visit(const While &node)
+{
+    llvm::Function *fn = getCurrentFunction();
+
+    // Create an explict fall through to the condition
+    llvm::BasicBlock *condBB = llvm::BasicBlock::Create(*context_, "cond", fn);
+    builder_->CreateBr(condBB);
+
+    // Condition
+    builder_->SetInsertPoint(condBB);
+    llvm::Value *cond = visitAsRValue(*node.cond_);
+    cond = builder_->CreateICmpNE(
+        cond, llvm::ConstantInt::get(cond->getType(), 0), "loopcond");
+
+    // Loop body
+    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*context_, "loop", fn);
+    llvm::BasicBlock *afterBB =
+        llvm::BasicBlock::Create(*context_, "afterloop");
+    builder_->CreateCondBr(cond, loopBB, afterBB);
+    builder_->SetInsertPoint(loopBB);
+    node.body_->accept(*this);
+    loopBB = builder_->GetInsertBlock();
+    if (!loopBB->getTerminator())
+    {
+        builder_->CreateBr(condBB);
+    }
+
+    // After loop
+    fn->insert(fn->end(), afterBB);
+    builder_->SetInsertPoint(afterBB);
 }
 
 /******************************************************************************
@@ -392,6 +567,17 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
             return nullptr;
         }
     }
+    else if (auto fnType = dynamic_cast<const FnType *>(type))
+    {
+        std::vector<llvm::Type *> paramTypes;
+        for (const auto &p : fnType->params_->types_)
+        {
+            paramTypes.push_back(getLLVMType(p.get()));
+        }
+
+        return llvm::FunctionType::get(
+            getLLVMType(fnType->retType_.get()), paramTypes, false);
+    }
 
     throw std::runtime_error("Unknown type");
 }
@@ -414,6 +600,13 @@ llvm::Value *CodeGenModule::visitAsRValue(const Expr &expr)
     valueCategory_ = ValueCategory::RVALUE;
     expr.accept(*this);
     return currentValue_;
+}
+
+llvm::Function *CodeGenModule::visitAsFnDesignator(const Expr &expr)
+{
+    valueCategory_ = ValueCategory::FN_DESIGNATOR;
+    expr.accept(*this);
+    return static_cast<llvm::Function *>(currentValue_);
 }
 
 } // namespace CodeGen

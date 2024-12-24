@@ -33,15 +33,20 @@ public:
 
     // Expressions (should not be called directly)
     void visit(const Assignment &node) override;
+    void visit(const ArgExprList &node) override;
     void visit(const BinaryOp &node) override;
     void visit(const Constant &node) override;
+    void visit(const FnCall &node) override;
     void visit(const Identifier &node) override;
 
     // Statements
     void visit(const BlockItemList &node) override;
     void visit(const CompoundStmt &node) override;
     void visit(const ExprStmt &node) override;
+    void visit(const For &node) override;
+    void visit(const IfElse &node) override;
     void visit(const Return &node) override;
+    void visit(const While &node) override;
 
     // Types
     void visit(const BasicType &node) override;
@@ -57,13 +62,15 @@ private:
     enum class ValueCategory
     {
         LVALUE,
-        RVALUE
+        RVALUE,
+        FN_DESIGNATOR
     };
 
     // Contextual information (unfortunately)
     // Used as a "return value" for the visitor
     llvm::Value *currentValue_ = nullptr;
     ValueCategory valueCategory_ = ValueCategory::RVALUE;
+    bool isGlobal_ = true;
     std::unordered_map<std::string, llvm::AllocaInst *> symbolTable_;
 
     llvm::Function *getCurrentFunction();
@@ -71,6 +78,7 @@ private:
     llvm::Type *getLLVMType(const BaseType *type);
     llvm::Value *visitAsLValue(const Expr &node);
     llvm::Value *visitAsRValue(const Expr &node);
+    llvm::Function *visitAsFnDesignator(const Expr &expr);
 };
 
 } // namespace CodeGen

@@ -25,15 +25,20 @@ public:
 
     // Expressions
     void visit(const Assignment &node) override;
+    void visit(const ArgExprList &node) override;
     void visit(const BinaryOp &node) override;
     void visit(const Constant &node) override;
+    void visit(const FnCall &node) override;
     void visit(const Identifier &node) override;
 
     // Statements
     void visit(const BlockItemList &node) override;
     void visit(const CompoundStmt &node) override;
+    void visit(const IfElse &node) override;
+    void visit(const For &node) override;
     void visit(const ExprStmt &node) override;
     void visit(const Return &node) override;
+    void visit(const While &node) override;
 
     // Types
     void visit(const BasicType &node) override;

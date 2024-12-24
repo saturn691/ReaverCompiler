@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-
 #include "AST/Node.hpp"
 
 namespace AST

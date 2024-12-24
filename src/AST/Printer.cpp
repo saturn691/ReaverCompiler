@@ -94,7 +94,7 @@ void Printer::visit(const TranslationUnit &node)
     for (const auto &decl : node.nodes_)
     {
         std::visit([this](const auto &decl) { decl->accept(*this); }, decl);
-        os << std::endl;
+        os << std::endl << std::endl;
     }
 }
 
@@ -142,6 +142,18 @@ void Printer::visit(const Assignment &node)
         break;
     }
     node.rhs_->accept(*this);
+}
+
+void Printer::visit(const ArgExprList &node)
+{
+    for (const auto &arg : node.nodes_)
+    {
+        std::visit([this](const auto &arg) { arg->accept(*this); }, arg);
+        if (arg != node.nodes_.back())
+        {
+            os << ", ";
+        }
+    }
 }
 
 void Printer::visit(const BinaryOp &node)
@@ -212,6 +224,17 @@ void Printer::visit(const Constant &node)
     os << node.value_;
 }
 
+void Printer::visit(const FnCall &node)
+{
+    node.fn_->accept(*this);
+    os << "(";
+    if (node.args_)
+    {
+        node.args_->accept(*this);
+    }
+    os << ")";
+}
+
 void Printer::visit(const Identifier &node)
 {
     os << node.name_;
@@ -239,9 +262,12 @@ void Printer::visit(const BlockItemList &node)
 void Printer::visit(const CompoundStmt &node)
 {
     os << getIndent() << "{" << std::endl;
-    indentLevel++;
-    node.nodes_->accept(*this);
-    indentLevel--;
+    if (node.nodes_)
+    {
+        indentLevel++;
+        node.nodes_->accept(*this);
+        indentLevel--;
+    }
     os << getIndent() << "}";
 }
 
@@ -249,6 +275,44 @@ void Printer::visit(const ExprStmt &node)
 {
     node.expr_->accept(*this);
     os << ";";
+}
+
+void Printer::visit(const For &node)
+{
+    os << "for (";
+    if (std::holds_alternative<Ptr<DeclNode>>(node.init_))
+    {
+        std::get<Ptr<DeclNode>>(node.init_)->accept(*this);
+    }
+    else
+    {
+        std::get<Ptr<Stmt>>(node.init_)->accept(*this);
+    }
+    os << " ";
+    node.cond_->accept(*this);
+
+    if (node.expr_)
+    {
+        os << " ";
+        node.expr_->accept(*this);
+    }
+
+    os << ")" << std::endl;
+    node.body_->accept(*this);
+}
+
+void Printer::visit(const IfElse &node)
+{
+    os << "if (";
+    node.cond_->accept(*this);
+    os << ")" << std::endl;
+    node.thenStmt_->accept(*this);
+    if (node.elseStmt_)
+    {
+        os << std::endl;
+        os << getIndent() << "else" << std::endl;
+        node.elseStmt_->accept(*this);
+    }
 }
 
 void Printer::visit(const Return &node)
@@ -259,6 +323,14 @@ void Printer::visit(const Return &node)
         node.expr_->accept(*this);
     }
     os << ";";
+}
+
+void Printer::visit(const While &node)
+{
+    os << "while (";
+    node.cond_->accept(*this);
+    os << ")" << std::endl;
+    node.body_->accept(*this);
 }
 
 /******************************************************************************

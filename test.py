@@ -54,7 +54,7 @@ COMPILER_FILE = PROJECT_LOCATION.joinpath("build/rcc").resolve()
 COVERAGE_FOLDER = PROJECT_LOCATION.joinpath("coverage").resolve()
 
 BUILD_TIMEOUT_SECONDS = 60
-RUN_TIMEOUT_SECONDS = 15
+RUN_TIMEOUT_SECONDS = 5
 TIMEOUT_RETURNCODE = 124
 
 @dataclass
@@ -218,7 +218,7 @@ def run_test(driver: Path) -> Result:
         timeout=RUN_TIMEOUT_SECONDS,
         log_path=f"{log_path}.ref",)
     if return_code != 0:
-        msg = f"\t> Failed to generate reference: \n\t {compiler_log_file_str} \n\t {relevant_files('reference')}"
+        msg = f"\t> Failed to generate reference: \n\t {compiler_log_file_str} \n\t {relevant_files('ref')}"
         return Result(
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)

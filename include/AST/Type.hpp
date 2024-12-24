@@ -150,6 +150,16 @@ public:
             return true;
         }
 
+        size_t size() const
+        {
+            return types_.size();
+        }
+
+        const BaseType *at(size_t i) const
+        {
+            return types_[i].get();
+        }
+
         std::vector<Ptr<BaseType>> types_;
     };
 

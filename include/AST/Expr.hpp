@@ -17,6 +17,20 @@ public:
     }
 };
 
+/**
+ * Argument expression list
+ * e.g. `(1, 2)` in `foo(1, 2)`
+ */
+class ArgExprList final : public NodeList<Expr>, public Node<ArgExprList>
+{
+public:
+    using NodeList::NodeList;
+};
+
+/**
+ * Assignment node
+ * e.g. `a = 1`
+ */
 class Assignment final : public Node<Assignment>, public Expr
 {
 public:
@@ -45,6 +59,10 @@ public:
     Op op_;
 };
 
+/**
+ * Binary operation
+ * e.g. `a + b`
+ */
 class BinaryOp final : public Node<BinaryOp>, public Expr
 {
 public:
@@ -80,6 +98,10 @@ public:
     Op op_;
 };
 
+/**
+ * Constant
+ * e.g. `10`, `0x12`, `1.1f`
+ */
 class Constant final : public Node<Constant>, public Expr
 {
 public:
@@ -90,6 +112,29 @@ public:
     std::string value_;
 };
 
+/**
+ * Function call
+ * e.g. `foo()`, `bar(1, 2)`
+ */
+class FnCall final : public Node<FnCall>, public Expr
+{
+public:
+    FnCall(const Expr *fn) : fn_(fn)
+    {
+    }
+
+    FnCall(const Expr *fn, const ArgExprList *args) : fn_(fn), args_(args)
+    {
+    }
+
+    Ptr<Expr> fn_;
+    Ptr<ArgExprList> args_;
+};
+
+/**
+ * Identifier
+ * e.g. `a`, `foo`
+ */
 class Identifier final : public Node<Identifier>, public Expr, public Decl
 {
 public:

@@ -18,35 +18,32 @@ void TypeChecker::visit(const DeclNode &node)
     Ptr<BaseType> type = node.type_->clone();
     typeMap_[&node] = type->clone();
 
-    auto IDs = node.getIDs();
-    for (const auto &id : IDs)
-    {
-        typeContext_[id] = type->clone();
-    }
-
     // Type check the initializer list
+    currentType_ = type.get();
     node.initDeclList_->accept(*this);
 }
 
 void TypeChecker::visit(const FnDecl &node)
 {
     node.params_->accept(*this);
-    typeMap_[&node] = typeMap_[node.params_.get()]->clone();
+    Ptr<ParamType> params =
+        dynamic_cast<const ParamType *>(typeMap_[node.params_.get()].get())
+            ->cloneAsDerived();
+    Ptr<BaseType> retType = currentType_->clone();
+
+    auto ty = std::make_unique<FnType>(std::move(params), std::move(retType));
+    typeMap_[&node] = ty->clone();
+    typeContext_[node.getID()] = std::move(ty);
 }
 
 void TypeChecker::visit(const FnDef &node)
 {
     currentFunction_ = node.decl_->getID();
+    currentType_ = node.retType_.get();
 
     // Add enough context to the type map
     node.decl_->accept(*this);
-    Ptr<ParamType> params =
-        dynamic_cast<const ParamType *>(typeMap_[node.decl_.get()].get())
-            ->cloneAsDerived();
-    Ptr<BaseType> retType = node.retType_->clone();
-    auto ty = std::make_unique<FnType>(std::move(params), std::move(retType));
-    typeMap_[&node] = ty->clone();
-    typeContext_[currentFunction_] = std::move(ty);
+    typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
 
     // Now run the type check (on the body)
     node.body_->accept(*this);
@@ -54,9 +51,10 @@ void TypeChecker::visit(const FnDef &node)
 
 void TypeChecker::visit(const InitDecl &node)
 {
-    Ptr<BaseType> expectedType = typeContext_[node.getID()]->clone();
-    typeMap_[&node] = expectedType->clone();
+    // This must insert the type into the context
+    // Why? Because of the parser (e.g. `int a();` or `int *b;`)
     node.decl_->accept(*this);
+    Ptr<BaseType> expectedType = typeMap_[node.decl_.get()]->clone();
 
     if (node.expr_)
     {
@@ -66,6 +64,8 @@ void TypeChecker::visit(const InitDecl &node)
         auto *actual = typeMap_[node.expr_.get()].get();
         checkType(actual, expectedType.get());
     }
+
+    typeMap_[&node] = std::move(expectedType);
 }
 
 void TypeChecker::visit(const InitDeclList &node)
@@ -127,6 +127,22 @@ void TypeChecker::visit(const Assignment &node)
     typeMap_[&node] = lhs->clone();
 }
 
+void TypeChecker::visit(const ArgExprList &node)
+{
+    std::vector<Ptr<BaseType>> types;
+    for (const auto &arg : node.nodes_)
+    {
+        std::visit(
+            [this, &types](const auto &arg)
+            {
+                arg->accept(*this);
+                types.push_back(typeMap_[arg.get()]->clone());
+            },
+            arg);
+    }
+    typeMap_[&node] = std::make_unique<ParamType>(std::move(types));
+}
+
 void TypeChecker::visit(const BinaryOp &node)
 {
     // Subject to integer promotion rules
@@ -158,9 +174,62 @@ void TypeChecker::visit(const Constant &node)
     typeMap_[&node] = std::make_unique<BasicType>(t);
 }
 
+void TypeChecker::visit(const FnCall &node)
+{
+    // Check the type of the function
+    node.fn_->accept(*this);
+    auto *fnType = dynamic_cast<const FnType *>(typeMap_[node.fn_.get()].get());
+    if (!fnType)
+    {
+        os_ << "Error: Expected function type" << std::endl;
+        return;
+    }
+
+    if (node.args_)
+    {
+        node.args_->accept(*this);
+
+        // Check the type of the arguments
+        auto *argType =
+            dynamic_cast<const ParamType *>(typeMap_[node.args_.get()].get());
+        if (!argType)
+        {
+            os_ << "Error: Expected parameter type" << std::endl;
+            return;
+        }
+
+        // Check the number of arguments
+        if (fnType->params_->size() != argType->size())
+        {
+            os_ << "Error: Expected " << fnType->params_->size() << " arguments"
+                << std::endl;
+            return;
+        }
+
+        // Check the types of the arguments
+        for (size_t i = 0; i < fnType->params_->size(); ++i)
+        {
+            checkType(fnType->params_->at(i), argType->at(i));
+        }
+    }
+
+    typeMap_[&node] = fnType->retType_->clone();
+}
+
 void TypeChecker::visit(const Identifier &node)
 {
-    typeMap_[&node] = typeContext_.at(node.getID())->clone();
+    // Problem is that Identifier is both an Expr and a Decl
+    if (typeContext_.find(node.getID()) == typeContext_.end())
+    {
+        // Case for Decl (implied, it won't be in the typeContext)
+        typeMap_[&node] = currentType_->clone();
+        typeContext_[node.getID()] = currentType_->clone();
+    }
+    else
+    {
+        // Case for Expr
+        typeMap_[&node] = typeContext_.at(node.getID())->clone();
+    }
 }
 
 /******************************************************************************
@@ -177,12 +246,49 @@ void TypeChecker::visit(const BlockItemList &node)
 
 void TypeChecker::visit(const CompoundStmt &node)
 {
-    node.nodes_->accept(*this);
+    if (node.nodes_)
+    {
+        node.nodes_->accept(*this);
+    }
 }
 
 void TypeChecker::visit(const ExprStmt &node)
 {
-    node.expr_->accept(*this);
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+        typeMap_[&node] = typeMap_[node.expr_.get()]->clone();
+    }
+}
+
+void TypeChecker::visit(const For &node)
+{
+    std::visit([this](const auto &init) { init->accept(*this); }, node.init_);
+    node.cond_->accept(*this);
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+    }
+    node.body_->accept(*this);
+}
+
+void TypeChecker::visit(const IfElse &node)
+{
+    node.cond_->accept(*this);
+
+    // Condition must be an integer
+    auto *actual = typeMap_[node.cond_.get()].get();
+    if (!(*actual == BasicType(Types::INT)))
+    {
+        os_ << "Error: Expected integer type" << std::endl;
+        return;
+    }
+
+    node.thenStmt_->accept(*this);
+    if (node.elseStmt_)
+    {
+        node.elseStmt_->accept(*this);
+    }
 }
 
 void TypeChecker::visit(const Return &node)
@@ -203,6 +309,21 @@ void TypeChecker::visit(const Return &node)
     }
 
     checkType(actual, fnType->retType_.get());
+}
+
+void TypeChecker::visit(const While &node)
+{
+    node.cond_->accept(*this);
+
+    // Condition must be an integer
+    auto *actual = typeMap_[node.cond_.get()].get();
+    if (!(*actual == BasicType(Types::INT)))
+    {
+        os_ << "Error: Expected integer type" << std::endl;
+        return;
+    }
+
+    node.body_->accept(*this);
 }
 
 /******************************************************************************
