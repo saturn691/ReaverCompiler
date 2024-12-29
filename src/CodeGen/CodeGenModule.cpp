@@ -5,6 +5,7 @@
 #include "AST/Type.hpp"
 
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Passes/PassBuilder.h>
@@ -71,6 +72,12 @@ void CodeGenModule::optimize()
 /******************************************************************************
  *                          Declarations                                      *
  *****************************************************************************/
+
+void CodeGenModule::visit(const ArrayDecl &node)
+{
+    // Allocate memory for the array
+    node.decl_->accept(*this);
+}
 
 void CodeGenModule::visit(const DeclNode &node)
 {
@@ -139,6 +146,11 @@ void CodeGenModule::visit(const InitDecl &node)
                 node.getID(),
                 module_.get());
         }
+        else if (type->isArrayTy())
+        {
+            // Global array declaration
+            module_->getOrInsertGlobal(node.getID(), type);
+        }
     }
     else
     {
@@ -184,6 +196,15 @@ void CodeGenModule::visit(const ParamList &node)
     }
 }
 
+void CodeGenModule::visit(const PtrDecl &node)
+{
+}
+
+void CodeGenModule::visit(const PtrNode &node)
+{
+    // Intentionally left blank
+}
+
 void CodeGenModule::visit(const TranslationUnit &node)
 {
     for (const auto &decl : node.nodes_)
@@ -196,6 +217,38 @@ void CodeGenModule::visit(const TranslationUnit &node)
  *                          Expressions                                       *
  *                  Must separate LValue and RValue handling                  *
  *****************************************************************************/
+
+void CodeGenModule::visit(const ArrayAccess &node)
+{
+    auto valueCategory = valueCategory_;
+    llvm::Value *index = visitAsRValue(*node.index_);
+    llvm::Type *elementType = getLLVMType(&node);
+    llvm::Value *arrayPtr;
+
+    if (getLLVMType(node.arr_.get())->isPointerTy())
+    {
+        // Load the pointer first
+        llvm::Value *arr = visitAsRValue(*node.arr_);
+        arrayPtr = builder_->CreateInBoundsGEP(elementType, arr, index, "gep");
+    }
+    else
+    {
+        llvm::Value *arr = visitAsLValue(*node.arr_);
+        llvm::Value *zero =
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
+        arrayPtr = builder_->CreateInBoundsGEP(
+            getLLVMType(node.arr_.get()), arr, {zero, index}, "gep");
+    }
+
+    if (valueCategory == ValueCategory::LVALUE)
+    {
+        currentValue_ = arrayPtr;
+    }
+    else
+    {
+        currentValue_ = builder_->CreateLoad(elementType, arrayPtr, "load");
+    }
+}
 
 void CodeGenModule::visit(const Assignment &node)
 {
@@ -236,12 +289,26 @@ void CodeGenModule::visit(const BinaryOp &node)
 
     bool isFloat = lhs->getType()->isFloatingPointTy();
 
-    // TODO types
     switch (node.op_)
     {
     case Op::ADD:
-        currentValue_ = (isFloat) ? builder_->CreateFAdd(lhs, rhs, "add")
-                                  : builder_->CreateAdd(lhs, rhs, "add");
+        if (lhs->getType()->isPointerTy() || rhs->getType()->isPointerTy())
+        {
+            // Pointer arithmetic (getelementptr inbounds)
+            if (rhs->getType()->isPointerTy())
+            {
+                // Pointer becomes lhs
+                std::swap(lhs, rhs);
+            }
+
+            currentValue_ = builder_->CreateInBoundsGEP(
+                getPointerElementType(&node), lhs, rhs, "add");
+        }
+        else
+        {
+            currentValue_ = (isFloat) ? builder_->CreateFAdd(lhs, rhs, "add")
+                                      : builder_->CreateAdd(lhs, rhs, "add");
+        }
         break;
     case Op::SUB:
         currentValue_ = (isFloat) ? builder_->CreateFSub(lhs, rhs, "sub")
@@ -309,7 +376,15 @@ void CodeGenModule::visit(const Constant &node)
     }
 
     llvm::Type *type = getLLVMType(typeMap_[&node].get());
-    currentValue_ = llvm::ConstantInt::get(type, std::stoi(node.value_));
+    if (type->isIntegerTy(8))
+    {
+        // Gets the 1 or 2 characters between the single quotes
+        currentValue_ = llvm::ConstantInt::get(type, node.getChar());
+    }
+    else
+    {
+        currentValue_ = llvm::ConstantInt::get(type, std::stoi(node.value_));
+    }
 }
 
 void CodeGenModule::visit(const FnCall &node)
@@ -354,6 +429,85 @@ void CodeGenModule::visit(const Identifier &node)
     }
 }
 
+void CodeGenModule::visit(const UnaryOp &node)
+{
+    // The only LValue is DEREF
+    if (valueCategory_ == ValueCategory::LVALUE)
+    {
+        if (node.op_ != UnaryOp::Op::DEREF)
+        {
+            throw std::runtime_error("UnaryOp to LValue not supported");
+        }
+        // Looks weird, but we need to load the pointer, not get the address
+        currentValue_ = visitAsRValue(*node.expr_);
+    }
+    else
+    {
+        llvm::Value *expr;
+
+        switch (node.op_)
+        {
+        case UnaryOp::Op::ADDR:
+            expr = visitAsLValue(*node.expr_);
+            currentValue_ = expr;
+            break;
+        case UnaryOp::Op::DEREF:
+            expr = visitAsRValue(*node.expr_);
+            // Needs to find out the type again, because of opaque pointers
+            currentValue_ =
+                builder_->CreateLoad(getLLVMType(&node), expr, "deref");
+            break;
+        case UnaryOp::Op::PLUS:
+            expr = visitAsRValue(*node.expr_);
+            currentValue_ = expr;
+            break;
+        case UnaryOp::Op::MINUS:
+            expr = visitAsRValue(*node.expr_);
+            currentValue_ = builder_->CreateNeg(expr, "neg");
+            break;
+        case UnaryOp::Op::NOT:
+            expr = visitAsRValue(*node.expr_);
+            currentValue_ = builder_->CreateNot(expr, "not");
+            break;
+        case UnaryOp::Op::LNOT:
+            expr = visitAsRValue(*node.expr_);
+            currentValue_ = builder_->CreateICmpEQ(
+                expr, llvm::ConstantInt::get(expr->getType(), 0), "lnot");
+            break;
+        case UnaryOp::Op::POST_DEC:
+            // `x--` is equivalent to `x = x - 1; return x;`
+            expr = visitAsRValue(*node.expr_);
+            builder_->CreateStore(
+                builder_->CreateSub(
+                    expr,
+                    llvm::ConstantInt::get(expr->getType(), 1),
+                    "postdec"),
+                visitAsLValue(*node.expr_));
+            break;
+        case UnaryOp::Op::POST_INC:
+            // `x++` is equivalent to `x = x + 1; return x;`
+            expr = visitAsRValue(*node.expr_);
+            builder_->CreateStore(
+                builder_->CreateAdd(
+                    expr,
+                    llvm::ConstantInt::get(expr->getType(), 1),
+                    "postinc"),
+                visitAsLValue(*node.expr_));
+            break;
+        case UnaryOp::Op::PRE_DEC:
+            expr = visitAsRValue(*node.expr_);
+            currentValue_ = builder_->CreateSub(
+                expr, llvm::ConstantInt::get(expr->getType(), 1), "postdec");
+            break;
+        case UnaryOp::Op::PRE_INC:
+            expr = visitAsRValue(*node.expr_);
+            currentValue_ = builder_->CreateAdd(
+                expr, llvm::ConstantInt::get(expr->getType(), 1), "postinc");
+            break;
+        }
+    }
+}
+
 /******************************************************************************
  *                          Statements                                        *
  *****************************************************************************/
@@ -376,7 +530,7 @@ void CodeGenModule::visit(const CompoundStmt &node)
 
 void CodeGenModule::visit(const ExprStmt &node)
 {
-    node.expr_->accept(*this);
+    visitAsRValue(*node.expr_);
 }
 
 void CodeGenModule::visit(const For &node)
@@ -479,10 +633,9 @@ void CodeGenModule::visit(const Return &node)
     if (retValue)
     {
         // Check the type of retValue and cast to expected
+        llvm::Type *expectedType = getCurrentFunction()->getReturnType();
         retValue = builder_->CreateCast(
-            llvm::Instruction::CastOps::ZExt,
-            retValue,
-            getLLVMType(node.expr_.get()));
+            llvm::Instruction::CastOps::ZExt, retValue, expectedType);
 
         builder_->CreateRet(retValue);
     }
@@ -578,8 +731,32 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
         return llvm::FunctionType::get(
             getLLVMType(fnType->retType_.get()), paramTypes, false);
     }
+    else if (auto ptrType = dynamic_cast<const PtrType *>(type))
+    {
+        // Opaque pointers do not contain the type they point to
+        return llvm::PointerType::get(*context_, 0);
+    }
+    else if (auto arrType = dynamic_cast<const ArrayType *>(type))
+    {
+        return llvm::ArrayType::get(
+            getLLVMType(arrType->type_.get()), arrType->size_);
+    }
 
     throw std::runtime_error("Unknown type");
+}
+
+llvm::Type *CodeGenModule::getPointerElementType(const BaseNode *node)
+{
+    if (auto *ty = dynamic_cast<const PtrType *>(typeMap_[node].get()))
+    {
+        return getLLVMType(ty->type_.get());
+    }
+    else if (auto *ty = dynamic_cast<const ArrayType *>(typeMap_[node].get()))
+    {
+        return getLLVMType(ty->type_.get());
+    }
+
+    throw std::runtime_error("Expected PtrType");
 }
 
 llvm::Value *CodeGenModule::visitAsLValue(const Expr &expr)

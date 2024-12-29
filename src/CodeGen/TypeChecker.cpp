@@ -4,6 +4,7 @@
 #include "AST/Stmt.hpp"
 #include "AST/Type.hpp"
 
+#include <algorithm>
 #include <iostream>
 
 namespace CodeGen
@@ -12,6 +13,31 @@ namespace CodeGen
  *                          Declarations                                      *
  *****************************************************************************/
 
+void TypeChecker::visit(const ArrayDecl &node)
+{
+    // Type check the size
+    node.size_->accept(*this);
+    assertIsIntegerTy(typeMap_[node.size_.get()].get());
+
+    // Attempt to get a size (otherwise, VLA)
+    auto size = node.size_->eval();
+
+    // Does not instantiate a type, rather passes information down
+    Ptr<BaseType> oldType = currentType_->clone();
+    if (size)
+    {
+        currentType_ =
+            std::make_unique<ArrayType>(currentType_->clone(), *size);
+    }
+    else
+    {
+        currentType_ = std::make_unique<ArrayType>(currentType_->clone(), 0);
+    }
+    node.decl_->accept(*this);
+    typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
+    currentType_ = std::move(oldType);
+}
+
 void TypeChecker::visit(const DeclNode &node)
 {
     // Pass type information down
@@ -19,7 +45,7 @@ void TypeChecker::visit(const DeclNode &node)
     typeMap_[&node] = type->clone();
 
     // Type check the initializer list
-    currentType_ = type.get();
+    currentType_ = type->clone();
     node.initDeclList_->accept(*this);
 }
 
@@ -39,7 +65,7 @@ void TypeChecker::visit(const FnDecl &node)
 void TypeChecker::visit(const FnDef &node)
 {
     currentFunction_ = node.decl_->getID();
-    currentType_ = node.retType_.get();
+    currentType_ = node.retType_->clone();
 
     // Add enough context to the type map
     node.decl_->accept(*this);
@@ -80,10 +106,10 @@ void TypeChecker::visit(const InitDeclList &node)
 
 void TypeChecker::visit(const ParamDecl &node)
 {
-    Ptr<BaseType> type = node.type_->clone();
-
-    typeContext_[node.getID()] = type->clone();
-    typeMap_[&node] = std::move(type);
+    // Pass type information down
+    currentType_ = node.type_->clone();
+    node.decl_->accept(*this);
+    typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
 }
 
 void TypeChecker::visit(const ParamList &node)
@@ -102,6 +128,22 @@ void TypeChecker::visit(const ParamList &node)
     typeMap_[&node] = std::make_unique<ParamType>(std::move(types));
 }
 
+void TypeChecker::visit(const PtrDecl &node)
+{
+    // Does not instantiate a type, rather passes information down
+    Ptr<BaseType> oldType = currentType_->clone();
+    node.ptr_->accept(*this);
+    node.decl_->accept(*this);
+    typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
+    currentType_ = std::move(oldType);
+}
+
+void TypeChecker::visit(const PtrNode &node)
+{
+    // Changes the type
+    currentType_ = std::make_unique<PtrType>(currentType_->clone());
+}
+
 void TypeChecker::visit(const TranslationUnit &node)
 {
     for (const auto &decl : node.nodes_)
@@ -113,6 +155,30 @@ void TypeChecker::visit(const TranslationUnit &node)
 /******************************************************************************
  *                          Expressions                                       *
  *****************************************************************************/
+
+void TypeChecker::visit(const ArrayAccess &node)
+{
+    // Check the type of the array
+    node.arr_->accept(*this);
+    auto *arrayType = typeMap_[node.arr_.get()].get();
+    if (auto *t = dynamic_cast<const ArrayType *>(arrayType))
+    {
+        typeMap_[&node] = t->type_->clone();
+    }
+    else if (auto *t = dynamic_cast<const PtrType *>(arrayType))
+    {
+        typeMap_[&node] = t->type_->clone();
+    }
+    else
+    {
+        os_ << "Error: Expected array or pointer type" << std::endl;
+    }
+
+    // Check the type of the index
+    node.index_->accept(*this);
+    auto *indexType = typeMap_[node.index_.get()].get();
+    assertIsIntegerTy(indexType);
+}
 
 void TypeChecker::visit(const Assignment &node)
 {
@@ -162,13 +228,53 @@ void TypeChecker::visit(const Constant &node)
     Types t;
     std::string value = node.value_;
 
-    if (value.find('.') != std::string::npos)
+    // Floating point constant
+    if (value.find('.') != std::string::npos ||
+        value.find('e') != std::string::npos ||
+        value.find('E') != std::string::npos ||
+        value.find('p') != std::string::npos ||
+        value.find('P') != std::string::npos)
     {
-        t = Types::DOUBLE;
+        if (value.back() == 'f' || value.back() == 'F')
+        {
+            t = Types::FLOAT;
+        }
+        else if (value.back() == 'l' || value.back() == 'L')
+        {
+            t = Types::LONG_DOUBLE;
+        }
+        else
+        {
+            t = Types::DOUBLE;
+        }
+    }
+    else if (value.find("'") != std::string::npos)
+    {
+        // TODO wchar_t
+        if (value.size() == 3 || (value[1] == '\\' && value.size() == 4))
+        {
+            t = Types::CHAR;
+        }
+        else
+        {
+            t = Types::INT;
+        }
     }
     else
     {
-        t = Types::INT;
+        // TODO this is not exactly correct
+        if (value.back() == 'u' || value.back() == 'U')
+        {
+            t = Types::UNSIGNED_INT;
+        }
+        else if (value.back() == 'l' || value.back() == 'L')
+        {
+            t = Types::LONG;
+        }
+        else
+        {
+            t = Types::INT;
+        }
     }
 
     typeMap_[&node] = std::make_unique<BasicType>(t);
@@ -229,6 +335,58 @@ void TypeChecker::visit(const Identifier &node)
     {
         // Case for Expr
         typeMap_[&node] = typeContext_.at(node.getID())->clone();
+    }
+}
+
+void TypeChecker::visit(const UnaryOp &node)
+{
+    node.expr_->accept(*this);
+
+    auto *actual = typeMap_[node.expr_.get()].get();
+    switch (node.op_)
+    {
+    case UnaryOp::Op::ADDR:
+        typeMap_[&node] = std::make_unique<PtrType>(actual->clone());
+        break;
+    case UnaryOp::Op::DEREF:
+        if (auto *ptr = dynamic_cast<const PtrType *>(actual))
+        {
+            typeMap_[&node] = ptr->type_->clone();
+        }
+        else
+        {
+            os_ << "Error: Expected pointer type" << std::endl;
+        }
+        break;
+    case UnaryOp::Op::PLUS:
+    case UnaryOp::Op::MINUS:
+        if (!(*actual == BasicType(Types::INT) ||
+              *actual == BasicType(Types::FLOAT) ||
+              *actual == BasicType(Types::DOUBLE)))
+        {
+            os_ << "Error: Expected integer or floating point type"
+                << std::endl;
+        }
+        typeMap_[&node] = actual->clone();
+        break;
+    case UnaryOp::Op::NOT:
+    case UnaryOp::Op::LNOT:
+        if (!(*actual == BasicType(Types::INT)))
+        {
+            os_ << "Error: Expected integer type" << std::endl;
+        }
+        typeMap_[&node] = actual->clone();
+        break;
+    case UnaryOp::Op::POST_DEC:
+    case UnaryOp::Op::POST_INC:
+    case UnaryOp::Op::PRE_DEC:
+    case UnaryOp::Op::PRE_INC:
+        if (!(*actual <= BasicType(Types::INT)))
+        {
+            os_ << "Error: Expected implicit integer type" << std::endl;
+        }
+        typeMap_[&node] = actual->clone();
+        break;
     }
 }
 
@@ -340,13 +498,36 @@ void TypeChecker::visit(const BasicType &node)
 
 bool TypeChecker::checkType(const BaseType *actual, const BaseType *expected)
 {
-    if (!(*actual == *expected))
+    if (!(*actual <= *expected))
     {
         os_ << "Error: Type mismatch" << std::endl;
         return false;
     }
 
     return true;
+}
+
+bool TypeChecker::assertIsIntegerTy(const BaseType *type)
+{
+    if (auto *basicType = dynamic_cast<const BasicType *>(type))
+    {
+        std::vector<Types> allowed = {
+            Types::CHAR,
+            Types::INT,
+            Types::LONG,
+            Types::UNSIGNED_CHAR,
+            Types::UNSIGNED_INT,
+            Types::UNSIGNED_LONG,
+        };
+        if (std::find(allowed.begin(), allowed.end(), basicType->type_) !=
+            allowed.end())
+        {
+            return true;
+        }
+    }
+
+    os_ << "Error: Expected integer type" << std::endl;
+    return false;
 }
 
 } // namespace CodeGen

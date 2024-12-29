@@ -21,6 +21,7 @@ public:
     }
 
     // Declarations
+    void visit(const ArrayDecl &node) override;
     void visit(const DeclNode &node) override;
     void visit(const FnDecl &node) override;
     void visit(const FnDef &node) override;
@@ -28,15 +29,19 @@ public:
     void visit(const InitDeclList &node) override;
     void visit(const ParamDecl &node) override;
     void visit(const ParamList &node) override;
+    void visit(const PtrDecl &node) override;
+    void visit(const PtrNode &node) override;
     void visit(const TranslationUnit &node) override;
 
     // Expressions
+    void visit(const ArrayAccess &node) override;
     void visit(const Assignment &node) override;
     void visit(const ArgExprList &node) override;
     void visit(const BinaryOp &node) override;
     void visit(const Constant &node) override;
     void visit(const FnCall &node) override;
     void visit(const Identifier &node) override;
+    void visit(const UnaryOp &node) override;
 
     // Statements
     void visit(const BlockItemList &node) override;
@@ -64,8 +69,9 @@ private:
     // Jumping around TUs
     std::string currentFunction_;
     // For DeclNode and FnDef
-    const BaseType *currentType_;
+    Ptr<BaseType> currentType_;
 
     bool checkType(const BaseType *actual, const BaseType *expected);
+    bool assertIsIntegerTy(const BaseType *type);
 };
 } // namespace CodeGen

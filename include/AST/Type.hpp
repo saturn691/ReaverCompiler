@@ -12,6 +12,8 @@ class BaseType
 public:
     virtual ~BaseType() = default;
     virtual bool operator==(const BaseType &other) const = 0;
+    virtual bool operator<(const BaseType &other) const = 0;
+    virtual bool operator<=(const BaseType &other) const = 0;
     virtual Ptr<BaseType> clone() const = 0;
 };
 
@@ -38,6 +40,11 @@ public:
         }
 
         return false;
+    }
+
+    bool operator<=(const BaseType &other) const override
+    {
+        return *this == other || *this < other;
     }
 
     virtual bool operator==(const Derived &other) const = 0;
@@ -84,6 +91,19 @@ enum class Types
     IMAGINARY
 };
 
+class ArrayType final : public Type<ArrayType>
+{
+public:
+    ArrayType(Ptr<BaseType> type, size_t size);
+    ArrayType(const ArrayType &other);
+
+    bool operator==(const ArrayType &other) const override;
+    bool operator<(const BaseType &other) const override;
+
+    Ptr<BaseType> type_;
+    size_t size_;
+};
+
 /**
  * Basic types
  * e.g. `int`, `float`, `char`
@@ -93,17 +113,11 @@ class BasicType final : public Node<BasicType>,
                         public TypeNode
 {
 public:
-    BasicType(Types type) : type_(type)
-    {
-    }
-    BasicType(const BasicType &other) : type_(other.type_)
-    {
-    }
+    BasicType(Types type);
+    BasicType(const BasicType &other);
 
-    bool operator==(const BasicType &other) const override
-    {
-        return type_ == other.type_;
-    }
+    bool operator==(const BasicType &other) const override;
+    bool operator<(const BaseType &other) const override;
 
     Types type_;
 };
@@ -121,66 +135,42 @@ public:
     class ParamType final : public Type<ParamType>
     {
     public:
-        ParamType(std::vector<Ptr<BaseType>> types) : types_(std::move(types))
-        {
-        }
-        ParamType(const ParamType &other)
-        {
-            for (const auto &type : other.types_)
-            {
-                types_.push_back(type->clone());
-            }
-        }
+        ParamType(std::vector<Ptr<BaseType>> types);
+        ParamType(const ParamType &other);
 
-        bool operator==(const ParamType &other) const
-        {
-            if (types_.size() != other.types_.size())
-            {
-                return false;
-            }
+        bool operator==(const ParamType &other) const override;
+        bool operator<(const BaseType &other) const override;
 
-            for (size_t i = 0; i < types_.size(); ++i)
-            {
-                if (!(*types_[i] == *other.types_[i]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        size_t size() const
-        {
-            return types_.size();
-        }
-
-        const BaseType *at(size_t i) const
-        {
-            return types_[i].get();
-        }
+        size_t size() const;
+        const BaseType *at(size_t i) const;
 
         std::vector<Ptr<BaseType>> types_;
     };
 
-    FnType(Ptr<ParamType> params, Ptr<BaseType> retType)
-        : params_(std::move(params)), retType_(std::move(retType))
-    {
-    }
+    FnType(Ptr<ParamType> params, Ptr<BaseType> retType);
+    FnType(const FnType &other);
 
-    FnType(const FnType &other)
-        : params_(other.params_->cloneAsDerived()),
-          retType_(other.retType_->clone())
-    {
-    }
-
-    bool operator==(const FnType &other) const override
-    {
-        return params_ == other.params_ && retType_ == other.retType_;
-    }
+    bool operator==(const FnType &other) const override;
+    bool operator<(const BaseType &other) const override;
 
     Ptr<ParamType> params_;
     Ptr<BaseType> retType_;
+};
+
+/**
+ * Pointer types
+ * e.g. `int *`
+ */
+class PtrType final : public Type<PtrType>
+{
+public:
+    PtrType(Ptr<BaseType> type);
+    PtrType(const PtrType &other);
+
+    bool operator==(const PtrType &other) const override;
+    bool operator<(const BaseType &other) const override;
+
+    Ptr<BaseType> type_;
 };
 
 using ParamType = FnType::ParamType;

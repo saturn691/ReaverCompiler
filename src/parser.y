@@ -32,6 +32,8 @@
 	InitDeclList					   	*init_decl_list;
 	ParamDecl					   		*param_decl;
 	ParamList					   		*param_list;
+	PtrNode					   			*ptr_node;
+	UnaryOp::Op					   		unary_op;
 	
 	Decl                         		*decl;
 	Expr 					   			*expr;
@@ -76,6 +78,8 @@
 %type <init_decl_list> init_declarator_list
 %type <param_decl> parameter_declaration
 %type <param_list> parameter_list parameter_type_list
+%type <ptr_node> pointer
+%type <unary_op> unary_operator
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
 %type <expr> primary_expression postfix_expression unary_expression
 %type <expr> cast_expression multiplicative_expression additive_expression
@@ -109,6 +113,7 @@ postfix_expression
 	: primary_expression
 		{ $$ = $1; }
 	| postfix_expression '[' expression ']'
+		{ $$ = new ArrayAccess($1, $3); }
 	| postfix_expression '(' ')'
 		{ $$ = new FnCall($1); }
 	| postfix_expression '(' argument_expression_list ')'
@@ -116,7 +121,9 @@ postfix_expression
 	| postfix_expression '.' IDENTIFIER
 	| postfix_expression PTR_OP IDENTIFIER
 	| postfix_expression INC_OP
+		{ $$ = new UnaryOp($1, UnaryOp::Op::POST_INC); }
 	| postfix_expression DEC_OP
+		{ $$ = new UnaryOp($1, UnaryOp::Op::POST_DEC); }
 	| '(' type_name ')' '{' initializer_list '}'
 	| '(' type_name ')' '{' initializer_list ',' '}'
 	;
@@ -132,19 +139,28 @@ unary_expression
 	: postfix_expression
 		{ $$ = $1; }
 	| INC_OP unary_expression
+		{ $$ = new UnaryOp($2, UnaryOp::Op::PRE_INC); }
 	| DEC_OP unary_expression
+		{ $$ = new UnaryOp($2, UnaryOp::Op::PRE_DEC); }
 	| unary_operator cast_expression
+		{ $$ = new UnaryOp($2, $1); }
 	| SIZEOF unary_expression
 	| SIZEOF '(' type_name ')'
 	;
 
 unary_operator
 	: '&'
+		{ $$ = UnaryOp::Op::ADDR; }
 	| '*'
+		{ $$ = UnaryOp::Op::DEREF; }
 	| '+'
+		{ $$ = UnaryOp::Op::PLUS; }
 	| '-'
+		{ $$ = UnaryOp::Op::MINUS; }
 	| '~'
+		{ $$ = UnaryOp::Op::NOT; }
 	| '!'
+		{ $$ = UnaryOp::Op::LNOT; }
 	;
 
 cast_expression
@@ -427,6 +443,7 @@ function_specifier
 
 declarator
 	: pointer direct_declarator
+		{ $$ = new PtrDecl($1, $2); }
 	| direct_declarator
 		{ $$ = $1; }
 	;
@@ -439,6 +456,7 @@ direct_declarator
 	| direct_declarator '[' type_qualifier_list assignment_expression ']'
 	| direct_declarator '[' type_qualifier_list ']'
 	| direct_declarator '[' assignment_expression ']'
+		{ $$ = new ArrayDecl($1, $3); }
 	| direct_declarator '[' STATIC type_qualifier_list assignment_expression ']'
 	| direct_declarator '[' type_qualifier_list STATIC assignment_expression ']'
 	| direct_declarator '[' type_qualifier_list '*' ']'
@@ -454,6 +472,7 @@ direct_declarator
 
 pointer
 	: '*'
+		{ $$ = new PtrNode(); }
 	| '*' type_qualifier_list
 	| '*' pointer
 	| '*' type_qualifier_list pointer

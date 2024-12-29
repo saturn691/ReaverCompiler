@@ -12,6 +12,14 @@ namespace AST
  *                          Declarations                                      *
  *****************************************************************************/
 
+void Printer::visit(const ArrayDecl &node)
+{
+    node.decl_->accept(*this);
+    os << "[";
+    node.size_->accept(*this);
+    os << "]";
+}
+
 void Printer::visit(const DeclNode &node)
 {
     node.type_->accept(*this);
@@ -89,6 +97,17 @@ void Printer::visit(const ParamList &node)
     }
 }
 
+void Printer::visit(const PtrDecl &node)
+{
+    node.ptr_->accept(*this);
+    node.decl_->accept(*this);
+}
+
+void Printer::visit(const PtrNode &node)
+{
+    os << "*";
+}
+
 void Printer::visit(const TranslationUnit &node)
 {
     for (const auto &decl : node.nodes_)
@@ -101,6 +120,14 @@ void Printer::visit(const TranslationUnit &node)
 /******************************************************************************
  *                          Expressions                                       *
  *****************************************************************************/
+
+void Printer::visit(const ArrayAccess &node)
+{
+    node.arr_->accept(*this);
+    os << "[";
+    node.index_->accept(*this);
+    os << "]";
+}
 
 void Printer::visit(const Assignment &node)
 {
@@ -238,6 +265,46 @@ void Printer::visit(const FnCall &node)
 void Printer::visit(const Identifier &node)
 {
     os << node.name_;
+}
+
+void Printer::visit(const UnaryOp &node)
+{
+    switch (node.op_)
+    {
+    case UnaryOp::Op::ADDR:
+        os << "&";
+        break;
+    case UnaryOp::Op::DEREF:
+        os << "*";
+        break;
+    case UnaryOp::Op::PLUS:
+        os << "+";
+        break;
+    case UnaryOp::Op::MINUS:
+        os << "-";
+        break;
+    case UnaryOp::Op::NOT:
+        os << "~";
+        break;
+    case UnaryOp::Op::LNOT:
+        os << "!";
+        break;
+    case UnaryOp::Op::POST_DEC:
+        node.expr_->accept(*this);
+        os << "--";
+        return;
+    case UnaryOp::Op::POST_INC:
+        node.expr_->accept(*this);
+        os << "++";
+        return;
+    case UnaryOp::Op::PRE_DEC:
+        os << "--";
+        break;
+    case UnaryOp::Op::PRE_INC:
+        os << "++";
+        break;
+    }
+    node.expr_->accept(*this);
 }
 
 /******************************************************************************

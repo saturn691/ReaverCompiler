@@ -8,6 +8,7 @@ namespace AST
 class CompoundStmt;
 class Expr;
 class InitDeclList;
+class PtrNode;
 class TypeNode;
 
 /**
@@ -18,6 +19,26 @@ class Decl : public virtual BaseNode
 public:
     virtual ~Decl() = default;
     virtual std::string getID() const = 0;
+};
+
+/**
+ * Array declaration
+ * e.g. `a[10]`
+ */
+class ArrayDecl final : public Node<ArrayDecl>, public Decl
+{
+public:
+    ArrayDecl(const Decl *decl, const Expr *size) : decl_(decl), size_(size)
+    {
+    }
+
+    std::string getID() const override
+    {
+        return decl_->getID();
+    }
+
+    Ptr<Decl> decl_;
+    Ptr<Expr> size_;
 };
 
 /**
@@ -154,6 +175,46 @@ class ParamList final : public NodeList<ParamDecl>, public Node<ParamList>
 {
 public:
     using NodeList::NodeList;
+};
+
+/**
+ * Pointer declarator
+ * e.g. `int *a`
+ */
+class PtrDecl final : public Node<PtrDecl>, public Decl
+{
+public:
+    PtrDecl(const PtrNode *ptr, const Decl *decl) : ptr_(ptr), decl_(decl)
+    {
+    }
+
+    std::string getID() const override
+    {
+        return decl_->getID();
+    }
+
+    Ptr<PtrNode> ptr_;
+    Ptr<Decl> decl_;
+};
+
+/**
+ * Pointer node
+ * e.g. `*` or `const*`
+ */
+class PtrNode final : public Node<PtrNode>
+{
+public:
+    PtrNode() = default;
+    PtrNode(const PtrNode *ptr) : ptr_(ptr)
+    {
+    }
+
+    unsigned int getPointerLevel() const
+    {
+        return ptr_ ? ptr_->getPointerLevel() + 1 : 1;
+    }
+
+    Ptr<PtrNode> ptr_;
 };
 
 /**
