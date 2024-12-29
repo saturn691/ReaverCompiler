@@ -23,10 +23,13 @@ class Identifier;
 class IfElse;
 class InitDecl;
 class InitDeclList;
+class Paren;
 class ParamDecl;
 class ParamList;
 class PtrDecl;
 class PtrNode;
+class SizeOf;
+class StringLiteral;
 class Return;
 class TranslationUnit;
 class UnaryOp;
@@ -61,6 +64,9 @@ public:
     virtual void visit(const Constant &node) = 0;
     virtual void visit(const FnCall &node) = 0;
     virtual void visit(const Identifier &node) = 0;
+    virtual void visit(const Paren &node) = 0;
+    virtual void visit(const SizeOf &node) = 0;
+    virtual void visit(const StringLiteral &node) = 0;
     virtual void visit(const UnaryOp &node) = 0;
 
     // Statements

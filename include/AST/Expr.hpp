@@ -6,6 +6,7 @@
 #include "AST/Decl.hpp"
 #include "AST/Node.hpp"
 #include "AST/Stmt.hpp"
+#include "AST/Type.hpp"
 
 namespace AST
 {
@@ -241,6 +242,69 @@ public:
     }
 
     std::string name_;
+};
+
+class Paren final : public Node<Paren>, public Expr
+{
+public:
+    Paren(const Expr *expr) : expr_(expr)
+    {
+    }
+
+    bool isLValue() const override
+    {
+        // cppreference: The following expressions are lvalues ...
+        // "parenthesized expression if the unparenthesized expression is an
+        // lvalue"
+        return expr_->isLValue();
+    }
+
+    std::optional<int> eval() const override
+    {
+        return expr_->eval();
+    }
+
+    Ptr<Expr> expr_;
+};
+
+class SizeOf final : public Node<SizeOf>, public Expr
+{
+public:
+    SizeOf(const Expr *expr) : expr_(expr)
+    {
+    }
+
+    SizeOf(const TypeNode *type) : type_(type)
+    {
+    }
+
+    Ptr<Expr> expr_;
+    Ptr<TypeNode> type_;
+};
+
+class StringLiteral final : public Node<StringLiteral>, public Expr
+{
+public:
+    StringLiteral(std::string value) : originalValue_(value)
+    {
+        value_.reserve(value.size());
+
+        for (size_t i = 1; i < value.size() - 1; i++)
+        {
+            if (value[i] == '\\')
+            {
+                i++;
+                value_ += Constant::escapeChars.at(value[i]);
+            }
+            else
+            {
+                value_ += value[i];
+            }
+        }
+    }
+
+    std::string originalValue_;
+    std::string value_;
 };
 
 class UnaryOp final : public Node<UnaryOp>, public Expr

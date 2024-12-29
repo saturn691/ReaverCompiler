@@ -130,6 +130,25 @@ void CodeGenModule::visit(const FnDef &node)
     isGlobal_ = false;
     node.body_->accept(*this);
     isGlobal_ = true;
+
+    // If the function does not have a return statement, add one
+    if (!bb->getTerminator())
+    {
+        if (retType->isVoidTy())
+        {
+            builder_->CreateRetVoid();
+        }
+        else
+        {
+            builder_->CreateRet(llvm::ConstantInt::get(retType, 0, false));
+        }
+    }
+
+    // Attributes required for strings
+    fn->addFnAttr(llvm::Attribute::NoInline);
+    fn->addFnAttr(llvm::Attribute::NoUnwind);
+    fn->addFnAttr(llvm::Attribute::OptimizeNone);
+    fn->addFnAttr(llvm::Attribute::UWTable);
 }
 
 void CodeGenModule::visit(const InitDecl &node)
@@ -162,7 +181,7 @@ void CodeGenModule::visit(const InitDecl &node)
 
         if (node.expr_)
         {
-            node.expr_->accept(*this);
+            visitAsRValue(*node.expr_);
             builder_->CreateStore(currentValue_, alloca);
         }
     }
@@ -198,6 +217,7 @@ void CodeGenModule::visit(const ParamList &node)
 
 void CodeGenModule::visit(const PtrDecl &node)
 {
+    node.decl_->accept(*this);
 }
 
 void CodeGenModule::visit(const PtrNode &node)
@@ -266,6 +286,11 @@ void CodeGenModule::visit(const Assignment &node)
     {
     case Op::ASSIGN:
         currentValue_ = builder_->CreateStore(rhs, lhs);
+        break;
+    case Op::ADD_ASSIGN:
+        llvm::Value *lhsVal = visitAsRValue(*node.lhs_);
+        currentValue_ =
+            builder_->CreateStore(builder_->CreateAdd(lhsVal, rhs), lhs);
         break;
     }
 }
@@ -360,10 +385,38 @@ void CodeGenModule::visit(const BinaryOp &node)
         currentValue_ = builder_->CreateICmpSGE(lhs, rhs, "ge");
         break;
     case Op::LAND:
-        // TODO
-        break;
     case Op::LOR:
-        // TODO
+        llvm::Function *fn = getCurrentFunction();
+        llvm::Value *zero = llvm::ConstantInt::get(lhs->getType(), 0);
+        llvm::Value *lhsBool = builder_->CreateICmpNE(lhs, zero, "lhsVal");
+        llvm::BasicBlock *lhsBB = builder_->GetInsertBlock();
+        llvm::BasicBlock *rhsBB =
+            llvm::BasicBlock::Create(*context_, "rhs", fn);
+        llvm::BasicBlock *afterBB =
+            llvm::BasicBlock::Create(*context_, "after", fn);
+
+        if (node.op_ == Op::LAND)
+        {
+            // True - check other condition is true
+            builder_->CreateCondBr(lhsBool, rhsBB, afterBB);
+        }
+        else
+        {
+            builder_->CreateCondBr(lhsBool, afterBB, rhsBB);
+        }
+
+        // RHS
+        builder_->SetInsertPoint(rhsBB);
+        llvm::Value *rhsBool = builder_->CreateICmpNE(rhs, zero, "rhsVal");
+        builder_->CreateBr(afterBB);
+
+        // After
+        builder_->SetInsertPoint(afterBB);
+        llvm::PHINode *phi =
+            builder_->CreatePHI(llvm::Type::getInt1Ty(*context_), 2, "phi");
+        phi->addIncoming(lhsBool, lhsBB);
+        phi->addIncoming(rhsBool, rhsBB);
+        currentValue_ = phi;
         break;
     }
 }
@@ -380,6 +433,10 @@ void CodeGenModule::visit(const Constant &node)
     {
         // Gets the 1 or 2 characters between the single quotes
         currentValue_ = llvm::ConstantInt::get(type, node.getChar());
+    }
+    else if (type->isFloatTy())
+    {
+        currentValue_ = llvm::ConstantFP::get(type, std::stof(node.value_));
     }
     else
     {
@@ -427,6 +484,45 @@ void CodeGenModule::visit(const Identifier &node)
     {
         currentValue_ = module_->getFunction(node.getID());
     }
+}
+
+void CodeGenModule::visit(const Paren &node)
+{
+    // Intentionally don't use the LValue/RValue handling
+    // This method is "blind" to the value category, it passes it down
+    node.expr_->accept(*this);
+}
+
+void CodeGenModule::visit(const SizeOf &node)
+{
+    if (valueCategory_ != ValueCategory::RVALUE)
+    {
+        throw std::runtime_error("SizeOf to LValue not supported");
+    }
+
+    llvm::Type *type =
+        (node.expr_)
+            ? getLLVMType(node.expr_.get())
+            : getLLVMType(static_cast<const BaseType *>(node.type_.get()));
+
+    currentValue_ = llvm::ConstantInt::get(
+        llvm::Type::getInt64Ty(*context_),
+        module_->getDataLayout().getTypeAllocSize(type));
+}
+
+void CodeGenModule::visit(const StringLiteral &node)
+{
+    if (valueCategory_ != ValueCategory::RVALUE)
+    {
+        throw std::runtime_error("StringLiteral to LValue not supported");
+    }
+
+    llvm::GlobalVariable *str = builder_->CreateGlobalString(node.value_);
+    llvm::Value *zero =
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
+    llvm::Value *indices[] = {zero, zero};
+    currentValue_ =
+        builder_->CreateInBoundsGEP(str->getValueType(), str, indices, "str");
 }
 
 void CodeGenModule::visit(const UnaryOp &node)
@@ -559,7 +655,7 @@ void CodeGenModule::visit(const For &node)
     loopBB = builder_->GetInsertBlock();
     if (node.expr_)
     {
-        node.expr_->accept(*this);
+        visitAsRValue(*node.expr_);
     }
     if (!loopBB->getTerminator())
     {
@@ -583,6 +679,8 @@ void CodeGenModule::visit(const IfElse &node)
     llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(*context_, "then", fn);
     llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(*context_, "ifcont");
     llvm::BasicBlock *elseBB = llvm::BasicBlock::Create(*context_, "else");
+    bool insertMergeBB = !node.elseStmt_;
+
     if (node.elseStmt_)
     {
         builder_->CreateCondBr(cond, thenBB, elseBB);
@@ -599,6 +697,7 @@ void CodeGenModule::visit(const IfElse &node)
     if (!thenBB->getTerminator())
     {
         builder_->CreateBr(mergeBB);
+        insertMergeBB = true;
     }
 
     if (node.elseStmt_)
@@ -611,11 +710,12 @@ void CodeGenModule::visit(const IfElse &node)
         if (!elseBB->getTerminator())
         {
             builder_->CreateBr(mergeBB);
+            insertMergeBB = true;
         }
     }
 
     // Merge block
-    if (!thenBB->getTerminator() || !node.elseStmt_ || !elseBB->getTerminator())
+    if (insertMergeBB)
     {
         fn->insert(fn->end(), mergeBB);
         builder_->SetInsertPoint(mergeBB);
@@ -708,16 +808,24 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
         {
         case Types::VOID:
             return llvm::Type::getVoidTy(*context_);
+        case Types::BOOL:
+            return llvm::Type::getInt1Ty(*context_);
         case Types::CHAR:
+        case Types::UNSIGNED_CHAR:
             return llvm::Type::getInt8Ty(*context_);
+        case Types::SHORT:
+        case Types::UNSIGNED_SHORT:
+            return llvm::Type::getInt16Ty(*context_);
         case Types::INT:
+        case Types::UNSIGNED_INT:
             return llvm::Type::getInt32Ty(*context_);
+        case Types::LONG:
+        case Types::UNSIGNED_LONG:
+            return llvm::Type::getInt64Ty(*context_);
         case Types::FLOAT:
             return llvm::Type::getFloatTy(*context_);
         case Types::DOUBLE:
             return llvm::Type::getDoubleTy(*context_);
-        default:
-            return nullptr;
         }
     }
     else if (auto fnType = dynamic_cast<const FnType *>(type))

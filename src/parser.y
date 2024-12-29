@@ -81,6 +81,7 @@
 %type <ptr_node> pointer
 %type <unary_op> unary_operator
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
+%type <type> type_name
 %type <expr> primary_expression postfix_expression unary_expression
 %type <expr> cast_expression multiplicative_expression additive_expression
 %type <expr> shift_expression relational_expression equality_expression
@@ -106,7 +107,9 @@ primary_expression
 	| CONSTANT
 		{ $$ = new Constant(std::string(*$1)); }
 	| STRING_LITERAL
+		{ $$ = new StringLiteral(std::string(*$1)); }
 	| '(' expression ')'
+		{ $$ = new Paren($2); }
 	;
 
 postfix_expression
@@ -145,7 +148,9 @@ unary_expression
 	| unary_operator cast_expression
 		{ $$ = new UnaryOp($2, $1); }
 	| SIZEOF unary_expression
+		{ $$ = new SizeOf($2); }
 	| SIZEOF '(' type_name ')'
+		{ $$ = new SizeOf($3); }
 	;
 
 unary_operator
@@ -398,6 +403,7 @@ struct_declaration
 specifier_qualifier_list
 	: type_specifier specifier_qualifier_list
 	| type_specifier
+		{ $$ = $1; }
 	| type_qualifier specifier_qualifier_list
 	| type_qualifier
 	;
@@ -513,6 +519,7 @@ identifier_list
 
 type_name
 	: specifier_qualifier_list
+		{ $$ = $1; }
 	| specifier_qualifier_list abstract_declarator
 	;
 

@@ -51,11 +51,11 @@ void TypeChecker::visit(const DeclNode &node)
 
 void TypeChecker::visit(const FnDecl &node)
 {
+    Ptr<BaseType> retType = currentType_->clone();
     node.params_->accept(*this);
     Ptr<ParamType> params =
         dynamic_cast<const ParamType *>(typeMap_[node.params_.get()].get())
             ->cloneAsDerived();
-    Ptr<BaseType> retType = currentType_->clone();
 
     auto ty = std::make_unique<FnType>(std::move(params), std::move(retType));
     typeMap_[&node] = ty->clone();
@@ -315,7 +315,7 @@ void TypeChecker::visit(const FnCall &node)
         // Check the types of the arguments
         for (size_t i = 0; i < fnType->params_->size(); ++i)
         {
-            checkType(fnType->params_->at(i), argType->at(i));
+            checkType(argType->at(i), fnType->params_->at(i));
         }
     }
 
@@ -336,6 +336,32 @@ void TypeChecker::visit(const Identifier &node)
         // Case for Expr
         typeMap_[&node] = typeContext_.at(node.getID())->clone();
     }
+}
+
+void TypeChecker::visit(const Paren &node)
+{
+    node.expr_->accept(*this);
+    typeMap_[&node] = typeMap_[node.expr_.get()]->clone();
+}
+
+void TypeChecker::visit(const SizeOf &node)
+{
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+    }
+    else
+    {
+        node.type_->accept(*this);
+    }
+    typeMap_[&node] = std::make_unique<BasicType>(Types::UNSIGNED_INT);
+}
+
+void TypeChecker::visit(const StringLiteral &node)
+{
+    // + 1 for null terminator
+    typeMap_[&node] = std::make_unique<ArrayType>(
+        std::make_unique<BasicType>(Types::CHAR), node.value_.size() + 1);
 }
 
 void TypeChecker::visit(const UnaryOp &node)
@@ -473,13 +499,8 @@ void TypeChecker::visit(const While &node)
 {
     node.cond_->accept(*this);
 
-    // Condition must be an integer
+    // Condition can be any type, but will be converted to a boolean
     auto *actual = typeMap_[node.cond_.get()].get();
-    if (!(*actual == BasicType(Types::INT)))
-    {
-        os_ << "Error: Expected integer type" << std::endl;
-        return;
-    }
 
     node.body_->accept(*this);
 }
@@ -528,6 +549,28 @@ bool TypeChecker::assertIsIntegerTy(const BaseType *type)
 
     os_ << "Error: Expected integer type" << std::endl;
     return false;
+}
+
+Types TypeChecker::runIntegerPromotion(Types types)
+{
+    // 6.3.1.1: "If an int can represent all values of the original type, the
+    // value is converted to an int; otherwise, it is converted to an unsigned
+    // int. These are called the integer promotions."
+
+    if (types == Types::VOID)
+    {
+        os_ << "Error: Expected non-void type" << std::endl;
+    }
+    else if (types <= Types::INT)
+    {
+        return Types::INT;
+    }
+    else if (types <= Types::UNSIGNED_INT)
+    {
+        return Types::UNSIGNED_INT;
+    }
+
+    return types;
 }
 
 } // namespace CodeGen

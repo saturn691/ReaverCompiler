@@ -267,6 +267,34 @@ void Printer::visit(const Identifier &node)
     os << node.name_;
 }
 
+void Printer::visit(const Paren &node)
+{
+    os << "(";
+    node.expr_->accept(*this);
+    os << ")";
+}
+
+void Printer::visit(const SizeOf &node)
+{
+    os << "sizeof";
+    if (node.expr_)
+    {
+        // Parenthesis will be added by the expression
+        node.expr_->accept(*this);
+    }
+    else
+    {
+        os << "(";
+        node.type_->accept(*this);
+        os << ")";
+    }
+}
+
+void Printer::visit(const StringLiteral &node)
+{
+    os << node.originalValue_;
+}
+
 void Printer::visit(const UnaryOp &node)
 {
     switch (node.op_)
