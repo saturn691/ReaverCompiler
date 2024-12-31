@@ -7,7 +7,7 @@ class ArrayAccess;
 class ArrayDecl;
 class Assignment;
 class ArgExprList;
-class BasicType;
+class BasicTypeDecl;
 class BinaryOp;
 class BlockItemList;
 class CompoundStmt;
@@ -30,6 +30,13 @@ class PtrDecl;
 class PtrNode;
 class SizeOf;
 class StringLiteral;
+class Struct;
+class StructAccess;
+class StructPtrAccess;
+class StructDecl;
+class StructDeclList;
+class StructMember;
+class StructMemberList;
 class Return;
 class TranslationUnit;
 class UnaryOp;
@@ -45,6 +52,7 @@ public:
 
     // Declarations
     virtual void visit(const ArrayDecl &node) = 0;
+    virtual void visit(const BasicTypeDecl &node) = 0;
     virtual void visit(const DeclNode &node) = 0;
     virtual void visit(const FnDecl &node) = 0;
     virtual void visit(const FnDef &node) = 0;
@@ -55,6 +63,11 @@ public:
     virtual void visit(const PtrDecl &node) = 0;
     virtual void visit(const PtrNode &node) = 0;
     virtual void visit(const TranslationUnit &node) = 0;
+    virtual void visit(const Struct &node) = 0;
+    virtual void visit(const StructDecl &node) = 0;
+    virtual void visit(const StructDeclList &node) = 0;
+    virtual void visit(const StructMember &node) = 0;
+    virtual void visit(const StructMemberList &node) = 0;
 
     // Expressions
     virtual void visit(const ArrayAccess &node) = 0;
@@ -67,6 +80,8 @@ public:
     virtual void visit(const Paren &node) = 0;
     virtual void visit(const SizeOf &node) = 0;
     virtual void visit(const StringLiteral &node) = 0;
+    virtual void visit(const StructAccess &node) = 0;
+    virtual void visit(const StructPtrAccess &node) = 0;
     virtual void visit(const UnaryOp &node) = 0;
 
     // Statements
@@ -77,8 +92,5 @@ public:
     virtual void visit(const IfElse &node) = 0;
     virtual void visit(const Return &node) = 0;
     virtual void visit(const While &node) = 0;
-
-    // Types
-    virtual void visit(const BasicType &node) = 0;
 };
 } // namespace AST

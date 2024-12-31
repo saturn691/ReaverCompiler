@@ -20,6 +20,58 @@ void Printer::visit(const ArrayDecl &node)
     os << "]";
 }
 
+void Printer::visit(const BasicTypeDecl &node)
+{
+    switch (node.type_)
+    {
+    case Types::VOID:
+        os << "void";
+        break;
+    case Types::BOOL:
+        os << "bool";
+        break;
+    case Types::UNSIGNED_CHAR:
+        os << "unsigned char";
+        break;
+    case Types::CHAR:
+        os << "char";
+        break;
+    case Types::UNSIGNED_SHORT:
+        os << "unsigned short";
+        break;
+    case Types::SHORT:
+        os << "short";
+        break;
+    case Types::UNSIGNED_INT:
+        os << "unsigned int";
+        break;
+    case Types::INT:
+        os << "int";
+        break;
+    case Types::UNSIGNED_LONG:
+        os << "unsigned long";
+        break;
+    case Types::LONG:
+        os << "long";
+        break;
+    case Types::FLOAT:
+        os << "float";
+        break;
+    case Types::DOUBLE:
+        os << "double";
+        break;
+    case Types::LONG_DOUBLE:
+        os << "long double";
+        break;
+    case Types::COMPLEX:
+        os << "_Complex";
+        break;
+    case Types::IMAGINARY:
+        os << "_Imaginary";
+        break;
+    }
+}
+
 void Printer::visit(const DeclNode &node)
 {
     node.type_->accept(*this);
@@ -108,6 +160,65 @@ void Printer::visit(const PtrNode &node)
     os << "*";
 }
 
+void Printer::visit(const Struct &node)
+{
+    switch (node.type_)
+    {
+    case Struct::Type::STRUCT:
+        os << "struct";
+        break;
+    case Struct::Type::UNION:
+        os << "union";
+        break;
+    }
+    if (!node.name_.empty())
+    {
+        os << " " << node.name_;
+    }
+    if (node.members_)
+    {
+        os << std::endl << getIndent() << "{" << std::endl;
+        indentLevel++;
+        node.members_->accept(*this);
+        indentLevel--;
+        os << getIndent() << "}";
+    }
+}
+
+void Printer::visit(const StructDecl &node)
+{
+    node.decl_->accept(*this);
+}
+
+void Printer::visit(const StructDeclList &node)
+{
+    for (const auto &decl : node.nodes_)
+    {
+        std::visit([this](const auto &decl) { decl->accept(*this); }, decl);
+        if (decl != node.nodes_.back())
+        {
+            os << ", ";
+        }
+    }
+}
+
+void Printer::visit(const StructMember &node)
+{
+    os << getIndent();
+    node.type_->accept(*this);
+    os << " ";
+    node.declList_->accept(*this);
+    os << ";" << std::endl;
+}
+
+void Printer::visit(const StructMemberList &node)
+{
+    for (const auto &member : node.nodes_)
+    {
+        std::visit(
+            [this](const auto &member) { member->accept(*this); }, member);
+    }
+}
 void Printer::visit(const TranslationUnit &node)
 {
     for (const auto &decl : node.nodes_)
@@ -295,6 +406,18 @@ void Printer::visit(const StringLiteral &node)
     os << node.originalValue_;
 }
 
+void Printer::visit(const StructAccess &node)
+{
+    node.expr_->accept(*this);
+    os << "." << node.member_;
+}
+
+void Printer::visit(const StructPtrAccess &node)
+{
+    node.expr_->accept(*this);
+    os << "->" << node.member_;
+}
+
 void Printer::visit(const UnaryOp &node)
 {
     switch (node.op_)
@@ -426,62 +549,6 @@ void Printer::visit(const While &node)
     node.cond_->accept(*this);
     os << ")" << std::endl;
     node.body_->accept(*this);
-}
-
-/******************************************************************************
- *                          Types *
- *****************************************************************************/
-
-void Printer::visit(const BasicType &node)
-{
-    switch (node.type_)
-    {
-    case Types::VOID:
-        os << "void";
-        break;
-    case Types::BOOL:
-        os << "bool";
-        break;
-    case Types::UNSIGNED_CHAR:
-        os << "unsigned char";
-        break;
-    case Types::CHAR:
-        os << "char";
-        break;
-    case Types::UNSIGNED_SHORT:
-        os << "unsigned short";
-        break;
-    case Types::SHORT:
-        os << "short";
-        break;
-    case Types::UNSIGNED_INT:
-        os << "unsigned int";
-        break;
-    case Types::INT:
-        os << "int";
-        break;
-    case Types::UNSIGNED_LONG:
-        os << "unsigned long";
-        break;
-    case Types::LONG:
-        os << "long";
-        break;
-    case Types::FLOAT:
-        os << "float";
-        break;
-    case Types::DOUBLE:
-        os << "double";
-        break;
-    case Types::LONG_DOUBLE:
-        os << "long double";
-        break;
-    case Types::COMPLEX:
-        os << "_Complex";
-        break;
-    case Types::IMAGINARY:
-        os << "_Imaginary";
-        break;
-    }
 }
 
 } // namespace AST

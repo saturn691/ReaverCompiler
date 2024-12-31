@@ -38,15 +38,24 @@ void TypeChecker::visit(const ArrayDecl &node)
     currentType_ = std::move(oldType);
 }
 
+void TypeChecker::visit(const BasicTypeDecl &node)
+{
+    typeMap_[&node] = std::make_unique<BasicType>(node.type_);
+}
+
 void TypeChecker::visit(const DeclNode &node)
 {
     // Pass type information down
-    Ptr<BaseType> type = node.type_->clone();
+    node.type_->accept(*this);
+    Ptr<BaseType> type = typeMap_[node.type_.get()]->clone();
     typeMap_[&node] = type->clone();
 
     // Type check the initializer list
-    currentType_ = type->clone();
-    node.initDeclList_->accept(*this);
+    if (node.initDeclList_)
+    {
+        currentType_ = type->clone();
+        node.initDeclList_->accept(*this);
+    }
 }
 
 void TypeChecker::visit(const FnDecl &node)
@@ -65,7 +74,8 @@ void TypeChecker::visit(const FnDecl &node)
 void TypeChecker::visit(const FnDef &node)
 {
     currentFunction_ = node.decl_->getID();
-    currentType_ = node.retType_->clone();
+    node.retType_->accept(*this);
+    currentType_ = typeMap_[node.retType_.get()]->clone();
 
     // Add enough context to the type map
     node.decl_->accept(*this);
@@ -107,21 +117,23 @@ void TypeChecker::visit(const InitDeclList &node)
 void TypeChecker::visit(const ParamDecl &node)
 {
     // Pass type information down
-    currentType_ = node.type_->clone();
+    node.type_->accept(*this);
+    currentType_ = typeMap_[node.type_.get()]->clone();
     node.decl_->accept(*this);
     typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
 }
 
 void TypeChecker::visit(const ParamList &node)
 {
-    std::vector<Ptr<BaseType>> types;
+    Params types;
     for (const auto &param : node.nodes_)
     {
         std::visit(
             [this, &types](const auto &param)
             {
                 param->accept(*this);
-                types.push_back(typeMap_[param.get()]->clone());
+                types.push_back(
+                    {param->getID(), typeMap_[param.get()]->clone()});
             },
             param);
     }
@@ -142,6 +154,92 @@ void TypeChecker::visit(const PtrNode &node)
 {
     // Changes the type
     currentType_ = std::make_unique<PtrType>(currentType_->clone());
+}
+
+void TypeChecker::visit(const Struct &node)
+{
+    if (node.members_)
+    {
+        // If it's a definition, we need to add to the context
+        // Will "return" a ParamType
+        node.members_->accept(*this);
+        Ptr<ParamType> members =
+            dynamic_cast<const ParamType *>(typeMap_[node.members_.get()].get())
+                ->cloneAsDerived();
+
+        typeMap_[&node] = std::make_unique<StructType>(
+            StructType::Type::STRUCT, node.name_, std::move(members));
+        typeContext_[node.getID()] = typeMap_[&node]->clone();
+    }
+    else
+    {
+        // Grab the definition, if it exists
+        if (typeContext_.find(node.getID()) != typeContext_.end())
+        {
+            typeMap_[&node] = typeContext_[node.getID()]->clone();
+        }
+        else
+        {
+            typeMap_[&node] = std::make_unique<StructType>(
+                StructType::Type::STRUCT, node.name_);
+        }
+    }
+}
+
+void TypeChecker::visit(const StructDecl &node)
+{
+    typeMap_[&node] = currentType_->clone();
+}
+
+void TypeChecker::visit(const StructDeclList &node)
+{
+    Params types;
+
+    for (const auto &decl : node.nodes_)
+    {
+        std::visit(
+            [this, &types](const auto &decl)
+            {
+                // "Returns" any type
+                decl->accept(*this);
+                types.push_back({decl->getID(), typeMap_[decl.get()]->clone()});
+            },
+            decl);
+    }
+
+    typeMap_[&node] = std::make_unique<ParamType>(std::move(types));
+}
+
+void TypeChecker::visit(const StructMember &node)
+{
+    node.type_->accept(*this);
+    currentType_ = typeMap_[node.type_.get()]->clone();
+    node.declList_->accept(*this);
+    typeMap_[&node] = typeMap_[node.declList_.get()]->clone();
+}
+
+void TypeChecker::visit(const StructMemberList &node)
+{
+    Params types;
+
+    for (const auto &member : node.nodes_)
+    {
+        std::visit(
+            [this, &types](const auto &member)
+            {
+                // "Returns" a ParamType
+                member->accept(*this);
+                auto *paramType = dynamic_cast<const ParamType *>(
+                    typeMap_[member.get()].get());
+                for (const auto &type : paramType->types_)
+                {
+                    types.push_back({type.first, type.second->clone()});
+                }
+            },
+            member);
+    }
+
+    typeMap_[&node] = std::make_unique<ParamType>(std::move(types));
 }
 
 void TypeChecker::visit(const TranslationUnit &node)
@@ -195,14 +293,15 @@ void TypeChecker::visit(const Assignment &node)
 
 void TypeChecker::visit(const ArgExprList &node)
 {
-    std::vector<Ptr<BaseType>> types;
+    Params types;
     for (const auto &arg : node.nodes_)
     {
         std::visit(
             [this, &types](const auto &arg)
             {
                 arg->accept(*this);
-                types.push_back(typeMap_[arg.get()]->clone());
+                // Ignore the name of the parameter
+                types.push_back({"", typeMap_[arg.get()]->clone()});
             },
             arg);
     }
@@ -364,6 +463,43 @@ void TypeChecker::visit(const StringLiteral &node)
         std::make_unique<BasicType>(Types::CHAR), node.value_.size() + 1);
 }
 
+void TypeChecker::visit(const StructAccess &node)
+{
+    // Check the type of the struct
+    node.expr_->accept(*this);
+    auto *structType = typeMap_[node.expr_.get()].get();
+    if (auto *t = dynamic_cast<const StructType *>(structType))
+    {
+        typeMap_[&node] = t->getMemberType(node.member_)->clone();
+    }
+    else
+    {
+        os_ << "Error: Expected struct type" << std::endl;
+    }
+}
+
+void TypeChecker::visit(const StructPtrAccess &node)
+{
+    // Check the type of the struct
+    node.expr_->accept(*this);
+    auto *structType = typeMap_[node.expr_.get()].get();
+    if (auto *t = dynamic_cast<const PtrType *>(structType))
+    {
+        if (auto *s = dynamic_cast<const StructType *>(t->type_.get()))
+        {
+            typeMap_[&node] = s->getMemberType(node.member_)->clone();
+        }
+        else
+        {
+            os_ << "Error: Expected struct type" << std::endl;
+        }
+    }
+    else
+    {
+        os_ << "Error: Expected pointer type" << std::endl;
+    }
+}
+
 void TypeChecker::visit(const UnaryOp &node)
 {
     node.expr_->accept(*this);
@@ -503,14 +639,6 @@ void TypeChecker::visit(const While &node)
     auto *actual = typeMap_[node.cond_.get()].get();
 
     node.body_->accept(*this);
-}
-
-/******************************************************************************
- *                          Types                                             *
- *****************************************************************************/
-
-void TypeChecker::visit(const BasicType &node)
-{
 }
 
 /******************************************************************************

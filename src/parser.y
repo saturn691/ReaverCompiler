@@ -30,6 +30,11 @@
 	ExprStmt					   		*expr_stmt;
 	InitDecl					   		*init_decl;
 	InitDeclList					   	*init_decl_list;
+	Struct::Type					   	struct_type;
+	StructDecl					   		*struct_decl;
+	StructDeclList					   	*struct_decl_list;
+	StructMember					   	*struct_member;
+	StructMemberList				   	*struct_member_list;
 	ParamDecl					   		*param_decl;
 	ParamList					   		*param_list;
 	PtrNode					   			*ptr_node;
@@ -38,7 +43,7 @@
 	Decl                         		*decl;
 	Expr 					   			*expr;
 	Stmt 					   			*stmt;
-	TypeNode				  			*type;
+	TypeDecl				  			*type;
     
 	std::variant<DeclNode*, FnDef*>     *ext_decl;
 
@@ -79,9 +84,14 @@
 %type <param_decl> parameter_declaration
 %type <param_list> parameter_list parameter_type_list
 %type <ptr_node> pointer
+%type <struct_decl> struct_declarator
+%type <struct_decl_list> struct_declarator_list
+%type <struct_member> struct_declaration
+%type <struct_member_list> struct_declaration_list
+%type <struct_type> struct_or_union
 %type <unary_op> unary_operator
 %type <type> type_specifier declaration_specifiers specifier_qualifier_list
-%type <type> type_name
+%type <type> type_name struct_or_union_specifier
 %type <expr> primary_expression postfix_expression unary_expression
 %type <expr> cast_expression multiplicative_expression additive_expression
 %type <expr> shift_expression relational_expression equality_expression
@@ -122,7 +132,9 @@ postfix_expression
 	| postfix_expression '(' argument_expression_list ')'
 		{ $$ = new FnCall($1, $3); }
 	| postfix_expression '.' IDENTIFIER
+		{ $$ = new StructAccess($1, std::string(*$3)); }
 	| postfix_expression PTR_OP IDENTIFIER
+		{ $$ = new StructPtrAccess($1, std::string(*$3)); }
 	| postfix_expression INC_OP
 		{ $$ = new UnaryOp($1, UnaryOp::Op::POST_INC); }
 	| postfix_expression DEC_OP
@@ -351,53 +363,62 @@ storage_class_specifier
 
 type_specifier
 	: VOID
-		{ $$ = new BasicType(Types::VOID); }
+		{ $$ = new BasicTypeDecl(Types::VOID); }
 	| CHAR
-		{ $$ = new BasicType(Types::CHAR); }
+		{ $$ = new BasicTypeDecl(Types::CHAR); }
 	| SHORT
-		{ $$ = new BasicType(Types::SHORT); }
+		{ $$ = new BasicTypeDecl(Types::SHORT); }
 	| INT
-		{ $$ = new BasicType(Types::INT); }
+		{ $$ = new BasicTypeDecl(Types::INT); }
 	| LONG
-		{ $$ = new BasicType(Types::LONG); }
+		{ $$ = new BasicTypeDecl(Types::LONG); }
 	| FLOAT
-		{ $$ = new BasicType(Types::FLOAT); }
+		{ $$ = new BasicTypeDecl(Types::FLOAT); }
 	| DOUBLE
-		{ $$ = new BasicType(Types::DOUBLE); }
+		{ $$ = new BasicTypeDecl(Types::DOUBLE); }
 	| SIGNED
 		// Typically used as an extension, but temp solution for now
-		{ $$ = new BasicType(Types::INT); }
+		{ $$ = new BasicTypeDecl(Types::INT); }
 	| UNSIGNED
-		{ $$ = new BasicType(Types::UNSIGNED_INT); }
+		{ $$ = new BasicTypeDecl(Types::UNSIGNED_INT); }
 	| BOOL
-		{ $$ = new BasicType(Types::BOOL); }
+		{ $$ = new BasicTypeDecl(Types::BOOL); }
 	| COMPLEX
-		{ $$ = new BasicType(Types::COMPLEX); }
+		{ $$ = new BasicTypeDecl(Types::COMPLEX); }
 	| IMAGINARY
-		{ $$ = new BasicType(Types::IMAGINARY); }
+		{ $$ = new BasicTypeDecl(Types::IMAGINARY); }
 	| struct_or_union_specifier
+		{ $$ = $1; }
 	| enum_specifier
 	| TYPE_NAME
 	;
 
 struct_or_union_specifier
 	: struct_or_union IDENTIFIER '{' struct_declaration_list '}'
+		{ $$ = new Struct($1, std::string(*$2), $4); }
 	| struct_or_union '{' struct_declaration_list '}'
+		{ $$ = new Struct($1, $3); }
 	| struct_or_union IDENTIFIER
+		{ $$ = new Struct($1, std::string(*$2)); }
 	;
 
 struct_or_union
 	: STRUCT
+		{ $$ = Struct::Type::STRUCT; }
 	| UNION
+		{ $$ = Struct::Type::UNION; }
 	;
 
 struct_declaration_list
 	: struct_declaration
+		{ $$ = new StructMemberList($1); }
 	| struct_declaration_list struct_declaration
+		{ $1->pushBack($2); $$ = $1; }
 	;
 
 struct_declaration
 	: specifier_qualifier_list struct_declarator_list ';'
+		{ $$ = new StructMember($1, $2); }
 	;
 
 specifier_qualifier_list
@@ -410,12 +431,16 @@ specifier_qualifier_list
 
 struct_declarator_list
 	: struct_declarator
+		{ $$ = new StructDeclList($1); }
 	| struct_declarator_list ',' struct_declarator
+		{ $1->pushBack($3); $$ = $1; }
 	;
 
 struct_declarator
 	: declarator
+		{ $$ = new StructDecl($1); }
 	| ':' constant_expression
+		/* Ignore bit fields for now */
 	| declarator ':' constant_expression
 	;
 

@@ -79,10 +79,21 @@ void CodeGenModule::visit(const ArrayDecl &node)
     node.decl_->accept(*this);
 }
 
+void CodeGenModule::visit(const BasicTypeDecl &node)
+{
+    // Intentionally left blank
+}
+
 void CodeGenModule::visit(const DeclNode &node)
 {
+    // For struct/union definitions
+    node.type_->accept(*this);
+
     // Allocate memory for the variable
-    node.initDeclList_->accept(*this);
+    if (node.initDeclList_)
+    {
+        node.initDeclList_->accept(*this);
+    }
 }
 
 void CodeGenModule::visit(const FnDecl &node)
@@ -100,7 +111,7 @@ void CodeGenModule::visit(const FnDef &node)
 
     for (const auto &p : type->params_->types_)
     {
-        paramTypes.push_back(getLLVMType(p.get()));
+        paramTypes.push_back(getLLVMType(p.second.get()));
     }
 
     llvm::FunctionType *fnType =
@@ -148,7 +159,6 @@ void CodeGenModule::visit(const FnDef &node)
     fn->addFnAttr(llvm::Attribute::NoInline);
     fn->addFnAttr(llvm::Attribute::NoUnwind);
     fn->addFnAttr(llvm::Attribute::OptimizeNone);
-    fn->addFnAttr(llvm::Attribute::UWTable);
 }
 
 void CodeGenModule::visit(const InitDecl &node)
@@ -223,6 +233,51 @@ void CodeGenModule::visit(const PtrDecl &node)
 void CodeGenModule::visit(const PtrNode &node)
 {
     // Intentionally left blank
+}
+
+void CodeGenModule::visit(const Struct &node)
+{
+    // Treated the exact same way as FnDef
+    if (node.name_.empty())
+    {
+        // Anonymous struct, only useful inside structs
+        return;
+    }
+    if (!node.members_)
+    {
+        // Forward declaration or used as a type
+        return;
+    }
+
+    // All information is available in the typeMap
+    const StructType *type =
+        dynamic_cast<const StructType *>(typeMap_[&node].get());
+    std::vector<llvm::Type *> memberTypes;
+    for (const auto &member : type->params_->types_)
+    {
+        memberTypes.push_back(getLLVMType(member.second.get()));
+    }
+
+    // Set the type in LLVM
+    llvm::StructType *structType =
+        llvm::StructType::create(*context_, "struct." + node.name_);
+    structType->setBody(memberTypes);
+}
+
+void CodeGenModule::visit(const StructDecl &node)
+{
+}
+
+void CodeGenModule::visit(const StructDeclList &node)
+{
+}
+
+void CodeGenModule::visit(const StructMember &node)
+{
+}
+
+void CodeGenModule::visit(const StructMemberList &node)
+{
 }
 
 void CodeGenModule::visit(const TranslationUnit &node)
@@ -500,10 +555,8 @@ void CodeGenModule::visit(const SizeOf &node)
         throw std::runtime_error("SizeOf to LValue not supported");
     }
 
-    llvm::Type *type =
-        (node.expr_)
-            ? getLLVMType(node.expr_.get())
-            : getLLVMType(static_cast<const BaseType *>(node.type_.get()));
+    llvm::Type *type = (node.expr_) ? getLLVMType(node.expr_.get())
+                                    : getLLVMType(node.type_->getType().get());
 
     currentValue_ = llvm::ConstantInt::get(
         llvm::Type::getInt64Ty(*context_),
@@ -523,6 +576,36 @@ void CodeGenModule::visit(const StringLiteral &node)
     llvm::Value *indices[] = {zero, zero};
     currentValue_ =
         builder_->CreateInBoundsGEP(str->getValueType(), str, indices, "str");
+}
+
+void CodeGenModule::visit(const StructAccess &node)
+{
+    auto valueCategory = valueCategory_;
+
+    llvm::Value *structPtr = visitAsLValue(*node.expr_);
+    auto structType =
+        dynamic_cast<const StructType *>(typeMap_[node.expr_.get()].get());
+    auto index = structType->getMemberIndex(node.member_);
+    llvm::Value *indices[] = {
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0),
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), index)};
+
+    llvm::Value *memberPtr = builder_->CreateInBoundsGEP(
+        getLLVMType(node.expr_.get()), structPtr, indices, "gep");
+
+    if (valueCategory == ValueCategory::LVALUE)
+    {
+        currentValue_ = memberPtr;
+    }
+    else
+    {
+        currentValue_ =
+            builder_->CreateLoad(getLLVMType(&node), memberPtr, "load");
+    }
+}
+
+void CodeGenModule::visit(const StructPtrAccess &node)
+{
 }
 
 void CodeGenModule::visit(const UnaryOp &node)
@@ -778,14 +861,6 @@ void CodeGenModule::visit(const While &node)
 }
 
 /******************************************************************************
- *                          Types                                             *
- *****************************************************************************/
-
-void CodeGenModule::visit(const BasicType &node)
-{
-}
-
-/******************************************************************************
  *                          Private methods                                   *
  *****************************************************************************/
 
@@ -833,7 +908,7 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
         std::vector<llvm::Type *> paramTypes;
         for (const auto &p : fnType->params_->types_)
         {
-            paramTypes.push_back(getLLVMType(p.get()));
+            paramTypes.push_back(getLLVMType(p.second.get()));
         }
 
         return llvm::FunctionType::get(
@@ -848,6 +923,12 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
     {
         return llvm::ArrayType::get(
             getLLVMType(arrType->type_.get()), arrType->size_);
+    }
+    else if (auto structType = dynamic_cast<const StructType *>(type))
+    {
+        // Structs are not defined here
+        std::string name = "struct." + structType->name_;
+        return llvm::StructType::getTypeByName(*context_, name);
     }
 
     throw std::runtime_error("Unknown type");

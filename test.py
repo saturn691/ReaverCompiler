@@ -214,7 +214,7 @@ def run_test(driver: Path) -> Result:
 
     # Reference LLVM IR
     return_code, _, timed_out = run_subprocess(
-        cmd=["clang-19", "-S", "-emit-llvm", to_assemble,"-o", f"{log_path}.ref.ll"],
+        cmd=["clang", "-S", "-emit-llvm", to_assemble,"-o", f"{log_path}.ref.ll"],
         timeout=RUN_TIMEOUT_SECONDS,
         log_path=f"{log_path}.ref",)
     if return_code != 0:
@@ -237,7 +237,7 @@ def run_test(driver: Path) -> Result:
     # Assemble
     return_code, _, timed_out = run_subprocess(
         cmd=[
-            "llvm-as-19", "-o", f"{log_path}.bc", f"{log_path}.ll"
+            "llvm-as", "-o", f"{log_path}.bc", f"{log_path}.ll"
         ],
         timeout=RUN_TIMEOUT_SECONDS,
         log_path=f"{log_path}.as",
@@ -250,7 +250,7 @@ def run_test(driver: Path) -> Result:
     
     return_code, _, timed_out = run_subprocess(
         cmd=[
-            "llc-19", "-filetype=obj", "-o", f"{log_path}.o", f"{log_path}.bc"
+            "llc", "-filetype=obj", "-o", f"{log_path}.o", f"{log_path}.bc"
         ],
         timeout=RUN_TIMEOUT_SECONDS,
         log_path=f"{log_path}.llc",
@@ -263,7 +263,7 @@ def run_test(driver: Path) -> Result:
 
     # Link
     return_code, _, timed_out = run_subprocess(
-        cmd=["clang-19", "-o", f"{log_path}", f"{log_path}.o", str(driver)],
+        cmd=["clang", "-o", f"{log_path}", f"{log_path}.o", str(driver)],
         timeout=RUN_TIMEOUT_SECONDS, log_path=f"{log_path}.linker",)
     if return_code != 0:
         msg = f"\t> Failed to link driver: \n\t {compiler_log_file_str} \n\t {relevant_files('linker')}"

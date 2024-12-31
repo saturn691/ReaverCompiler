@@ -274,12 +274,12 @@ public:
     {
     }
 
-    SizeOf(const TypeNode *type) : type_(type)
+    SizeOf(const TypeDecl *type) : type_(type)
     {
     }
 
     Ptr<Expr> expr_;
-    Ptr<TypeNode> type_;
+    Ptr<TypeDecl> type_;
 };
 
 class StringLiteral final : public Node<StringLiteral>, public Expr
@@ -305,6 +305,40 @@ public:
 
     std::string originalValue_;
     std::string value_;
+};
+
+class StructAccess final : public Node<StructAccess>, public Expr
+{
+public:
+    StructAccess(const Expr *expr, std::string member)
+        : expr_(expr), member_(member)
+    {
+    }
+
+    bool isLValue() const override
+    {
+        return true;
+    }
+
+    Ptr<Expr> expr_;
+    std::string member_;
+};
+
+class StructPtrAccess final : public Node<StructPtrAccess>, public Expr
+{
+public:
+    StructPtrAccess(const Expr *expr, std::string member)
+        : expr_(expr), member_(member)
+    {
+    }
+
+    bool isLValue() const override
+    {
+        return true;
+    }
+
+    Ptr<Expr> expr_;
+    std::string member_;
 };
 
 class UnaryOp final : public Node<UnaryOp>, public Expr

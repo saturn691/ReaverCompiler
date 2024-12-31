@@ -1,9 +1,19 @@
 #pragma once
 
-#include "AST/Node.hpp"
+#include <iostream>
+#include <memory>
+#include <vector>
 
 namespace AST
 {
+template <typename T>
+using Ptr = std::unique_ptr<const T>;
+
+// Forward declarations
+class Decl;
+class ParamType;
+class StructDeclList;
+
 /**
  * Base class for types.
  */
@@ -12,6 +22,7 @@ class BaseType
 public:
     virtual ~BaseType() = default;
     virtual bool operator==(const BaseType &other) const = 0;
+    virtual bool operator!=(const BaseType &other) const = 0;
     virtual bool operator<(const BaseType &other) const = 0;
     virtual bool operator<=(const BaseType &other) const = 0;
     virtual Ptr<BaseType> clone() const = 0;
@@ -42,6 +53,11 @@ public:
         return false;
     }
 
+    bool operator!=(const BaseType &other) const override
+    {
+        return !(*this == other);
+    }
+
     bool operator<=(const BaseType &other) const override
     {
         return *this == other || *this < other;
@@ -58,15 +74,6 @@ private:
     Type() = default;
     Type(const Type &) = default;
     friend Derived;
-};
-
-/**
- * Base class for types in the AST.
- */
-class TypeNode : public virtual BaseNode, public virtual BaseType
-{
-public:
-    virtual ~TypeNode() = default;
 };
 
 /**
@@ -108,9 +115,7 @@ public:
  * Basic types
  * e.g. `int`, `float`, `char`
  */
-class BasicType final : public Node<BasicType>,
-                        public Type<BasicType>,
-                        public TypeNode
+class BasicType final : public Type<BasicType>
 {
 public:
     BasicType(Types type);
@@ -129,24 +134,6 @@ public:
 class FnType final : public Type<FnType>
 {
 public:
-    /**
-     * Parameter types (intermediate type)
-     */
-    class ParamType final : public Type<ParamType>
-    {
-    public:
-        ParamType(std::vector<Ptr<BaseType>> types);
-        ParamType(const ParamType &other);
-
-        bool operator==(const ParamType &other) const override;
-        bool operator<(const BaseType &other) const override;
-
-        size_t size() const;
-        const BaseType *at(size_t i) const;
-
-        std::vector<Ptr<BaseType>> types_;
-    };
-
     FnType(Ptr<ParamType> params, Ptr<BaseType> retType);
     FnType(const FnType &other);
 
@@ -155,6 +142,26 @@ public:
 
     Ptr<ParamType> params_;
     Ptr<BaseType> retType_;
+};
+
+using Params = std::vector<std::pair<std::string, Ptr<BaseType>>>;
+
+/**
+ * Parameter types (intermediate type)
+ */
+class ParamType final : public Type<ParamType>
+{
+public:
+    ParamType(Params types);
+    ParamType(const ParamType &other);
+
+    bool operator==(const ParamType &other) const override;
+    bool operator<(const BaseType &other) const override;
+
+    size_t size() const;
+    const BaseType *at(size_t i) const;
+
+    Params types_;
 };
 
 /**
@@ -173,6 +180,32 @@ public:
     Ptr<BaseType> type_;
 };
 
-using ParamType = FnType::ParamType;
+/**
+ * Struct types
+ */
+class StructType final : public Type<StructType>
+{
+public:
+    enum class Type
+    {
+        STRUCT,
+        UNION
+    };
+
+    // Used for forward declarations/self-references
+    StructType(Type type, std::string name);
+    StructType(Type type, std::string name, Ptr<ParamType> params);
+    StructType(const StructType &other);
+
+    bool operator==(const StructType &other) const override;
+    bool operator<(const BaseType &other) const override;
+
+    Ptr<BaseType> getMemberType(std::string name) const;
+    unsigned int getMemberIndex(std::string name) const;
+
+    Type type_;
+    std::string name_;
+    Ptr<ParamType> params_;
+};
 
 } // namespace AST

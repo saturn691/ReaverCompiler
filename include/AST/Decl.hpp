@@ -1,15 +1,14 @@
 #pragma once
 
 #include "AST/Node.hpp"
+#include "AST/Type.hpp"
 
 namespace AST
 {
 // Forward declarations
 class CompoundStmt;
-class Expr;
 class InitDeclList;
 class PtrNode;
-class TypeNode;
 
 /**
  * Base class for declarations (including definitions and declarators)
@@ -22,23 +21,54 @@ public:
 };
 
 /**
+ * Base class for types in the AST.
+ */
+class TypeDecl : public Decl
+{
+public:
+    virtual ~TypeDecl() = default;
+
+    // Gets the Type object associated with the declaration
+    virtual Ptr<BaseType> getType() const = 0;
+};
+
+/**
  * Array declaration
  * e.g. `a[10]`
  */
 class ArrayDecl final : public Node<ArrayDecl>, public Decl
 {
 public:
-    ArrayDecl(const Decl *decl, const Expr *size) : decl_(decl), size_(size)
+    ArrayDecl(const Decl *decl, const Expr *size);
+
+    std::string getID() const override;
+
+    Ptr<Decl> decl_;
+    Ptr<Expr> size_;
+};
+
+/**
+ * Basic type node
+ * e.g. `int`
+ */
+class BasicTypeDecl final : public Node<BasicTypeDecl>, public TypeDecl
+{
+public:
+    BasicTypeDecl(Types type) : type_(type)
     {
     }
 
     std::string getID() const override
     {
-        return decl_->getID();
+        return "";
     }
 
-    Ptr<Decl> decl_;
-    Ptr<Expr> size_;
+    Ptr<BaseType> getType() const override
+    {
+        return std::make_unique<BasicType>(type_);
+    }
+
+    Types type_;
 };
 
 /**
@@ -48,8 +78,8 @@ public:
 class DeclNode final : public Node<DeclNode>, public Decl
 {
 public:
-    DeclNode(const TypeNode *type);
-    DeclNode(const TypeNode *type, const InitDeclList *decl);
+    DeclNode(const TypeDecl *type);
+    DeclNode(const TypeDecl *type, const InitDeclList *decl);
 
     std::string getID() const override
     {
@@ -58,8 +88,8 @@ public:
 
     std::vector<std::string> getIDs() const;
 
-    Ptr<TypeNode> type_;
-    Ptr<InitDeclList> initDeclList_;
+    Ptr<TypeDecl> type_;
+    Ptr<InitDeclList> initDeclList_; // Optional
 };
 
 /**
@@ -95,17 +125,11 @@ public:
 class FnDef final : public Node<FnDef>, public Decl
 {
 public:
-    FnDef(const TypeNode *retType, const Decl *decl, const CompoundStmt *body)
-        : retType_(retType), decl_(decl), body_(body)
-    {
-    }
+    FnDef(const TypeDecl *retType, const Decl *decl, const CompoundStmt *body);
 
-    std::string getID() const override
-    {
-        return decl_->getID();
-    }
+    std::string getID() const override;
 
-    Ptr<TypeNode> retType_;
+    Ptr<TypeDecl> retType_;
     Ptr<Decl> decl_;
     Ptr<CompoundStmt> body_;
 };
@@ -117,17 +141,10 @@ public:
 class InitDecl final : public Node<InitDecl>, public Decl
 {
 public:
-    InitDecl(const Decl *decl) : decl_(decl)
-    {
-    }
-    InitDecl(const Decl *decl, const Expr *expr) : decl_(decl), expr_(expr)
-    {
-    }
+    InitDecl(const Decl *decl);
+    InitDecl(const Decl *decl, const Expr *expr);
 
-    std::string getID() const override
-    {
-        return decl_->getID();
-    }
+    std::string getID() const override;
 
     Ptr<Decl> decl_;
     Ptr<Expr> expr_;
@@ -150,11 +167,11 @@ public:
 class ParamDecl final : public Node<ParamDecl>, public Decl
 {
 public:
-    ParamDecl(const TypeNode *type) : type_(type)
+    ParamDecl(const TypeDecl *type) : type_(type)
     {
     }
 
-    ParamDecl(const TypeNode *type, const Decl *decl) : type_(type), decl_(decl)
+    ParamDecl(const TypeDecl *type, const Decl *decl) : type_(type), decl_(decl)
     {
     }
 
@@ -163,7 +180,7 @@ public:
         return decl_->getID();
     }
 
-    Ptr<TypeNode> type_;
+    Ptr<TypeDecl> type_;
     Ptr<Decl> decl_;
 };
 
@@ -215,6 +232,94 @@ public:
     }
 
     Ptr<PtrNode> ptr_;
+};
+
+/**
+ * Struct declaration, including definitions and instances
+ */
+class Struct final : public Node<Struct>, public TypeDecl
+{
+public:
+    using Type = StructType::Type;
+
+    // 1. Definition
+    Struct(Type type, std::string name, const StructMemberList *members);
+    // 2. Anonymous declaration
+    Struct(Type type, const StructMemberList *members);
+    // 3. Instance
+    Struct(Type type, std::string name);
+
+    std::string getID() const override
+    {
+        std::string prefix = (type_ == Type::STRUCT) ? "struct " : "union ";
+        return prefix + name_;
+    }
+
+    Ptr<BaseType> getType() const override
+    {
+        return std::make_unique<StructType>(type_, name_);
+    };
+
+    Type type_;
+    std::string name_;              // Optional
+    Ptr<StructMemberList> members_; // Optional
+};
+
+/**
+ * Struct declarator
+ * e.g. `a`
+ */
+class StructDecl final : public Node<StructDecl>, public Decl
+{
+public:
+    StructDecl(const Decl *decl) : decl_(decl)
+    {
+    }
+
+    std::string getID() const override
+    {
+        return decl_->getID();
+    }
+
+    Ptr<Decl> decl_;
+};
+
+/**
+ * List of struct declarators
+ * e.g. `a, b, c`
+ */
+class StructDeclList final : public NodeList<StructDecl>,
+                             public Node<StructDeclList>
+{
+public:
+    using NodeList::NodeList;
+};
+
+/**
+ * Struct member
+ * e.g. `int a, b;`
+ */
+class StructMember final : public Node<StructMember>
+{
+public:
+    StructMember(const TypeDecl *type, const StructDeclList *declList)
+        : type_(type), declList_(declList)
+    {
+    }
+
+    Ptr<TypeDecl> type_;
+    Ptr<StructDeclList> declList_;
+};
+
+/**
+ * List of struct members
+ * e.g. `int a, b; float c;`
+ */
+class StructMemberList final : public NodeList<StructMember>,
+                               public Node<StructMemberList>
+{
+public:
+    using NodeList::NodeList;
 };
 
 /**

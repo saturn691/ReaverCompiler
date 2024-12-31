@@ -3,6 +3,7 @@
 #include <iostream>
 #include <unordered_map>
 
+#include "AST/Node.hpp"
 #include "AST/Type.hpp"
 #include "AST/Visitor.hpp"
 
@@ -22,6 +23,7 @@ public:
 
     // Declarations
     void visit(const ArrayDecl &node) override;
+    void visit(const BasicTypeDecl &node) override;
     void visit(const DeclNode &node) override;
     void visit(const FnDecl &node) override;
     void visit(const FnDef &node) override;
@@ -31,6 +33,11 @@ public:
     void visit(const ParamList &node) override;
     void visit(const PtrDecl &node) override;
     void visit(const PtrNode &node) override;
+    void visit(const Struct &node) override;
+    void visit(const StructDecl &node) override;
+    void visit(const StructDeclList &node) override;
+    void visit(const StructMember &node) override;
+    void visit(const StructMemberList &node) override;
     void visit(const TranslationUnit &node) override;
 
     // Expressions
@@ -44,6 +51,8 @@ public:
     void visit(const Paren &node) override;
     void visit(const SizeOf &node) override;
     void visit(const StringLiteral &node) override;
+    void visit(const StructAccess &node) override;
+    void visit(const StructPtrAccess &node) override;
     void visit(const UnaryOp &node) override;
 
     // Statements
@@ -54,9 +63,6 @@ public:
     void visit(const IfElse &node) override;
     void visit(const Return &node) override;
     void visit(const While &node) override;
-
-    // Types
-    void visit(const BasicType &node) override;
 
     TypeMap &getTypeMap()
     {

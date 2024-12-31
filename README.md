@@ -7,6 +7,15 @@ navigate to branch [`v1.0`](https://github.com/saturn691/ReaverCompiler/tree/v1.
 
 ## Getting started
 
+### Dependencies
+
+To install dependencies, run the following command:
+
+```bash
+bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+sudo apt install flex bison
+```
+
 ### Usage
 
 To make the compiler, run the following command:

@@ -5,7 +5,7 @@
 #include <variant>
 #include <vector>
 
-#include "Visitor.hpp"
+#include "AST/Visitor.hpp"
 
 namespace AST
 {

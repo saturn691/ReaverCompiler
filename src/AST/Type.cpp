@@ -48,71 +48,6 @@ bool BasicType::operator<(const BaseType &other) const
     return false;
 }
 
-FnType::ParamType::ParamType(std::vector<Ptr<BaseType>> types)
-    : types_(std::move(types))
-{
-}
-
-FnType::ParamType::ParamType(const ParamType &other)
-{
-    for (const auto &type : other.types_)
-    {
-        types_.push_back(type->clone());
-    }
-}
-
-bool FnType::ParamType::operator==(const ParamType &other) const
-{
-    if (types_.size() != other.types_.size())
-    {
-        return false;
-    }
-
-    for (size_t i = 0; i < types_.size(); ++i)
-    {
-        if (!(*types_[i] == *other.types_[i]))
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool FnType::ParamType::operator<(const BaseType &other) const
-{
-    auto otherType = dynamic_cast<const ParamType *>(&other);
-    if (!otherType)
-    {
-        return false;
-    }
-
-    if (types_.size() != otherType->types_.size())
-    {
-        return false;
-    }
-
-    for (size_t i = 0; i < types_.size(); ++i)
-    {
-        if (*types_[i] < *otherType->types_[i])
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-size_t FnType::ParamType::size() const
-{
-    return types_.size();
-}
-
-const BaseType *FnType::ParamType::at(size_t i) const
-{
-    return types_[i].get();
-}
-
 FnType::FnType(Ptr<ParamType> params, Ptr<BaseType> retType)
     : params_(std::move(params)), retType_(std::move(retType))
 {
@@ -144,6 +79,71 @@ bool FnType::operator<(const BaseType &other) const
     return false;
 }
 
+ParamType::ParamType(Params types) : types_(std::move(types))
+{
+}
+
+ParamType::ParamType(const ParamType &other)
+{
+    for (const auto &type : other.types_)
+    {
+        types_.push_back({type.first, type.second->clone()});
+    }
+}
+
+bool ParamType::operator==(const ParamType &other) const
+{
+    if (types_.size() != other.types_.size())
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < types_.size(); ++i)
+    {
+        if (types_[i].first != other.types_[i].first ||
+            *types_[i].second != *other.types_[i].second)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool ParamType::operator<(const BaseType &other) const
+{
+    auto otherType = dynamic_cast<const ParamType *>(&other);
+    if (!otherType)
+    {
+        return false;
+    }
+
+    if (types_.size() != otherType->types_.size())
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < types_.size(); ++i)
+    {
+        if (*types_[i].second < *otherType->types_[i].second)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+size_t ParamType::size() const
+{
+    return types_.size();
+}
+
+const BaseType *ParamType::at(size_t i) const
+{
+    return types_[i].second.get();
+}
+
 PtrType::PtrType(Ptr<BaseType> type) : type_(std::move(type))
 {
 }
@@ -164,6 +164,62 @@ bool PtrType::operator<(const BaseType &other) const
         return *otherType->type_ == BasicType(Types::VOID);
     }
     return false;
+}
+
+StructType::StructType(Type type, std::string name)
+    : type_(type), name_(std::move(name))
+{
+}
+
+StructType::StructType(Type type, std::string name, Ptr<ParamType> members)
+    : type_(type), name_(std::move(name)), params_(std::move(members))
+{
+}
+
+StructType::StructType(const StructType &other)
+    : type_(other.type_), name_(other.name_)
+{
+    if (other.params_)
+    {
+        params_ = other.params_->cloneAsDerived();
+    }
+}
+
+bool StructType::operator==(const StructType &other) const
+{
+    return type_ == other.type_ && name_ == other.name_ &&
+           params_ == other.params_;
+}
+
+bool StructType::operator<(const BaseType &other) const
+{
+    return false;
+}
+
+Ptr<BaseType> StructType::getMemberType(std::string name) const
+{
+    for (const auto &type : params_->types_)
+    {
+        if (type.first == name)
+        {
+            return type.second->clone();
+        }
+    }
+
+    return nullptr;
+}
+
+unsigned int StructType::getMemberIndex(std::string name) const
+{
+    for (size_t i = 0; i < params_->types_.size(); ++i)
+    {
+        if (params_->types_[i].first == name)
+        {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 } // namespace AST
