@@ -93,6 +93,101 @@ public:
 };
 
 /**
+ * Defined type by typedef
+ * e.g. `typedef int myInt;`
+ */
+class DefinedTypeDecl final : public Node<DefinedTypeDecl>, public TypeDecl
+{
+public:
+    DefinedTypeDecl(std::string name) : name_(std::move(name))
+    {
+    }
+
+    std::string getID() const override
+    {
+        return name_;
+    }
+
+    Ptr<BaseType> getType() const override
+    {
+        return nullptr;
+    }
+
+    std::string name_;
+};
+
+/**
+ * Enum declaration or instance
+ * e.g. `enum E { A, B, C }` or `enum E`
+ */
+class Enum final : public Node<Enum>, public TypeDecl
+{
+public:
+    // 1. Definition
+    Enum(std::string name, const EnumMemberList *members)
+        : name_(std::move(name)), members_(members)
+    {
+    }
+    // 2. Anonymous definition
+    Enum(const EnumMemberList *members) : members_(members)
+    {
+    }
+    // 3. Instance
+    Enum(std::string name) : name_(std::move(name))
+    {
+    }
+
+    std::string getID() const override
+    {
+        return "enum " + name_;
+    }
+
+    Ptr<BaseType> getType() const override
+    {
+        return std::make_unique<EnumType>(name_, EnumConsts());
+    }
+
+    std::string name_;            // Optional
+    Ptr<EnumMemberList> members_; // Optional
+};
+
+/**
+ * Enum member
+ * e.g. `A = 1`
+ */
+class EnumMember final : public Node<EnumMember>, public Decl
+{
+public:
+    EnumMember(std::string id) : id_(std::move(id))
+    {
+    }
+
+    EnumMember(std::string id, const Expr *expr)
+        : id_(std::move(id)), expr_(expr)
+    {
+    }
+
+    std::string getID() const override
+    {
+        return id_;
+    }
+
+    std::string id_;
+    Ptr<Expr> expr_; // Optional
+};
+
+/**
+ * Enum member list
+ * e.g. `A = 1, B = 2, C = 3`
+ */
+class EnumMemberList final : public NodeList<EnumMember>,
+                             public Node<EnumMemberList>
+{
+public:
+    using NodeList::NodeList;
+};
+
+/**
  * Function declarator
  * e.g. `foo(int a)
  */
@@ -332,4 +427,29 @@ class TranslationUnit final : public NodeList<DeclNode, FnDef>,
 public:
     using NodeList::NodeList;
 };
+
+/**
+ * Typedef declaration
+ * e.g. `typedef int`
+ */
+class Typedef final : public Node<Typedef>, public TypeDecl
+{
+public:
+    Typedef(const TypeDecl *type) : type_(type)
+    {
+    }
+
+    std::string getID() const override
+    {
+        return "";
+    }
+
+    Ptr<BaseType> getType() const override
+    {
+        return type_->getType();
+    }
+
+    Ptr<TypeDecl> type_;
+};
+
 } // namespace AST

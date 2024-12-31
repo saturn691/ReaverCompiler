@@ -13,7 +13,28 @@ IS              ((u|U)|(u|U)?(l|L|ll|LL)|(l|L|ll|LL)(u|U))
 
 %{
 #include <stdio.h>
+#include <unordered_set>
 #include "parser.tab.hpp"
+
+// Lexer hack
+std::unordered_set<std::string> typedefs;
+
+void updateTypeDefs(std::string type)
+{ 
+	typedefs.insert(type); 
+}
+
+int checkType(void)
+{
+	// If we have typedef'd a string, return the type
+	if (typedefs.find(*yylval.string) != typedefs.end())
+	{
+		return TYPE_NAME;
+	}
+
+	return IDENTIFIER;
+}
+
 %}
 
 %%
@@ -72,7 +93,7 @@ IS              ((u|U)|(u|U)?(l|L|ll|LL)|(l|L|ll|LL)(u|U))
 "volatile"			{ return(VOLATILE); }
 "while"				{ return(WHILE); }
 
-{L}({L}|{D})*		{ yylval.string = new std::string(yytext); return(IDENTIFIER); }
+{L}({L}|{D})*		{ yylval.string = new std::string(yytext); return(checkType()); }
 
 0[xX]{H}+{IS}?		{ yylval.string = new std::string(yytext); return(CONSTANT); }
 0[0-7]*{IS}?		{ yylval.string = new std::string(yytext); return(CONSTANT); }

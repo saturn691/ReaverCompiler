@@ -127,6 +127,24 @@ public:
     Types type_;
 };
 
+using EnumConsts = std::vector<std::pair<std::string, int>>;
+
+/**
+ * Enum types
+ */
+class EnumType final : public Type<EnumType>
+{
+public:
+    EnumType(std::string name, EnumConsts consts);
+    EnumType(const EnumType &other);
+
+    bool operator==(const EnumType &other) const override;
+    bool operator<(const BaseType &other) const override;
+
+    std::string name_;
+    EnumConsts consts_;
+};
+
 /**
  * Function types
  * e.g. `void (*)(int)`

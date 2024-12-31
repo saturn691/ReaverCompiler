@@ -48,6 +48,31 @@ bool BasicType::operator<(const BaseType &other) const
     return false;
 }
 
+EnumType::EnumType(std::string name, EnumConsts consts)
+    : name_(std::move(name)), consts_(std::move(consts))
+{
+}
+
+EnumType::EnumType(const EnumType &other)
+    : name_(other.name_), consts_(other.consts_)
+{
+}
+
+bool EnumType::operator==(const EnumType &other) const
+{
+    return name_ == other.name_ && consts_ == other.consts_;
+}
+
+bool EnumType::operator<(const BaseType &other) const
+{
+    // Can only decay into an integer
+    if (auto otherType = dynamic_cast<const BasicType *>(&other))
+    {
+        return otherType->type_ <= Types::INT;
+    }
+    return false;
+}
+
 FnType::FnType(Ptr<ParamType> params, Ptr<BaseType> retType)
     : params_(std::move(params)), retType_(std::move(retType))
 {

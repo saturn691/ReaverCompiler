@@ -20,6 +20,38 @@ public:
     using NodeList::NodeList;
 };
 
+/**
+ * Break statement
+ * e.g. `break;`
+ */
+class Break final : public Node<Break>, public Stmt
+{
+public:
+    Break() = default;
+};
+
+/**
+ * Case statement
+ * e.g. `case 1:` or `default:`
+ */
+class Case final : public Node<Case>, public Stmt
+{
+public:
+    Case(const Stmt *body) : body_(body)
+    {
+    }
+    Case(const Expr *expr, const Stmt *body) : expr_(expr), body_(body)
+    {
+    }
+
+    Ptr<Expr> expr_; // Optional
+    Ptr<Stmt> body_;
+};
+
+/**
+ * Compound statement
+ * e.g. `{ int a = 1; }`
+ */
 class CompoundStmt final : public Node<CompoundStmt>, public Stmt
 {
 public:
@@ -31,6 +63,20 @@ public:
     Ptr<BlockItemList> nodes_; // Optional
 };
 
+/**
+ * Continue statement
+ * e.g. `continue;`
+ */
+class Continue final : public Node<Continue>, public Stmt
+{
+public:
+    Continue() = default;
+};
+
+/**
+ * Expression statement
+ * e.g. `a = 1;`
+ */
 class ExprStmt final : public Node<ExprStmt>, public Stmt
 {
 public:
@@ -39,9 +85,13 @@ public:
     {
     }
 
-    Ptr<Expr> expr_;
+    Ptr<Expr> expr_; // Optional
 };
 
+/**
+ * For statement
+ * e.g. `for (int i = 0; i < 10; i++) {}`
+ */
 class For final : public Node<For>, public Stmt
 {
 public:
@@ -77,6 +127,10 @@ public:
     Ptr<Stmt> body_;
 };
 
+/**
+ * If-else statement
+ * e.g. `if (a < 10) {} else {}`
+ */
 class IfElse final : public Node<IfElse>, public Stmt
 {
 public:
@@ -92,9 +146,13 @@ public:
 
     Ptr<Expr> cond_;
     Ptr<Stmt> thenStmt_;
-    Ptr<Stmt> elseStmt_;
+    Ptr<Stmt> elseStmt_; // Optional
 };
 
+/**
+ * Return statement
+ * e.g. `return a;`
+ */
 class Return final : public Node<Return>, public Stmt
 {
 public:
@@ -103,9 +161,28 @@ public:
     {
     }
 
-    Ptr<Expr> expr_;
+    Ptr<Expr> expr_; // Optional
 };
 
+/**
+ * Switch statement
+ * e.g. `switch (a) {}`
+ */
+class Switch final : public Node<Switch>, public Stmt
+{
+public:
+    Switch(const Expr *expr, const Stmt *body) : expr_(expr), body_(body)
+    {
+    }
+
+    Ptr<Expr> expr_;
+    Ptr<Stmt> body_;
+};
+
+/**
+ * While statement
+ * e.g. `while (a < 10) {}`
+ */
 class While final : public Node<While>, public Stmt
 {
 public:

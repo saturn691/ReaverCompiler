@@ -96,6 +96,36 @@ void CodeGenModule::visit(const DeclNode &node)
     }
 }
 
+void CodeGenModule::visit(const DefinedTypeDecl &node)
+{
+    // Intentionally left blank
+}
+
+void CodeGenModule::visit(const Enum &node)
+{
+    // Register the constants
+    if (auto *enumType = dynamic_cast<const EnumType *>(typeMap_[&node].get()))
+    {
+        for (const auto &member : enumType->consts_)
+        {
+            constTablePush(
+                member.first,
+                llvm::ConstantInt::get(
+                    llvm::Type::getInt32Ty(*context_), member.second, false));
+        }
+    }
+}
+
+void CodeGenModule::visit(const EnumMember &node)
+{
+    // Intentionally left blank
+}
+
+void CodeGenModule::visit(const EnumMemberList &node)
+{
+    // Intentionally left blank
+}
+
 void CodeGenModule::visit(const FnDecl &node)
 {
     // Label the function arguments
@@ -126,15 +156,20 @@ void CodeGenModule::visit(const FnDef &node)
     llvm::BasicBlock *bb = llvm::BasicBlock::Create(*context_, "entry", fn);
     builder_->SetInsertPoint(bb);
 
+    // Required, quick solution to scopes being inside compound statements
+    // Works the same, but we have 1 extra scope that only contains the function
+    // arguments
+    pushScope();
+
     // Label the function arguments
     node.decl_->accept(*this);
-    symbolTable_.clear();
     for (auto &arg : fn->args())
     {
         std::string paramName = arg.getName().str();
-        symbolTable_[paramName] =
+        llvm::AllocaInst *allocaInst =
             builder_->CreateAlloca(arg.getType(), nullptr, arg.getName());
-        builder_->CreateStore(&arg, symbolTable_[paramName]);
+        symbolTablePush(paramName, allocaInst);
+        builder_->CreateStore(&arg, allocaInst);
     }
 
     // Generate the function body
@@ -143,7 +178,7 @@ void CodeGenModule::visit(const FnDef &node)
     isGlobal_ = true;
 
     // If the function does not have a return statement, add one
-    if (!bb->getTerminator())
+    if (!builder_->GetInsertBlock()->getTerminator())
     {
         if (retType->isVoidTy())
         {
@@ -154,6 +189,8 @@ void CodeGenModule::visit(const FnDef &node)
             builder_->CreateRet(llvm::ConstantInt::get(retType, 0, false));
         }
     }
+
+    popScope();
 
     // Attributes required for strings
     fn->addFnAttr(llvm::Attribute::NoInline);
@@ -187,7 +224,7 @@ void CodeGenModule::visit(const InitDecl &node)
         llvm::Type *type = getLLVMType(typeMap_[&node].get());
         llvm::AllocaInst *alloca =
             builder_->CreateAlloca(type, nullptr, node.getID());
-        symbolTable_[node.getID()] = alloca;
+        symbolTablePush(node.getID(), alloca);
 
         if (node.expr_)
         {
@@ -266,26 +303,40 @@ void CodeGenModule::visit(const Struct &node)
 
 void CodeGenModule::visit(const StructDecl &node)
 {
+    // Intentionally left blank
 }
 
 void CodeGenModule::visit(const StructDeclList &node)
 {
+    // Intentionally left blank
 }
 
 void CodeGenModule::visit(const StructMember &node)
 {
+    // Intentionally left blank
 }
 
 void CodeGenModule::visit(const StructMemberList &node)
 {
+    // Intentionally left blank
 }
 
 void CodeGenModule::visit(const TranslationUnit &node)
 {
+    // For global declarations
+    pushScope();
+
     for (const auto &decl : node.nodes_)
     {
         std::visit([this](const auto &decl) { decl->accept(*this); }, decl);
     }
+
+    popScope();
+}
+
+void CodeGenModule::visit(const Typedef &node)
+{
+    // Intentionally left blank
 }
 
 /******************************************************************************
@@ -527,13 +578,23 @@ void CodeGenModule::visit(const Identifier &node)
 {
     if (valueCategory_ == ValueCategory::LVALUE)
     {
-        currentValue_ = symbolTable_[node.getID()];
+        currentValue_ = symbolTableLookup(node.getID());
     }
     else if (valueCategory_ == ValueCategory::RVALUE)
     {
-        llvm::AllocaInst *alloca = symbolTable_[node.getID()];
-        currentValue_ = builder_->CreateLoad(
-            alloca->getAllocatedType(), alloca, node.getID());
+        if (llvm::AllocaInst *alloca = symbolTableLookup(node.getID()))
+        {
+            currentValue_ = builder_->CreateLoad(
+                alloca->getAllocatedType(), alloca, node.getID());
+        }
+        else if (llvm::Constant *constant = constTableLookup(node.getID()))
+        {
+            currentValue_ = constant;
+        }
+        else
+        {
+            throw std::runtime_error("Unknown identifier: " + node.getID());
+        }
     }
     else
     {
@@ -699,12 +760,57 @@ void CodeGenModule::visit(const BlockItemList &node)
     }
 }
 
+void CodeGenModule::visit(const Break &node)
+{
+    llvm::BasicBlock *toBB = breakStack_.top();
+    builder_->CreateBr(toBB);
+}
+
+void CodeGenModule::visit(const Case &node)
+{
+    llvm::BasicBlock *caseBB =
+        llvm::BasicBlock::Create(*context_, "case", getCurrentFunction());
+
+    // If current case doesn't break, it will fall through to the next case
+    if (!builder_->GetInsertBlock()->getTerminator())
+    {
+        builder_->CreateBr(caseBB);
+    }
+
+    builder_->SetInsertPoint(caseBB);
+    node.body_->accept(*this);
+
+    // Add the case to the switch
+    if (node.expr_)
+    {
+        // Must evaluate, it is a constant expression
+        // Must be an int (or unsigned int) due to integer promotion
+        int value = node.expr_->eval().value();
+        currentSwitch_->addCase(
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), value),
+            caseBB);
+    }
+    else
+    {
+        // Default case
+        currentSwitch_->setDefaultDest(caseBB);
+    }
+}
+
 void CodeGenModule::visit(const CompoundStmt &node)
 {
     if (node.nodes_)
     {
+        pushScope();
         node.nodes_->accept(*this);
+        popScope();
     }
+}
+
+void CodeGenModule::visit(const Continue &node)
+{
+    llvm::BasicBlock *toBB = continueStack_.top();
+    builder_->CreateBr(toBB);
 }
 
 void CodeGenModule::visit(const ExprStmt &node)
@@ -828,6 +934,32 @@ void CodeGenModule::visit(const Return &node)
     }
 }
 
+void CodeGenModule::visit(const Switch &node)
+{
+    llvm::Function *fn = getCurrentFunction();
+    llvm::BasicBlock *mergeBB =
+        llvm::BasicBlock::Create(*context_, "switchcont");
+
+    llvm::Value *switchValue = visitAsRValue(*node.expr_);
+
+    // mergeBB is default destination, may be replaced
+    llvm::SwitchInst *switchInst = builder_->CreateSwitch(switchValue, mergeBB);
+    ScopeGuard<llvm::SwitchInst *> sg(currentSwitch_, switchInst);
+    ScopeGuard<std::stack<llvm::BasicBlock *>> sg2(breakStack_, mergeBB);
+
+    node.body_->accept(*this);
+
+    // Fall through to the end of the switch
+    if (!builder_->GetInsertBlock()->getTerminator())
+    {
+        builder_->CreateBr(mergeBB);
+    }
+
+    // Merge block
+    fn->insert(fn->end(), mergeBB);
+    builder_->SetInsertPoint(mergeBB);
+}
+
 void CodeGenModule::visit(const While &node)
 {
     llvm::Function *fn = getCurrentFunction();
@@ -930,6 +1062,11 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
         std::string name = "struct." + structType->name_;
         return llvm::StructType::getTypeByName(*context_, name);
     }
+    else if (auto enumType = dynamic_cast<const EnumType *>(type))
+    {
+        // Enums are not defined here
+        return llvm::Type::getInt32Ty(*context_);
+    }
 
     throw std::runtime_error("Unknown type");
 }
@@ -973,6 +1110,57 @@ llvm::Function *CodeGenModule::visitAsFnDesignator(const Expr &expr)
     valueCategory_ = ValueCategory::FN_DESIGNATOR;
     expr.accept(*this);
     return static_cast<llvm::Function *>(currentValue_);
+}
+
+void CodeGenModule::symbolTablePush(std::string id, llvm::AllocaInst *alloca)
+{
+    symbolTable_.back()[id] = alloca;
+}
+
+llvm::AllocaInst *CodeGenModule::symbolTableLookup(std::string id) const
+{
+    for (auto it = symbolTable_.rbegin(); it != symbolTable_.rend(); ++it)
+    {
+        auto search = it->find(id);
+        if (search != it->end())
+        {
+            return search->second;
+        }
+    }
+
+    return nullptr;
+}
+
+void CodeGenModule::constTablePush(std::string id, llvm::Constant *constant)
+{
+    constTable_.back()[id] = constant;
+}
+
+llvm::Constant *CodeGenModule::constTableLookup(std::string id) const
+{
+    for (auto it = constTable_.rbegin(); it != constTable_.rend(); ++it)
+    {
+        auto search = it->find(id);
+        if (search != it->end())
+        {
+            return search->second;
+        }
+    }
+
+    return nullptr;
+}
+
+void CodeGenModule::pushScope()
+{
+    symbolTable_.push_back(
+        std::unordered_map<std::string, llvm::AllocaInst *>());
+    constTable_.push_back(std::unordered_map<std::string, llvm::Constant *>());
+}
+
+void CodeGenModule::popScope()
+{
+    symbolTable_.pop_back();
+    constTable_.pop_back();
 }
 
 } // namespace CodeGen

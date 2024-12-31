@@ -58,6 +58,66 @@ void TypeChecker::visit(const DeclNode &node)
     }
 }
 
+void TypeChecker::visit(const DefinedTypeDecl &node)
+{
+    typeMap_[&node] = typeContext_[node.getID()]->clone();
+}
+
+void TypeChecker::visit(const Enum &node)
+{
+    if (node.members_)
+    {
+        // Only does type checking
+        node.members_->accept(*this);
+
+        EnumConsts enumConsts;
+        int lastSeenVal = -1;
+        for (const auto &member : node.members_->nodes_)
+        {
+            auto enumMember = std::get<0>(member).get();
+
+            int val = (enumMember->expr_) ? *enumMember->expr_->eval()
+                                          : lastSeenVal + 1;
+            enumConsts.push_back({enumMember->getID(), val});
+            lastSeenVal = val;
+        }
+
+        typeMap_[&node] = std::make_unique<EnumType>(node.name_, enumConsts);
+    }
+    else
+    {
+        // Grab the definition, if it exists
+        if (typeContext_.find(node.getID()) != typeContext_.end())
+        {
+            typeMap_[&node] = typeContext_[node.getID()]->clone();
+        }
+        else
+        {
+            typeMap_[&node] =
+                std::make_unique<EnumType>(node.name_, EnumConsts());
+        }
+    }
+}
+
+void TypeChecker::visit(const EnumMember &node)
+{
+    // Only checks the type of the expression
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+        assertIsIntegerTy(typeMap_[node.expr_.get()].get());
+    }
+}
+
+void TypeChecker::visit(const EnumMemberList &node)
+{
+    for (const auto &member : node.nodes_)
+    {
+        std::visit(
+            [this](const auto &member) { member->accept(*this); }, member);
+    }
+}
+
 void TypeChecker::visit(const FnDecl &node)
 {
     Ptr<BaseType> retType = currentType_->clone();
@@ -248,6 +308,14 @@ void TypeChecker::visit(const TranslationUnit &node)
     {
         std::visit([this](const auto &decl) { decl->accept(*this); }, decl);
     }
+}
+
+void TypeChecker::visit(const Typedef &node)
+{
+    // Actually REALLY simple to implement, this can be treated EXACTLY like a
+    // normal declaration
+    node.type_->accept(*this);
+    typeMap_[&node] = typeMap_[node.type_.get()]->clone();
 }
 
 /******************************************************************************
@@ -564,12 +632,40 @@ void TypeChecker::visit(const BlockItemList &node)
     }
 }
 
+void TypeChecker::visit(const Break &node)
+{
+    // Nothing to do
+}
+
+void TypeChecker::visit(const Case &node)
+{
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+
+        // Case expression must be an integer
+        auto *actual = typeMap_[node.expr_.get()].get();
+        if (!(*actual == BasicType(Types::INT)))
+        {
+            os_ << "Error: Expected integer type" << std::endl;
+            return;
+        }
+    }
+
+    node.body_->accept(*this);
+}
+
 void TypeChecker::visit(const CompoundStmt &node)
 {
     if (node.nodes_)
     {
         node.nodes_->accept(*this);
     }
+}
+
+void TypeChecker::visit(const Continue &node)
+{
+    // Nothing to do
 }
 
 void TypeChecker::visit(const ExprStmt &node)
@@ -629,6 +725,21 @@ void TypeChecker::visit(const Return &node)
     }
 
     checkType(actual, fnType->retType_.get());
+}
+
+void TypeChecker::visit(const Switch &node)
+{
+    node.expr_->accept(*this);
+
+    // Expression must be an integer
+    auto *actual = typeMap_[node.expr_.get()].get();
+    if (!(*actual == BasicType(Types::INT)))
+    {
+        os_ << "Error: Expected integer type" << std::endl;
+        return;
+    }
+
+    node.body_->accept(*this);
 }
 
 void TypeChecker::visit(const While &node)

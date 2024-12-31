@@ -83,6 +83,53 @@ void Printer::visit(const DeclNode &node)
     os << ";";
 }
 
+void Printer::visit(const DefinedTypeDecl &node)
+{
+    os << node.name_;
+}
+
+void Printer::visit(const Enum &node)
+{
+    os << "enum";
+    if (!node.name_.empty())
+    {
+        os << " " << node.name_;
+    }
+    if (node.members_)
+    {
+        os << std::endl << getIndent() << "{" << std::endl;
+        indentLevel_++;
+        node.members_->accept(*this);
+        indentLevel_--;
+        os << getIndent() << "}";
+    }
+}
+
+void Printer::visit(const EnumMember &node)
+{
+    os << node.id_;
+    if (node.expr_)
+    {
+        os << " = ";
+        node.expr_->accept(*this);
+    }
+}
+
+void Printer::visit(const EnumMemberList &node)
+{
+    for (const auto &member : node.nodes_)
+    {
+        os << getIndent();
+        std::visit(
+            [this](const auto &member) { member->accept(*this); }, member);
+        if (member != node.nodes_.back())
+        {
+            os << ",";
+        }
+        os << std::endl;
+    }
+}
+
 void Printer::visit(const FnDecl &node)
 {
     node.decl_->accept(*this);
@@ -178,9 +225,9 @@ void Printer::visit(const Struct &node)
     if (node.members_)
     {
         os << std::endl << getIndent() << "{" << std::endl;
-        indentLevel++;
+        indentLevel_++;
         node.members_->accept(*this);
-        indentLevel--;
+        indentLevel_--;
         os << getIndent() << "}";
     }
 }
@@ -219,6 +266,7 @@ void Printer::visit(const StructMemberList &node)
             [this](const auto &member) { member->accept(*this); }, member);
     }
 }
+
 void Printer::visit(const TranslationUnit &node)
 {
     for (const auto &decl : node.nodes_)
@@ -226,6 +274,12 @@ void Printer::visit(const TranslationUnit &node)
         std::visit([this](const auto &decl) { decl->accept(*this); }, decl);
         os << std::endl << std::endl;
     }
+}
+
+void Printer::visit(const Typedef &node)
+{
+    os << "typedef ";
+    node.type_->accept(*this);
 }
 
 /******************************************************************************
@@ -477,16 +531,45 @@ void Printer::visit(const BlockItemList &node)
     }
 }
 
+void Printer::visit(const Break &node)
+{
+    os << "break;";
+}
+
+void Printer::visit(const Case &node)
+{
+    if (node.expr_)
+    {
+        os << "case ";
+        node.expr_->accept(*this);
+    }
+    else
+    {
+        os << "default";
+    }
+    os << ":" << std::endl;
+
+    indentLevel_++;
+    os << getIndent();
+    node.body_->accept(*this);
+    indentLevel_--;
+}
+
 void Printer::visit(const CompoundStmt &node)
 {
-    os << getIndent() << "{" << std::endl;
+    os << "{" << std::endl;
     if (node.nodes_)
     {
-        indentLevel++;
+        indentLevel_++;
         node.nodes_->accept(*this);
-        indentLevel--;
+        indentLevel_--;
     }
     os << getIndent() << "}";
+}
+
+void Printer::visit(const Continue &node)
+{
+    os << "continue;";
 }
 
 void Printer::visit(const ExprStmt &node)
@@ -515,7 +598,7 @@ void Printer::visit(const For &node)
         node.expr_->accept(*this);
     }
 
-    os << ")" << std::endl;
+    os << ")" << std::endl << getIndent();
     node.body_->accept(*this);
 }
 
@@ -523,12 +606,12 @@ void Printer::visit(const IfElse &node)
 {
     os << "if (";
     node.cond_->accept(*this);
-    os << ")" << std::endl;
+    os << ")" << std::endl << getIndent();
     node.thenStmt_->accept(*this);
     if (node.elseStmt_)
     {
-        os << std::endl;
-        os << getIndent() << "else" << std::endl;
+        os << std::endl << getIndent();
+        os << "else" << std::endl << getIndent();
         node.elseStmt_->accept(*this);
     }
 }
@@ -543,11 +626,19 @@ void Printer::visit(const Return &node)
     os << ";";
 }
 
+void Printer::visit(const Switch &node)
+{
+    os << "switch (";
+    node.expr_->accept(*this);
+    os << ")" << std::endl << getIndent();
+    node.body_->accept(*this);
+}
+
 void Printer::visit(const While &node)
 {
     os << "while (";
     node.cond_->accept(*this);
-    os << ")" << std::endl;
+    os << ")" << std::endl << getIndent();
     node.body_->accept(*this);
 }
 

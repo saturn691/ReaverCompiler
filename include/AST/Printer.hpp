@@ -17,6 +17,10 @@ public:
     void visit(const ArrayDecl &node) override;
     void visit(const BasicTypeDecl &node) override;
     void visit(const DeclNode &node) override;
+    void visit(const DefinedTypeDecl &node) override;
+    void visit(const Enum &node) override;
+    void visit(const EnumMember &node) override;
+    void visit(const EnumMemberList &node) override;
     void visit(const FnDecl &node) override;
     void visit(const FnDef &node) override;
     void visit(const InitDecl &node) override;
@@ -31,6 +35,7 @@ public:
     void visit(const StructMember &node) override;
     void visit(const StructMemberList &node) override;
     void visit(const TranslationUnit &node) override;
+    void visit(const Typedef &node) override;
 
     // Expressions
     void visit(const ArrayAccess &node) override;
@@ -49,21 +54,25 @@ public:
 
     // Statements
     void visit(const BlockItemList &node) override;
+    void visit(const Break &node) override;
+    void visit(const Case &node) override;
     void visit(const CompoundStmt &node) override;
+    void visit(const Continue &node) override;
     void visit(const IfElse &node) override;
     void visit(const For &node) override;
     void visit(const ExprStmt &node) override;
     void visit(const Return &node) override;
+    void visit(const Switch &node) override;
     void visit(const While &node) override;
 
 private:
-    unsigned int indentLevel = 0;
+    unsigned int indentLevel_ = 0;
     static const unsigned int indentWidth = 4;
     std::ostream &os;
 
     inline std::string getIndent() const
     {
-        return std::string(indentLevel * indentWidth, ' ');
+        return std::string(indentLevel_ * indentWidth, ' ');
     }
 };
 } // namespace AST

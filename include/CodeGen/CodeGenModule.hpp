@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <stack>
 #include <unordered_map>
 
 #include "AST/Visitor.hpp"
@@ -25,6 +26,10 @@ public:
     void visit(const ArrayDecl &node) override;
     void visit(const BasicTypeDecl &node) override;
     void visit(const DeclNode &node) override;
+    void visit(const DefinedTypeDecl &node) override;
+    void visit(const Enum &node) override;
+    void visit(const EnumMember &node) override;
+    void visit(const EnumMemberList &node) override;
     void visit(const FnDecl &node) override;
     void visit(const FnDef &node) override;
     void visit(const InitDecl &node) override;
@@ -39,6 +44,7 @@ public:
     void visit(const StructMember &node) override;
     void visit(const StructMemberList &node) override;
     void visit(const TranslationUnit &node) override;
+    void visit(const Typedef &node) override;
 
     // Expressions (should not be called directly)
     void visit(const ArrayAccess &node) override;
@@ -57,11 +63,15 @@ public:
 
     // Statements
     void visit(const BlockItemList &node) override;
+    void visit(const Break &node) override;
+    void visit(const Case &node) override;
     void visit(const CompoundStmt &node) override;
+    void visit(const Continue &node) override;
     void visit(const ExprStmt &node) override;
     void visit(const For &node) override;
     void visit(const IfElse &node) override;
     void visit(const Return &node) override;
+    void visit(const Switch &node) override;
     void visit(const While &node) override;
 
 private:
@@ -79,12 +89,22 @@ private:
         FN_DESIGNATOR
     };
 
-    // Contextual information (unfortunately)
+    // Contextual information (unfortunately). Use the guard for safety.
     // Used as a "return value" for the visitor
     llvm::Value *currentValue_ = nullptr;
+    llvm::SwitchInst *currentSwitch_ = nullptr;
     ValueCategory valueCategory_ = ValueCategory::RVALUE;
     bool isGlobal_ = true;
-    std::unordered_map<std::string, llvm::AllocaInst *> symbolTable_;
+
+    using SymbolTable =
+        std::vector<std::unordered_map<std::string, llvm::AllocaInst *>>;
+    using ConstTable =
+        std::vector<std::unordered_map<std::string, llvm::Constant *>>;
+
+    SymbolTable symbolTable_;
+    ConstTable constTable_;
+    std::stack<llvm::BasicBlock *> breakStack_;
+    std::stack<llvm::BasicBlock *> continueStack_;
 
     llvm::Function *getCurrentFunction();
     llvm::Type *getLLVMType(const BaseNode *node);
@@ -93,6 +113,53 @@ private:
     llvm::Value *visitAsLValue(const Expr &node);
     llvm::Value *visitAsRValue(const Expr &node);
     llvm::Function *visitAsFnDesignator(const Expr &expr);
+
+    void symbolTablePush(std::string id, llvm::AllocaInst *alloca);
+    llvm::AllocaInst *symbolTableLookup(std::string id) const;
+
+    void constTablePush(std::string id, llvm::Constant *constant);
+    llvm::Constant *constTableLookup(std::string id) const;
+
+    void pushScope();
+    void popScope();
+};
+
+/**
+ * Helper class for passing information down the AST.
+ */
+template <typename T>
+class ScopeGuard
+{
+public:
+    ScopeGuard(T &ref, const T &newValue) : ref_(ref), oldValue_(ref)
+    {
+        ref = newValue;
+    }
+    ~ScopeGuard()
+    {
+        ref_ = oldValue_;
+    }
+
+private:
+    T &ref_;
+    T oldValue_;
+};
+
+template <typename U>
+class ScopeGuard<std::stack<U>>
+{
+public:
+    ScopeGuard(std::stack<U> &ref, U newValue) : ref_(ref)
+    {
+        ref.push(std::move(newValue));
+    }
+    ~ScopeGuard()
+    {
+        ref_.pop();
+    }
+
+private:
+    std::stack<U> &ref_;
 };
 
 } // namespace CodeGen
