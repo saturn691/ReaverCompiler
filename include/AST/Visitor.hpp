@@ -45,6 +45,7 @@ class StructDeclList;
 class StructMember;
 class StructMemberList;
 class Switch;
+class TernaryOp;
 class Return;
 class TranslationUnit;
 class Typedef;
@@ -96,6 +97,7 @@ public:
     virtual void visit(const StringLiteral &node) = 0;
     virtual void visit(const StructAccess &node) = 0;
     virtual void visit(const StructPtrAccess &node) = 0;
+    virtual void visit(const TernaryOp &node) = 0;
     virtual void visit(const UnaryOp &node) = 0;
 
     // Statements

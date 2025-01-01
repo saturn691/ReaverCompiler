@@ -50,6 +50,7 @@ public:
     void visit(const StringLiteral &node) override;
     void visit(const StructAccess &node) override;
     void visit(const StructPtrAccess &node) override;
+    void visit(const TernaryOp &node) override;
     void visit(const UnaryOp &node) override;
 
     // Statements

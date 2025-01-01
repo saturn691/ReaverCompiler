@@ -283,6 +283,7 @@ conditional_expression
 	: logical_or_expression
 		{ $$ = $1; }
 	| logical_or_expression '?' expression ':' conditional_expression
+		{ $$ = new TernaryOp($1, $3, $5); }
 	;
 
 assignment_expression

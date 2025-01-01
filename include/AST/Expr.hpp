@@ -244,6 +244,10 @@ public:
     std::string name_;
 };
 
+/**
+ * Parenthesized expression
+ * e.g. `(a + b)`
+ */
 class Paren final : public Node<Paren>, public Expr
 {
 public:
@@ -267,6 +271,10 @@ public:
     Ptr<Expr> expr_;
 };
 
+/**
+ * Sizeof expression
+ * e.g. `sizeof(int)`, `sizeof a`
+ */
 class SizeOf final : public Node<SizeOf>, public Expr
 {
 public:
@@ -282,6 +290,10 @@ public:
     Ptr<TypeDecl> type_;
 };
 
+/**
+ * String literal
+ * e.g. `"hello"`
+ */
 class StringLiteral final : public Node<StringLiteral>, public Expr
 {
 public:
@@ -307,6 +319,10 @@ public:
     std::string value_;
 };
 
+/**
+ * Struct access
+ * e.g. `foo.bar`
+ */
 class StructAccess final : public Node<StructAccess>, public Expr
 {
 public:
@@ -324,6 +340,10 @@ public:
     std::string member_;
 };
 
+/**
+ * Struct pointer access
+ * e.g. `foo->bar`
+ */
 class StructPtrAccess final : public Node<StructPtrAccess>, public Expr
 {
 public:
@@ -341,6 +361,27 @@ public:
     std::string member_;
 };
 
+/**
+ * Ternary operation
+ * e.g. `a ? b : c`
+ */
+class TernaryOp final : public Node<TernaryOp>, public Expr
+{
+public:
+    TernaryOp(const Expr *cond, const Expr *lhs, const Expr *rhs)
+        : cond_(cond), lhs_(lhs), rhs_(rhs)
+    {
+    }
+
+    Ptr<Expr> cond_;
+    Ptr<Expr> lhs_;
+    Ptr<Expr> rhs_;
+};
+
+/**
+ * Unary operation
+ * e.g. `*a`, `!b`
+ */
 class UnaryOp final : public Node<UnaryOp>, public Expr
 {
 public:

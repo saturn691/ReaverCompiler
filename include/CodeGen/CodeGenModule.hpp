@@ -18,8 +18,9 @@ namespace CodeGen
 class CodeGenModule : public Visitor
 {
 public:
-    CodeGenModule(std::ostream &os, TypeMap &typeMap);
-    void print();
+    CodeGenModule(std::string outputFile, TypeMap &typeMap);
+    void emitLLVM();
+    void emitObject();
     void optimize();
 
     // Declarations
@@ -51,6 +52,7 @@ public:
     void visit(const Assignment &node) override;
     void visit(const ArgExprList &node) override;
     void visit(const BinaryOp &node) override;
+    void visitLogicalOp(const BinaryOp &node);
     void visit(const Constant &node) override;
     void visit(const FnCall &node) override;
     void visit(const Identifier &node) override;
@@ -59,6 +61,7 @@ public:
     void visit(const StringLiteral &node) override;
     void visit(const StructAccess &node) override;
     void visit(const StructPtrAccess &node) override;
+    void visit(const TernaryOp &node) override;
     void visit(const UnaryOp &node) override;
 
     // Statements
@@ -75,7 +78,7 @@ public:
     void visit(const While &node) override;
 
 private:
-    std::ostream &os_;
+    std::string outputFile_;
     TypeMap &typeMap_;
 
     std::unique_ptr<llvm::LLVMContext> context_;
@@ -109,6 +112,7 @@ private:
     llvm::Function *getCurrentFunction();
     llvm::Type *getLLVMType(const BaseNode *node);
     llvm::Type *getLLVMType(const BaseType *type);
+    llvm::Type *getLLVMType(Types ty);
     llvm::Type *getPointerElementType(const BaseNode *node);
     llvm::Value *visitAsLValue(const Expr &node);
     llvm::Value *visitAsRValue(const Expr &node);
@@ -122,6 +126,12 @@ private:
 
     void pushScope();
     void popScope();
+
+    llvm::Value *runUsualArithmeticConversions(
+        const BaseType *lhs,
+        const BaseType *rhs,
+        llvm::Value *val);
+    void runIntegerPromotions(const BaseType *type, llvm::Value *&val);
 };
 
 /**

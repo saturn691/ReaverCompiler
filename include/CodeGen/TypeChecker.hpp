@@ -58,6 +58,7 @@ public:
     void visit(const StringLiteral &node) override;
     void visit(const StructAccess &node) override;
     void visit(const StructPtrAccess &node) override;
+    void visit(const TernaryOp &node) override;
     void visit(const UnaryOp &node) override;
 
     // Statements
@@ -78,6 +79,9 @@ public:
         return typeMap_;
     }
 
+    static Types runIntegerPromotions(Types type);
+    static Types runUsualArithmeticConversions(Types lhs, Types rhs);
+
 private:
     TypeMap typeMap_;
     TypeContext typeContext_;
@@ -91,7 +95,5 @@ private:
 
     bool checkType(const BaseType *actual, const BaseType *expected);
     bool assertIsIntegerTy(const BaseType *type);
-
-    Types runIntegerPromotion(Types type);
 };
 } // namespace CodeGen

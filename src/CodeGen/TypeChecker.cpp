@@ -179,8 +179,15 @@ void TypeChecker::visit(const ParamDecl &node)
     // Pass type information down
     node.type_->accept(*this);
     currentType_ = typeMap_[node.type_.get()]->clone();
-    node.decl_->accept(*this);
-    typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
+    if (node.decl_)
+    {
+        node.decl_->accept(*this);
+        typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
+    }
+    else
+    {
+        typeMap_[&node] = currentType_->clone();
+    }
 }
 
 void TypeChecker::visit(const ParamList &node)
@@ -197,6 +204,15 @@ void TypeChecker::visit(const ParamList &node)
             },
             param);
     }
+
+    // Parameter List can be the single keyword void (no parameters)
+    if (types.size() == 1 && types[0].first == "" &&
+        dynamic_cast<const BasicType *>(types[0].second.get())->type_ ==
+            Types::VOID)
+    {
+        types.clear();
+    }
+
     typeMap_[&node] = std::make_unique<ParamType>(std::move(types));
 }
 
@@ -378,6 +394,8 @@ void TypeChecker::visit(const ArgExprList &node)
 
 void TypeChecker::visit(const BinaryOp &node)
 {
+    using Op = BinaryOp::Op;
+
     // Subject to integer promotion rules
     node.lhs_->accept(*this);
     node.rhs_->accept(*this);
@@ -385,8 +403,54 @@ void TypeChecker::visit(const BinaryOp &node)
     auto *lhs = typeMap_[node.lhs_.get()].get();
     auto *rhs = typeMap_[node.rhs_.get()].get();
 
-    // TODO: Do this properly
-    typeMap_[&node] = lhs->clone();
+    switch (node.op_)
+    {
+    case Op::EQ:
+    case Op::NE:
+    case Op::LT:
+    case Op::GT:
+    case Op::LE:
+    case Op::GE:
+        // Result is always a bool
+        typeMap_[&node] = std::make_unique<BasicType>(Types::BOOL);
+        break;
+    default:
+        // Pointer arithmetic
+        auto *lhsPtr = dynamic_cast<const PtrType *>(lhs);
+        auto *rhsPtr = dynamic_cast<const PtrType *>(rhs);
+        if (lhsPtr)
+        {
+            if (rhsPtr)
+            {
+                // Pointer subtraction
+                typeMap_[&node] = std::make_unique<BasicType>(Types::INT);
+            }
+            else
+            {
+                // Pointer arithmetic
+                typeMap_[&node] = lhsPtr->clone();
+            }
+        }
+        else if (rhsPtr)
+        {
+            // Pointer arithmetic
+            typeMap_[&node] = rhsPtr->clone();
+        }
+        else
+        {
+            // Must be BasicType
+            auto *lhsBasic = dynamic_cast<const BasicType *>(lhs);
+            auto *rhsBasic = dynamic_cast<const BasicType *>(rhs);
+            if (!lhsBasic || !rhsBasic)
+            {
+                os_ << "Error: Expected basic type" << std::endl;
+                return;
+            }
+            typeMap_[&node] =
+                std::make_unique<BasicType>(runUsualArithmeticConversions(
+                    lhsBasic->type_, rhsBasic->type_));
+        }
+    }
 }
 
 void TypeChecker::visit(const Constant &node)
@@ -568,6 +632,33 @@ void TypeChecker::visit(const StructPtrAccess &node)
     }
 }
 
+void TypeChecker::visit(const TernaryOp &node)
+{
+    // Condition can be any type, but will be converted to a boolean
+    node.cond_->accept(*this);
+    node.lhs_->accept(*this);
+    node.rhs_->accept(*this);
+
+    auto *thenExpr = typeMap_[node.lhs_.get()].get();
+    auto *elseExpr = typeMap_[node.rhs_.get()].get();
+
+    // Check the type of the expressions
+    auto *thenExprBasic = dynamic_cast<const BasicType *>(thenExpr);
+    auto *elseExprBasic = dynamic_cast<const BasicType *>(elseExpr);
+
+    if (thenExprBasic && elseExprBasic)
+    {
+        typeMap_[&node] =
+            std::make_unique<BasicType>(runUsualArithmeticConversions(
+                thenExprBasic->type_, elseExprBasic->type_));
+    }
+    else
+    {
+        // TODO Not 100% correct. See 6.5.15
+        typeMap_[&node] = typeMap_[node.lhs_.get()]->clone();
+    }
+}
+
 void TypeChecker::visit(const UnaryOp &node)
 {
     node.expr_->accept(*this);
@@ -692,13 +783,8 @@ void TypeChecker::visit(const IfElse &node)
 {
     node.cond_->accept(*this);
 
-    // Condition must be an integer
+    // Condition can be any type, but will be converted to a boolean
     auto *actual = typeMap_[node.cond_.get()].get();
-    if (!(*actual == BasicType(Types::INT)))
-    {
-        os_ << "Error: Expected integer type" << std::endl;
-        return;
-    }
 
     node.thenStmt_->accept(*this);
     if (node.elseStmt_)
@@ -753,6 +839,66 @@ void TypeChecker::visit(const While &node)
 }
 
 /******************************************************************************
+ *                          Static methods                                    *
+ *****************************************************************************/
+
+Types TypeChecker::runIntegerPromotions(Types types)
+{
+    // 6.3.1.1: "If an int can represent all values of the original type, the
+    // value is converted to an int; otherwise, it is converted to an unsigned
+    // int. These are called the integer promotions."
+
+    if (types == Types::VOID)
+    {
+        throw std::runtime_error("Error: Cannot promote void type");
+    }
+    else if (types <= Types::INT)
+    {
+        return Types::INT;
+    }
+    else if (types <= Types::UNSIGNED_INT)
+    {
+        return Types::UNSIGNED_INT;
+    }
+
+    return types;
+}
+
+Types TypeChecker::runUsualArithmeticConversions(Types lhs, Types rhs)
+{
+    // 6.3.1.8 Usual arithmetic conversions
+    // "First, if the corresponding real type of either operand is long double,
+    // the other operand is converted, without change of type domain, to a type
+    // whose corresponding real type is long double."
+    if (lhs == Types::LONG_DOUBLE || rhs == Types::LONG_DOUBLE)
+    {
+        return Types::LONG_DOUBLE;
+    }
+    // "Otherwise, if the corresponding real type of either operand is double,
+    // the other operand is converted, without change of type domain, to a type
+    // whose corresponding real type is double."
+    if (lhs == Types::DOUBLE || rhs == Types::DOUBLE)
+    {
+        return Types::DOUBLE;
+    }
+    // "Otherwise, if the corresponding real type of either operand is float,
+    // the other operand is converted, without change of type domain, to a type
+    // whose corresponding real type is float."
+    if (lhs == Types::FLOAT || rhs == Types::FLOAT)
+    {
+        return Types::FLOAT;
+    }
+
+    // "Otherwise, the integer promotions are performed on both operands. Then
+    // the following rules are applied to the promoted operands:"
+    lhs = runIntegerPromotions(lhs);
+    rhs = runIntegerPromotions(rhs);
+
+    // A lot of yap to say we want the larger type
+    return (lhs > rhs) ? lhs : rhs;
+}
+
+/******************************************************************************
  *                          Private methods                                   *
  *****************************************************************************/
 
@@ -788,28 +934,6 @@ bool TypeChecker::assertIsIntegerTy(const BaseType *type)
 
     os_ << "Error: Expected integer type" << std::endl;
     return false;
-}
-
-Types TypeChecker::runIntegerPromotion(Types types)
-{
-    // 6.3.1.1: "If an int can represent all values of the original type, the
-    // value is converted to an int; otherwise, it is converted to an unsigned
-    // int. These are called the integer promotions."
-
-    if (types == Types::VOID)
-    {
-        os_ << "Error: Expected non-void type" << std::endl;
-    }
-    else if (types <= Types::INT)
-    {
-        return Types::INT;
-    }
-    else if (types <= Types::UNSIGNED_INT)
-    {
-        return Types::UNSIGNED_INT;
-    }
-
-    return types;
 }
 
 } // namespace CodeGen

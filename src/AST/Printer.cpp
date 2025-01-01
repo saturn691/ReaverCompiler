@@ -472,6 +472,15 @@ void Printer::visit(const StructPtrAccess &node)
     os << "->" << node.member_;
 }
 
+void Printer::visit(const TernaryOp &node)
+{
+    node.cond_->accept(*this);
+    os << " ? ";
+    node.lhs_->accept(*this);
+    os << " : ";
+    node.rhs_->accept(*this);
+}
+
 void Printer::visit(const UnaryOp &node)
 {
     switch (node.op_)
@@ -574,7 +583,10 @@ void Printer::visit(const Continue &node)
 
 void Printer::visit(const ExprStmt &node)
 {
-    node.expr_->accept(*this);
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+    }
     os << ";";
 }
 

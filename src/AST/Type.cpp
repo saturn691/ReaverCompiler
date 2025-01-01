@@ -48,6 +48,21 @@ bool BasicType::operator<(const BaseType &other) const
     return false;
 }
 
+bool BasicType::isSigned() const
+{
+    switch (type_)
+    {
+    case Types::BOOL:
+    case Types::UNSIGNED_CHAR:
+    case Types::UNSIGNED_SHORT:
+    case Types::UNSIGNED_INT:
+    case Types::UNSIGNED_LONG:
+        return false;
+    default:
+        return true;
+    }
+}
+
 EnumType::EnumType(std::string name, EnumConsts consts)
     : name_(std::move(name)), consts_(std::move(consts))
 {

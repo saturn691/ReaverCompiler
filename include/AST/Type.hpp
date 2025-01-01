@@ -124,6 +124,8 @@ public:
     bool operator==(const BasicType &other) const override;
     bool operator<(const BaseType &other) const override;
 
+    bool isSigned() const;
+
     Types type_;
 };
 

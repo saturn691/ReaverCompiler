@@ -6,10 +6,16 @@
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/MC/TargetRegistry.h>
 #include <llvm/Passes/PassBuilder.h>
+#include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_os_ostream.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetOptions.h>
+#include <llvm/TargetParser/Host.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar/GVN.h>
 #include <llvm/Transforms/Scalar/Reassociate.h>
@@ -23,18 +29,75 @@ namespace CodeGen
  *                          Public functions                                  *
  *****************************************************************************/
 
-CodeGenModule::CodeGenModule(std::ostream &os, TypeMap &typeMap)
-    : os_(os), typeMap_(typeMap),
+CodeGenModule::CodeGenModule(std::string outputFile, TypeMap &typeMap)
+    : outputFile_(std::move(outputFile)), typeMap_(typeMap),
       context_(std::make_unique<llvm::LLVMContext>()),
       builder_(std::make_unique<llvm::IRBuilder<>>(*context_)),
       module_(std::make_unique<llvm::Module>("Module", *context_))
 {
+    // Initialise all the targets for emitting object code
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmPrinters();
+    llvm::InitializeAllAsmParsers();
 }
 
-void CodeGenModule::print()
+void CodeGenModule::emitLLVM()
 {
-    llvm::raw_os_ostream oss(os_);
-    module_->print(oss, nullptr);
+    std::error_code ec;
+    llvm::raw_fd_ostream os(outputFile_, ec);
+
+    if (ec)
+    {
+        llvm::errs() << "Could not open file: " << ec.message() << "\n";
+        return;
+    }
+
+    module_->print(os, nullptr);
+}
+
+void CodeGenModule::emitObject()
+{
+    auto targetTriple = llvm::sys::getDefaultTargetTriple();
+    auto CPU = "generic";
+    auto features = "";
+
+    std::string error;
+    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+    if (!target)
+    {
+        llvm::errs() << error;
+    }
+
+    // PIC = Position Independent Code
+    llvm::TargetOptions opt;
+    auto targetMachine = target->createTargetMachine(
+        targetTriple, CPU, features, opt, llvm::Reloc::Model::PIC_);
+
+    module_->setDataLayout(targetMachine->createDataLayout());
+    module_->setTargetTriple(targetTriple);
+
+    // Emit the code
+    llvm::legacy::PassManager passManager;
+    auto fileType = llvm::CodeGenFileType::ObjectFile;
+    std::error_code ec;
+    llvm::raw_fd_ostream os(outputFile_, ec);
+
+    if (ec)
+    {
+        llvm::errs() << "Could not open file: " << ec.message() << "\n";
+        return;
+    }
+
+    if (targetMachine->addPassesToEmitFile(passManager, os, nullptr, fileType))
+    {
+        llvm::errs() << "TargetMachine can't emit a file of this type\n";
+        return;
+    }
+
+    passManager.run(*module_);
+    os.flush();
 }
 
 void CodeGenModule::optimize()
@@ -228,8 +291,8 @@ void CodeGenModule::visit(const InitDecl &node)
 
         if (node.expr_)
         {
-            visitAsRValue(*node.expr_);
-            builder_->CreateStore(currentValue_, alloca);
+            llvm::Value *initVal = visitAsRValue(*node.expr_);
+            builder_->CreateStore(initVal, alloca);
         }
     }
 }
@@ -391,7 +454,8 @@ void CodeGenModule::visit(const Assignment &node)
     switch (node.op_)
     {
     case Op::ASSIGN:
-        currentValue_ = builder_->CreateStore(rhs, lhs);
+        builder_->CreateStore(rhs, lhs);
+        currentValue_ = rhs;
         break;
     case Op::ADD_ASSIGN:
         llvm::Value *lhsVal = visitAsRValue(*node.lhs_);
@@ -408,15 +472,26 @@ void CodeGenModule::visit(const ArgExprList &node)
 
 void CodeGenModule::visit(const BinaryOp &node)
 {
+    using Op = BinaryOp::Op;
+
     if (valueCategory_ == ValueCategory::LVALUE)
     {
         throw std::runtime_error("BinaryOp to LValue not supported");
     }
 
-    using Op = BinaryOp::Op;
+    if (node.op_ == Op::LAND || node.op_ == Op::LOR)
+    {
+        visitLogicalOp(node);
+        return;
+    }
 
     llvm::Value *lhs = visitAsRValue(*node.lhs_);
     llvm::Value *rhs = visitAsRValue(*node.rhs_);
+
+    lhs = runUsualArithmeticConversions(
+        typeMap_[node.lhs_.get()].get(), typeMap_[node.rhs_.get()].get(), lhs);
+    rhs = runUsualArithmeticConversions(
+        typeMap_[node.rhs_.get()].get(), typeMap_[node.lhs_.get()].get(), rhs);
 
     bool isFloat = lhs->getType()->isFloatingPointTy();
 
@@ -492,39 +567,57 @@ void CodeGenModule::visit(const BinaryOp &node)
         break;
     case Op::LAND:
     case Op::LOR:
-        llvm::Function *fn = getCurrentFunction();
-        llvm::Value *zero = llvm::ConstantInt::get(lhs->getType(), 0);
-        llvm::Value *lhsBool = builder_->CreateICmpNE(lhs, zero, "lhsVal");
-        llvm::BasicBlock *lhsBB = builder_->GetInsertBlock();
-        llvm::BasicBlock *rhsBB =
-            llvm::BasicBlock::Create(*context_, "rhs", fn);
-        llvm::BasicBlock *afterBB =
-            llvm::BasicBlock::Create(*context_, "after", fn);
-
-        if (node.op_ == Op::LAND)
-        {
-            // True - check other condition is true
-            builder_->CreateCondBr(lhsBool, rhsBB, afterBB);
-        }
-        else
-        {
-            builder_->CreateCondBr(lhsBool, afterBB, rhsBB);
-        }
-
-        // RHS
-        builder_->SetInsertPoint(rhsBB);
-        llvm::Value *rhsBool = builder_->CreateICmpNE(rhs, zero, "rhsVal");
-        builder_->CreateBr(afterBB);
-
-        // After
-        builder_->SetInsertPoint(afterBB);
-        llvm::PHINode *phi =
-            builder_->CreatePHI(llvm::Type::getInt1Ty(*context_), 2, "phi");
-        phi->addIncoming(lhsBool, lhsBB);
-        phi->addIncoming(rhsBool, rhsBB);
-        currentValue_ = phi;
+        // Handled above
         break;
     }
+}
+
+void CodeGenModule::visitLogicalOp(const BinaryOp &node)
+{
+    using Op = BinaryOp::Op;
+
+    llvm::Function *fn = getCurrentFunction();
+    llvm::BasicBlock *lhsBB = builder_->GetInsertBlock();
+    llvm::BasicBlock *rhsBB = llvm::BasicBlock::Create(*context_, "rhs");
+    llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(*context_, "after");
+    auto *lhsType = typeMap_[node.lhs_.get()].get();
+    auto *rhsType = typeMap_[node.rhs_.get()].get();
+
+    // LHS
+    llvm::Value *lhs = visitAsRValue(*node.lhs_);
+    lhs = runUsualArithmeticConversions(lhsType, rhsType, lhs);
+    llvm::Value *zero = llvm::ConstantInt::get(lhs->getType(), 0);
+    llvm::Value *lhsBool = builder_->CreateICmpNE(lhs, zero, "lhsVal");
+    lhsBB = builder_->GetInsertBlock();
+
+    if (node.op_ == Op::LAND)
+    {
+        // True - check other condition is true
+        builder_->CreateCondBr(lhsBool, rhsBB, afterBB);
+    }
+    else
+    {
+        builder_->CreateCondBr(lhsBool, afterBB, rhsBB);
+    }
+
+    // RHS
+    fn->insert(fn->end(), rhsBB);
+    builder_->SetInsertPoint(rhsBB);
+    llvm::Value *rhs = visitAsRValue(*node.rhs_);
+    rhs = runUsualArithmeticConversions(rhsType, lhsType, rhs);
+    llvm::Value *rhsBool = builder_->CreateICmpNE(rhs, zero, "rhsVal");
+    builder_->CreateBr(afterBB);
+    rhsBB = builder_->GetInsertBlock();
+
+    // After
+    fn->insert(fn->end(), afterBB);
+    builder_->SetInsertPoint(afterBB);
+    llvm::PHINode *phi =
+        builder_->CreatePHI(llvm::Type::getInt1Ty(*context_), 2, "phi");
+    phi->addIncoming(lhsBool, lhsBB);
+    phi->addIncoming(rhsBool, rhsBB);
+
+    currentValue_ = phi;
 }
 
 void CodeGenModule::visit(const Constant &node)
@@ -667,6 +760,53 @@ void CodeGenModule::visit(const StructAccess &node)
 
 void CodeGenModule::visit(const StructPtrAccess &node)
 {
+}
+
+void CodeGenModule::visit(const TernaryOp &node)
+{
+    if (valueCategory_ == ValueCategory::LVALUE)
+    {
+        throw std::runtime_error("TernaryOp to LValue not supported");
+    }
+
+    llvm::Function *fn = getCurrentFunction();
+    llvm::BasicBlock *lhsBB = llvm::BasicBlock::Create(*context_, "lhs", fn);
+    llvm::BasicBlock *rhsBB = llvm::BasicBlock::Create(*context_, "rhs");
+    llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(*context_, "after");
+    auto lhsType = typeMap_[node.lhs_.get()].get();
+    auto rhsType = typeMap_[node.rhs_.get()].get();
+    llvm ::Type *type = getLLVMType(&node);
+
+    llvm::Value *cond = visitAsRValue(*node.cond_);
+    llvm::Value *zero = llvm::ConstantInt::get(cond->getType(), 0);
+    llvm::Value *condBool = builder_->CreateICmpNE(cond, zero, "cond");
+
+    // True - evaluate LHS. False - evaluate RHS.
+    builder_->CreateCondBr(condBool, lhsBB, rhsBB);
+
+    // LHS
+    builder_->SetInsertPoint(lhsBB);
+    llvm::Value *lhs = visitAsRValue(*node.lhs_);
+    lhs = runUsualArithmeticConversions(lhsType, rhsType, lhs);
+    builder_->CreateBr(afterBB);
+    lhsBB = builder_->GetInsertBlock();
+
+    // RHS
+    fn->insert(fn->end(), rhsBB);
+    builder_->SetInsertPoint(rhsBB);
+    llvm::Value *rhs = visitAsRValue(*node.rhs_);
+    rhs = runUsualArithmeticConversions(rhsType, lhsType, rhs);
+    builder_->CreateBr(afterBB);
+    rhsBB = builder_->GetInsertBlock();
+
+    // After
+    fn->insert(fn->end(), afterBB);
+    builder_->SetInsertPoint(afterBB);
+    llvm::PHINode *phi = builder_->CreatePHI(type, 2, "phi");
+    phi->addIncoming(lhs, lhsBB);
+    phi->addIncoming(rhs, rhsBB);
+
+    currentValue_ = phi;
 }
 
 void CodeGenModule::visit(const UnaryOp &node)
@@ -815,7 +955,10 @@ void CodeGenModule::visit(const Continue &node)
 
 void CodeGenModule::visit(const ExprStmt &node)
 {
-    visitAsRValue(*node.expr_);
+    if (node.expr_)
+    {
+        visitAsRValue(*node.expr_);
+    }
 }
 
 void CodeGenModule::visit(const For &node)
@@ -1011,29 +1154,7 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
     // Basic types
     if (auto basicType = dynamic_cast<const BasicType *>(type))
     {
-        switch (basicType->type_)
-        {
-        case Types::VOID:
-            return llvm::Type::getVoidTy(*context_);
-        case Types::BOOL:
-            return llvm::Type::getInt1Ty(*context_);
-        case Types::CHAR:
-        case Types::UNSIGNED_CHAR:
-            return llvm::Type::getInt8Ty(*context_);
-        case Types::SHORT:
-        case Types::UNSIGNED_SHORT:
-            return llvm::Type::getInt16Ty(*context_);
-        case Types::INT:
-        case Types::UNSIGNED_INT:
-            return llvm::Type::getInt32Ty(*context_);
-        case Types::LONG:
-        case Types::UNSIGNED_LONG:
-            return llvm::Type::getInt64Ty(*context_);
-        case Types::FLOAT:
-            return llvm::Type::getFloatTy(*context_);
-        case Types::DOUBLE:
-            return llvm::Type::getDoubleTy(*context_);
-        }
+        return getLLVMType(basicType->type_);
     }
     else if (auto fnType = dynamic_cast<const FnType *>(type))
     {
@@ -1066,6 +1187,37 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
     {
         // Enums are not defined here
         return llvm::Type::getInt32Ty(*context_);
+    }
+
+    throw std::runtime_error("Unknown type");
+}
+
+llvm::Type *CodeGenModule::getLLVMType(Types ty)
+{
+    switch (ty)
+    {
+    case Types::VOID:
+        return llvm::Type::getVoidTy(*context_);
+    case Types::BOOL:
+        return llvm::Type::getInt1Ty(*context_);
+    case Types::CHAR:
+    case Types::UNSIGNED_CHAR:
+        return llvm::Type::getInt8Ty(*context_);
+    case Types::SHORT:
+    case Types::UNSIGNED_SHORT:
+        return llvm::Type::getInt16Ty(*context_);
+    case Types::INT:
+    case Types::UNSIGNED_INT:
+        return llvm::Type::getInt32Ty(*context_);
+    case Types::LONG:
+    case Types::UNSIGNED_LONG:
+        return llvm::Type::getInt64Ty(*context_);
+    case Types::FLOAT:
+        return llvm::Type::getFloatTy(*context_);
+    case Types::DOUBLE:
+        return llvm::Type::getDoubleTy(*context_);
+    case Types::LONG_DOUBLE:
+        return llvm::Type::getFP128Ty(*context_);
     }
 
     throw std::runtime_error("Unknown type");
@@ -1161,6 +1313,59 @@ void CodeGenModule::popScope()
 {
     symbolTable_.pop_back();
     constTable_.pop_back();
+}
+
+llvm::Value *CodeGenModule::runUsualArithmeticConversions(
+    const BaseType *lhs,
+    const BaseType *rhs,
+    llvm::Value *val)
+{
+    auto lhsBasic = dynamic_cast<const BasicType *>(lhs);
+    auto rhsBasic = dynamic_cast<const BasicType *>(rhs);
+
+    if (!lhsBasic || !rhsBasic)
+    {
+        // Could be pointer type, in which case no conversion is needed
+        return val;
+    }
+
+    Types t = TypeChecker::runUsualArithmeticConversions(
+        lhsBasic->type_, rhsBasic->type_);
+
+    // sext is not allowed for i1 (because 1 -> -1)
+    // doesn't matter if we want to promote to signed int
+    if (BasicType(t).isSigned() && !val->getType()->isIntegerTy(1))
+    {
+        return builder_->CreateSExt(val, getLLVMType(t));
+    }
+
+    return builder_->CreateZExt(val, getLLVMType(t));
+}
+
+void CodeGenModule::runIntegerPromotions(
+    const BaseType *type,
+    llvm::Value *&val)
+{
+    auto basicType = dynamic_cast<const BasicType *>(type);
+
+    if (!basicType)
+    {
+        // Could be pointer type, in which case no conversion is needed
+        return;
+    }
+
+    Types t = TypeChecker::runIntegerPromotions(basicType->type_);
+
+    // sext is not allowed for i1 (because 1 -> -1)
+    // doesn't matter if we want to promote to signed int
+    if (BasicType(t).isSigned() && val->getType()->isIntegerTy(1))
+    {
+        val = builder_->CreateSExt(val, getLLVMType(t));
+    }
+    else
+    {
+        val = builder_->CreateZExt(val, getLLVMType(t));
+    }
 }
 
 } // namespace CodeGen

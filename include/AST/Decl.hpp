@@ -272,11 +272,16 @@ public:
 
     std::string getID() const override
     {
-        return decl_->getID();
+        if (decl_)
+        {
+            return decl_->getID();
+        }
+
+        return "";
     }
 
     Ptr<TypeDecl> type_;
-    Ptr<Decl> decl_;
+    Ptr<Decl> decl_; // Optional
 };
 
 /**
