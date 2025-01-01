@@ -1,11 +1,15 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20)
+
+# Set before project()
+set(CMAKE_C_COMPILER "clang")
+set(CMAKE_CXX_COMPILER "clang++")
 
 project(rcc
     VERSION 2.0
     DESCRIPTION "C99 Compiler"
-    LANGUAGES CXX
+    LANGUAGES C CXX
 )
-
+    
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -16,6 +20,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Mode
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -fstandalone-debug")
+set(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
+set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 
 # CLI (main.cpp)
 include(FetchContent)

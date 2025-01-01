@@ -581,6 +581,15 @@ void Printer::visit(const Continue &node)
     os << "continue;";
 }
 
+void Printer::visit(const DoWhile &node)
+{
+    os << "do" << std::endl << getIndent();
+    node.body_->accept(*this);
+    os << std::endl << getIndent() << "while (";
+    node.cond_->accept(*this);
+    os << ");";
+}
+
 void Printer::visit(const ExprStmt &node)
 {
     if (node.expr_)

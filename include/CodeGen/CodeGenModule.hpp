@@ -70,6 +70,7 @@ public:
     void visit(const Case &node) override;
     void visit(const CompoundStmt &node) override;
     void visit(const Continue &node) override;
+    void visit(const DoWhile &node) override;
     void visit(const ExprStmt &node) override;
     void visit(const For &node) override;
     void visit(const IfElse &node) override;
@@ -117,7 +118,6 @@ private:
     llvm::Value *visitAsLValue(const Expr &node);
     llvm::Value *visitAsRValue(const Expr &node);
     llvm::Function *visitAsFnDesignator(const Expr &expr);
-
     void symbolTablePush(std::string id, llvm::AllocaInst *alloca);
     llvm::AllocaInst *symbolTableLookup(std::string id) const;
 
@@ -132,44 +132,6 @@ private:
         const BaseType *rhs,
         llvm::Value *val);
     void runIntegerPromotions(const BaseType *type, llvm::Value *&val);
-};
-
-/**
- * Helper class for passing information down the AST.
- */
-template <typename T>
-class ScopeGuard
-{
-public:
-    ScopeGuard(T &ref, const T &newValue) : ref_(ref), oldValue_(ref)
-    {
-        ref = newValue;
-    }
-    ~ScopeGuard()
-    {
-        ref_ = oldValue_;
-    }
-
-private:
-    T &ref_;
-    T oldValue_;
-};
-
-template <typename U>
-class ScopeGuard<std::stack<U>>
-{
-public:
-    ScopeGuard(std::stack<U> &ref, U newValue) : ref_(ref)
-    {
-        ref.push(std::move(newValue));
-    }
-    ~ScopeGuard()
-    {
-        ref_.pop();
-    }
-
-private:
-    std::stack<U> &ref_;
 };
 
 } // namespace CodeGen

@@ -325,6 +325,11 @@ def make(silent: bool) -> bool:
     """
     print(GREEN + "Running make..." + RESET)
     return_code, error_msg, _ = run_subprocess(
+        cmd=["cmake", "-S", PROJECT_LOCATION, "-B", BUILD_FOLDER], 
+        timeout=BUILD_TIMEOUT_SECONDS, 
+        silent=silent
+    )
+    return_code, error_msg, _ = run_subprocess(
         cmd=["cmake", "--build", BUILD_FOLDER], timeout=BUILD_TIMEOUT_SECONDS, silent=silent
     )
     if return_code != 0:
@@ -470,6 +475,7 @@ def main():
 
     shutil.rmtree(OUTPUT_FOLDER, ignore_errors=True)
     Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
+    Path(BUILD_FOLDER).mkdir(parents=True, exist_ok=True)
 
     if not make(silent=args.short):
         exit(3)

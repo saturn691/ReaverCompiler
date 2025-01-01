@@ -59,6 +59,7 @@ public:
     void visit(const Case &node) override;
     void visit(const CompoundStmt &node) override;
     void visit(const Continue &node) override;
+    void visit(const DoWhile &node) override;
     void visit(const IfElse &node) override;
     void visit(const For &node) override;
     void visit(const ExprStmt &node) override;

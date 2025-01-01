@@ -693,6 +693,7 @@ iteration_statement
 	: WHILE '(' expression ')' statement
 		{ $$ = new While($3, $5); }
 	| DO statement WHILE '(' expression ')' ';'
+		{ $$ = new DoWhile($2, $5); }
 	| FOR '(' expression_statement expression_statement ')' statement
 		{ $$ = new For($3, $4, $6); }
 	| FOR '(' expression_statement expression_statement expression ')' statement
@@ -706,6 +707,7 @@ iteration_statement
 jump_statement
 	: GOTO IDENTIFIER ';'
 	| CONTINUE ';'
+		{ $$ = new Continue(); }
 	| BREAK ';'
 		{ $$ = new Break(); }
 	| RETURN ';'

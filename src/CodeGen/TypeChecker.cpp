@@ -4,11 +4,18 @@
 #include "AST/Stmt.hpp"
 #include "AST/Type.hpp"
 
+#include "CodeGen/ScopeGuard.hpp"
+
 #include <algorithm>
 #include <iostream>
 
 namespace CodeGen
 {
+TypeChecker::TypeChecker(std::ostream &os) : os_(os)
+{
+    typeContext_.push_back({});
+}
+
 /******************************************************************************
  *                          Declarations                                      *
  *****************************************************************************/
@@ -60,7 +67,7 @@ void TypeChecker::visit(const DeclNode &node)
 
 void TypeChecker::visit(const DefinedTypeDecl &node)
 {
-    typeMap_[&node] = typeContext_[node.getID()]->clone();
+    typeMap_[&node] = lookupType(node.getID());
 }
 
 void TypeChecker::visit(const Enum &node)
@@ -83,13 +90,14 @@ void TypeChecker::visit(const Enum &node)
         }
 
         typeMap_[&node] = std::make_unique<EnumType>(node.name_, enumConsts);
+        insertType(node.getID(), typeMap_[&node]->clone());
     }
     else
     {
         // Grab the definition, if it exists
-        if (typeContext_.find(node.getID()) != typeContext_.end())
+        if (auto t = lookupType(node.getID()))
         {
-            typeMap_[&node] = typeContext_[node.getID()]->clone();
+            typeMap_[&node] = std::move(t);
         }
         else
         {
@@ -107,6 +115,8 @@ void TypeChecker::visit(const EnumMember &node)
         node.expr_->accept(*this);
         assertIsIntegerTy(typeMap_[node.expr_.get()].get());
     }
+
+    insertType(node.getID(), std::make_unique<BasicType>(Types::INT));
 }
 
 void TypeChecker::visit(const EnumMemberList &node)
@@ -128,29 +138,46 @@ void TypeChecker::visit(const FnDecl &node)
 
     auto ty = std::make_unique<FnType>(std::move(params), std::move(retType));
     typeMap_[&node] = ty->clone();
-    typeContext_[node.getID()] = std::move(ty);
+
+    insertType(node.getID(), std::move(ty));
 }
 
 void TypeChecker::visit(const FnDef &node)
 {
-    currentFunction_ = node.decl_->getID();
+    currentFunction_ = &node;
     node.retType_->accept(*this);
     currentType_ = typeMap_[node.retType_.get()]->clone();
 
-    // Add enough context to the type map
+    // Add enough context to the type map, including the parameters
     node.decl_->accept(*this);
     typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
 
+    // Parameters gets its own scope
+    pushScope();
+
+    // Add the parameters to the context
+    auto *fnType =
+        dynamic_cast<const FnType *>(typeMap_[node.decl_.get()].get());
+    for (const auto &param : fnType->params_->types_)
+    {
+        insertType(param.first, param.second->clone());
+    }
+
     // Now run the type check (on the body)
     node.body_->accept(*this);
+    popScope();
 }
 
 void TypeChecker::visit(const InitDecl &node)
 {
     // This must insert the type into the context
     // Why? Because of the parser (e.g. `int a();` or `int *b;`)
-    node.decl_->accept(*this);
+    {
+        ScopeGuard<bool> guard(fromDecl_, true);
+        node.decl_->accept(*this);
+    }
     Ptr<BaseType> expectedType = typeMap_[node.decl_.get()]->clone();
+    insertType(node.getID(), expectedType->clone());
 
     if (node.expr_)
     {
@@ -179,8 +206,12 @@ void TypeChecker::visit(const ParamDecl &node)
     // Pass type information down
     node.type_->accept(*this);
     currentType_ = typeMap_[node.type_.get()]->clone();
+
+    // Don't insert into context yet, just collect types (we scan node.decl_ for
+    // compound types)
     if (node.decl_)
     {
+        ScopeGuard<bool> guard(fromDecl_, true);
         node.decl_->accept(*this);
         typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
     }
@@ -245,14 +276,14 @@ void TypeChecker::visit(const Struct &node)
 
         typeMap_[&node] = std::make_unique<StructType>(
             StructType::Type::STRUCT, node.name_, std::move(members));
-        typeContext_[node.getID()] = typeMap_[&node]->clone();
+        insertType(node.getID(), typeMap_[&node]->clone());
     }
     else
     {
         // Grab the definition, if it exists
-        if (typeContext_.find(node.getID()) != typeContext_.end())
+        if (auto t = lookupType(node.getID()))
         {
-            typeMap_[&node] = typeContext_[node.getID()]->clone();
+            typeMap_[&node] = t->clone();
         }
         else
         {
@@ -519,6 +550,7 @@ void TypeChecker::visit(const FnCall &node)
     if (!fnType)
     {
         os_ << "Error: Expected function type" << std::endl;
+        throw std::runtime_error("Expected function type");
         return;
     }
 
@@ -556,16 +588,13 @@ void TypeChecker::visit(const FnCall &node)
 void TypeChecker::visit(const Identifier &node)
 {
     // Problem is that Identifier is both an Expr and a Decl
-    if (typeContext_.find(node.getID()) == typeContext_.end())
+    if (fromDecl_)
     {
-        // Case for Decl (implied, it won't be in the typeContext)
         typeMap_[&node] = currentType_->clone();
-        typeContext_[node.getID()] = currentType_->clone();
     }
     else
     {
-        // Case for Expr
-        typeMap_[&node] = typeContext_.at(node.getID())->clone();
+        typeMap_[&node] = lookupType(node.getID());
     }
 }
 
@@ -750,13 +779,21 @@ void TypeChecker::visit(const CompoundStmt &node)
 {
     if (node.nodes_)
     {
+        pushScope();
         node.nodes_->accept(*this);
+        popScope();
     }
 }
 
 void TypeChecker::visit(const Continue &node)
 {
     // Nothing to do
+}
+
+void TypeChecker::visit(const DoWhile &node)
+{
+    node.body_->accept(*this);
+    node.cond_->accept(*this);
 }
 
 void TypeChecker::visit(const ExprStmt &node)
@@ -801,12 +838,11 @@ void TypeChecker::visit(const Return &node)
     auto *actual = typeMap_[node.expr_.get()].get();
 
     // Cast expected to FnType
-    auto *fnType =
-        dynamic_cast<const FnType *>(typeContext_[currentFunction_].get());
+    auto *t = typeMap_[currentFunction_].get();
+    auto *fnType = dynamic_cast<const FnType *>(t);
     if (!fnType)
     {
-        os_ << "Error: Expected function type for '" << currentFunction_ << "'"
-            << std::endl;
+        os_ << "Error: Expected function type" << std::endl;
         return;
     }
 
@@ -934,6 +970,34 @@ bool TypeChecker::assertIsIntegerTy(const BaseType *type)
 
     os_ << "Error: Expected integer type" << std::endl;
     return false;
+}
+
+void TypeChecker::pushScope()
+{
+    typeContext_.push_back({});
+}
+
+void TypeChecker::popScope()
+{
+    typeContext_.pop_back();
+}
+
+Ptr<BaseType> TypeChecker::lookupType(const std::string &name) const
+{
+    for (auto it = typeContext_.rbegin(); it != typeContext_.rend(); ++it)
+    {
+        if (it->find(name) != it->end())
+        {
+            return it->at(name)->clone();
+        }
+    }
+
+    return nullptr;
+}
+
+void TypeChecker::insertType(const std::string &name, Ptr<BaseType> type)
+{
+    typeContext_.back()[name] = std::move(type);
 }
 
 } // namespace CodeGen

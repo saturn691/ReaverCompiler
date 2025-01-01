@@ -74,6 +74,21 @@ public:
 };
 
 /**
+ * Do-while statement
+ * e.g. `do {} while (a < 10);`
+ */
+class DoWhile final : public Node<DoWhile>, public Stmt
+{
+public:
+    DoWhile(const Stmt *body, const Expr *cond) : body_(body), cond_(cond)
+    {
+    }
+
+    Ptr<Stmt> body_;
+    Ptr<Expr> cond_;
+};
+
+/**
  * Expression statement
  * e.g. `a = 1;`
  */

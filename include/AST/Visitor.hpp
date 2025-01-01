@@ -17,6 +17,7 @@ class Constant;
 class Continue;
 class DeclNode;
 class DefinedTypeDecl;
+class DoWhile;
 class Enum;
 class EnumMember;
 class EnumMemberList;
@@ -106,6 +107,7 @@ public:
     virtual void visit(const Case &node) = 0;
     virtual void visit(const CompoundStmt &node) = 0;
     virtual void visit(const Continue &node) = 0;
+    virtual void visit(const DoWhile &node) = 0;
     virtual void visit(const ExprStmt &node) = 0;
     virtual void visit(const For &node) = 0;
     virtual void visit(const IfElse &node) = 0;

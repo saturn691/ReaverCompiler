@@ -12,14 +12,12 @@ using namespace AST;
 namespace CodeGen
 {
 using TypeMap = std::unordered_map<const BaseNode *, Ptr<BaseType>>;
-using TypeContext = std::unordered_map<std::string, Ptr<BaseType>>;
+using TypeContext = std::vector<std::unordered_map<std::string, Ptr<BaseType>>>;
 
 class TypeChecker : public Visitor
 {
 public:
-    TypeChecker(std::ostream &os) : os_(os)
-    {
-    }
+    TypeChecker(std::ostream &os);
 
     // Declarations
     void visit(const ArrayDecl &node) override;
@@ -67,6 +65,7 @@ public:
     void visit(const Case &node) override;
     void visit(const CompoundStmt &node) override;
     void visit(const Continue &node) override;
+    void visit(const DoWhile &node) override;
     void visit(const ExprStmt &node) override;
     void visit(const For &node) override;
     void visit(const IfElse &node) override;
@@ -89,11 +88,17 @@ private:
 
     // Contextual information
     // Jumping around TUs
-    std::string currentFunction_;
+    const BaseNode *currentFunction_;
     // For DeclNode and FnDef
     Ptr<BaseType> currentType_;
+    bool fromDecl_ = false;
 
     bool checkType(const BaseType *actual, const BaseType *expected);
     bool assertIsIntegerTy(const BaseType *type);
+
+    void pushScope();
+    void popScope();
+    Ptr<BaseType> lookupType(const std::string &name) const;
+    void insertType(const std::string &name, Ptr<BaseType> type);
 };
 } // namespace CodeGen

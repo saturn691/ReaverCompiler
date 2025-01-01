@@ -1,8 +1,11 @@
 #include "CodeGen/CodeGenModule.hpp"
+
 #include "AST/Decl.hpp"
 #include "AST/Expr.hpp"
 #include "AST/Stmt.hpp"
 #include "AST/Type.hpp"
+
+#include "CodeGen/ScopeGuard.hpp"
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalVariable.h>
@@ -197,24 +200,28 @@ void CodeGenModule::visit(const FnDecl &node)
 
 void CodeGenModule::visit(const FnDef &node)
 {
+    std::string fnName = node.decl_->getID();
+    llvm::Function *fn = module_->getFunction(fnName);
+
     // Safe to do... this was checked in the TypeChecker
     const FnType *type = dynamic_cast<const FnType *>(typeMap_[&node].get());
     llvm::Type *retType = getLLVMType(type->retType_.get());
-    std::vector<llvm::Type *> paramTypes;
 
-    for (const auto &p : type->params_->types_)
+    // If we haven't declared the function yet, create it
+    if (!fn)
     {
-        paramTypes.push_back(getLLVMType(p.second.get()));
+        std::vector<llvm::Type *> paramTypes;
+        for (const auto &p : type->params_->types_)
+        {
+            paramTypes.push_back(getLLVMType(p.second.get()));
+        }
+
+        llvm::FunctionType *fnType =
+            llvm::FunctionType::get(retType, paramTypes, false);
+
+        fn = llvm::Function::Create(
+            fnType, llvm::Function::ExternalLinkage, fnName, module_.get());
     }
-
-    llvm::FunctionType *fnType =
-        llvm::FunctionType::get(retType, paramTypes, false);
-
-    llvm::Function *fn = llvm::Function::Create(
-        fnType,
-        llvm::Function::ExternalLinkage,
-        node.decl_->getID(),
-        module_.get());
 
     llvm::BasicBlock *bb = llvm::BasicBlock::Create(*context_, "entry", fn);
     builder_->SetInsertPoint(bb);
@@ -263,19 +270,19 @@ void CodeGenModule::visit(const FnDef &node)
 
 void CodeGenModule::visit(const InitDecl &node)
 {
-    if (isGlobal_)
+    llvm::Type *type = getLLVMType(typeMap_[&node].get());
+    if (type->isFunctionTy())
     {
-        llvm::Type *type = getLLVMType(typeMap_[&node].get());
-        if (type->isFunctionTy())
-        {
-            // Function declaration
-            llvm::Function *fn = llvm::Function::Create(
-                static_cast<llvm::FunctionType *>(type),
-                llvm::Function::ExternalLinkage,
-                node.getID(),
-                module_.get());
-        }
-        else if (type->isArrayTy())
+        // Function declaration
+        llvm::Function *fn = llvm::Function::Create(
+            static_cast<llvm::FunctionType *>(type),
+            llvm::Function::ExternalLinkage,
+            node.getID(),
+            module_.get());
+    }
+    else if (isGlobal_)
+    {
+        if (type->isArrayTy())
         {
             // Global array declaration
             module_->getOrInsertGlobal(node.getID(), type);
@@ -284,7 +291,6 @@ void CodeGenModule::visit(const InitDecl &node)
     else
     {
         // Allocate memory for the variable
-        llvm::Type *type = getLLVMType(typeMap_[&node].get());
         llvm::AllocaInst *alloca =
             builder_->CreateAlloca(type, nullptr, node.getID());
         symbolTablePush(node.getID(), alloca);
@@ -953,6 +959,39 @@ void CodeGenModule::visit(const Continue &node)
     builder_->CreateBr(toBB);
 }
 
+void CodeGenModule::visit(const DoWhile &node)
+{
+    llvm::Function *fn = getCurrentFunction();
+    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*context_, "loop");
+    llvm::BasicBlock *afterBB =
+        llvm::BasicBlock::Create(*context_, "afterloop");
+    llvm::BasicBlock *condBB = llvm::BasicBlock::Create(*context_, "cond");
+
+    // Loop body
+    ScopeGuard<std::stack<llvm::BasicBlock *>> sg(breakStack_, afterBB);
+    ScopeGuard<std::stack<llvm::BasicBlock *>> sg2(continueStack_, condBB);
+    fn->insert(fn->end(), loopBB);
+    builder_->CreateBr(loopBB);
+    builder_->SetInsertPoint(loopBB);
+    node.body_->accept(*this);
+    if (!builder_->GetInsertBlock()->getTerminator())
+    {
+        builder_->CreateBr(condBB);
+    }
+
+    // Loop expression
+    fn->insert(fn->end(), condBB);
+    builder_->SetInsertPoint(condBB);
+    llvm::Value *cond = visitAsRValue(*node.cond_);
+    cond = builder_->CreateICmpNE(
+        cond, llvm::ConstantInt::get(cond->getType(), 0), "loopcond");
+    builder_->CreateCondBr(cond, loopBB, afterBB);
+
+    // After loop
+    fn->insert(fn->end(), afterBB);
+    builder_->SetInsertPoint(afterBB);
+}
+
 void CodeGenModule::visit(const ExprStmt &node)
 {
     if (node.expr_)
@@ -963,40 +1002,60 @@ void CodeGenModule::visit(const ExprStmt &node)
 
 void CodeGenModule::visit(const For &node)
 {
+    llvm::Function *fn = getCurrentFunction();
+    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*context_, "loop");
+    llvm::BasicBlock *loopExprBB =
+        llvm::BasicBlock::Create(*context_, "loopexpr");
+    llvm::BasicBlock *afterBB =
+        llvm::BasicBlock::Create(*context_, "afterloop");
+
     // Initialize
+    pushScope(); // `int i = 0;` has a different scope
     std::visit([this](const auto &init) { init->accept(*this); }, node.init_);
 
     // Create an explict fall through to the condition
-    llvm::Function *fn = getCurrentFunction();
     llvm::BasicBlock *condBB = llvm::BasicBlock::Create(*context_, "cond", fn);
     builder_->CreateBr(condBB);
 
     // Condition
     builder_->SetInsertPoint(condBB);
-    llvm::Value *cond = visitAsRValue(*node.cond_->expr_);
-    cond = builder_->CreateICmpNE(
-        cond, llvm::ConstantInt::get(cond->getType(), 0), "loopcond");
+    if (node.cond_->expr_)
+    {
+        llvm::Value *cond = visitAsRValue(*node.cond_->expr_);
+        cond = builder_->CreateICmpNE(
+            cond, llvm::ConstantInt::get(cond->getType(), 0), "loopcond");
+        builder_->CreateCondBr(cond, loopBB, afterBB);
+    }
+    else
+    {
+        builder_->CreateBr(loopBB);
+    }
 
     // Loop body
-    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*context_, "loop", fn);
-    llvm::BasicBlock *afterBB =
-        llvm::BasicBlock::Create(*context_, "afterloop");
-    builder_->CreateCondBr(cond, loopBB, afterBB);
+    ScopeGuard<std::stack<llvm::BasicBlock *>> sg(breakStack_, afterBB);
+    ScopeGuard<std::stack<llvm::BasicBlock *>> sg2(continueStack_, loopExprBB);
+    fn->insert(fn->end(), loopBB);
     builder_->SetInsertPoint(loopBB);
     node.body_->accept(*this);
     loopBB = builder_->GetInsertBlock();
+    if (!loopBB->getTerminator())
+    {
+        builder_->CreateBr(loopExprBB);
+    }
+
+    // Loop expression
+    fn->insert(fn->end(), loopExprBB);
+    builder_->SetInsertPoint(loopExprBB);
     if (node.expr_)
     {
         visitAsRValue(*node.expr_);
     }
-    if (!loopBB->getTerminator())
-    {
-        builder_->CreateBr(condBB);
-    }
+    builder_->CreateBr(condBB);
 
     // After loop
     fn->insert(fn->end(), afterBB);
     builder_->SetInsertPoint(afterBB);
+    popScope();
 }
 
 void CodeGenModule::visit(const IfElse &node)
@@ -1106,6 +1165,9 @@ void CodeGenModule::visit(const Switch &node)
 void CodeGenModule::visit(const While &node)
 {
     llvm::Function *fn = getCurrentFunction();
+    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*context_, "loop");
+    llvm::BasicBlock *afterBB =
+        llvm::BasicBlock::Create(*context_, "afterloop");
 
     // Create an explict fall through to the condition
     llvm::BasicBlock *condBB = llvm::BasicBlock::Create(*context_, "cond", fn);
@@ -1118,14 +1180,13 @@ void CodeGenModule::visit(const While &node)
         cond, llvm::ConstantInt::get(cond->getType(), 0), "loopcond");
 
     // Loop body
-    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*context_, "loop", fn);
-    llvm::BasicBlock *afterBB =
-        llvm::BasicBlock::Create(*context_, "afterloop");
+    ScopeGuard<std::stack<llvm::BasicBlock *>> sg(breakStack_, afterBB);
+    ScopeGuard<std::stack<llvm::BasicBlock *>> sg2(continueStack_, condBB);
+    fn->insert(fn->end(), loopBB);
     builder_->CreateCondBr(cond, loopBB, afterBB);
     builder_->SetInsertPoint(loopBB);
     node.body_->accept(*this);
-    loopBB = builder_->GetInsertBlock();
-    if (!loopBB->getTerminator())
+    if (!builder_->GetInsertBlock()->getTerminator())
     {
         builder_->CreateBr(condBB);
     }

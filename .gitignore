@@ -1,3 +1,7 @@
 build/
 output/
 .vscode/
+
+# Default names
+output.o
+a.out
