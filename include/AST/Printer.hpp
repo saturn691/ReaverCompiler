@@ -16,6 +16,7 @@ public:
     // Declarations
     void visit(const ArrayDecl &node) override;
     void visit(const BasicTypeDecl &node) override;
+    void visit(const CompoundTypeDecl &node) override;
     void visit(const DeclNode &node) override;
     void visit(const DefinedTypeDecl &node) override;
     void visit(const Enum &node) override;
@@ -36,6 +37,7 @@ public:
     void visit(const StructMemberList &node) override;
     void visit(const TranslationUnit &node) override;
     void visit(const Typedef &node) override;
+    void visit(const TypeModifier &node) override;
 
     // Expressions
     void visit(const ArrayAccess &node) override;

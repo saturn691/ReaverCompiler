@@ -28,6 +28,7 @@
 	ArgExprList                         *arg_expr_list;
 	BlockItemList					   	*block_item_list_;
 	CompoundStmt					   	*compound_stmt;
+	CompoundTypeDecl				   	*compound_type;
 	Enum						   		*enum_;
 	EnumMemberList					   	*enum_member_list;
 	EnumMember					   		*enum_member;
@@ -97,8 +98,10 @@
 %type <struct_member_list> struct_declaration_list
 %type <struct_type> struct_or_union
 %type <unary_op> unary_operator
-%type <type> type_specifier declaration_specifiers specifier_qualifier_list
-%type <type> type_name struct_or_union_specifier
+%type <compound_type> declaration_specifiers
+%type <type> type_specifier specifier_qualifier_list
+%type <type> type_name struct_or_union_specifier type_qualifier
+%type <type> function_specifier storage_class_specifier
 %type <expr> primary_expression postfix_expression unary_expression
 %type <expr> cast_expression multiplicative_expression additive_expression
 %type <expr> shift_expression relational_expression equality_expression
@@ -332,32 +335,37 @@ constant_expression
 declaration
 	: declaration_specifiers ';'
 		{ $$ = new DeclNode($1); }
-	| declaration_specifiers init_declarator_list ';'
+	| TYPEDEF declaration_specifiers init_declarator_list ';'
 		{
-			if (dynamic_cast<Typedef*>($1))
+			for (const auto &node : $3->nodes_)
 			{
-				for (const auto &node : $2->nodes_)
-				{
-					auto *decl = std::get<0>(node).get();
-					updateTypeDefs(decl->getID());
-				}
+				auto *decl = std::get<0>(node).get();
+				updateTypeDefs(decl->getID());
 			}
 
-			$$ = new DeclNode($1, $2); 
+			$$ = new DeclNode(new Typedef($2), $3);
 		}
+	| declaration_specifiers init_declarator_list ';'
+		{ $$ = new DeclNode($1, $2); }
 	;
 
 declaration_specifiers
 	: storage_class_specifier
+		{ $$ = new CompoundTypeDecl($1); }
 	| storage_class_specifier declaration_specifiers
-		{ $$ = new Typedef($2); }
+		{ $2->pushBack($1); $$ = $2; }
 	| type_specifier
-		{ $$ = $1; }
+		{ $$ = new CompoundTypeDecl($1); }
 	| type_specifier declaration_specifiers
+		{ $2->pushBack($1); $$ = $2; }
 	| type_qualifier
+		{ $$ = new CompoundTypeDecl($1); }
 	| type_qualifier declaration_specifiers
+		{ $2->pushBack($1); $$ = $2; }
 	| function_specifier
+		{ $$ = new CompoundTypeDecl($1); }
 	| function_specifier declaration_specifiers
+		{ $2->pushBack($1); $$ = $2; }
 	;
 
 init_declarator_list
@@ -375,11 +383,14 @@ init_declarator
 	;
 
 storage_class_specifier
-	: TYPEDEF
-	| EXTERN
+	: EXTERN
+		{ $$ = new TypeModifier(TypeModifier::StorageClass::EXTERN); }
 	| STATIC
+		{ $$ = new TypeModifier(TypeModifier::StorageClass::STATIC); }
 	| AUTO
+		{ $$ = new TypeModifier(TypeModifier::StorageClass::AUTO); }
 	| REGISTER
+		{ $$ = new TypeModifier(TypeModifier::StorageClass::REGISTER); }
 	;
 
 type_specifier
@@ -392,22 +403,21 @@ type_specifier
 	| INT
 		{ $$ = new BasicTypeDecl(Types::INT); }
 	| LONG
-		{ $$ = new BasicTypeDecl(Types::LONG); }
+		{ $$ = new TypeModifier(TypeModifier::Length::LONG); }
 	| FLOAT
 		{ $$ = new BasicTypeDecl(Types::FLOAT); }
 	| DOUBLE
 		{ $$ = new BasicTypeDecl(Types::DOUBLE); }
 	| SIGNED
-		// Typically used as an extension, but temp solution for now
-		{ $$ = new BasicTypeDecl(Types::INT); }
+		{ $$ = new TypeModifier(TypeModifier::Signedness::SIGNED); }
 	| UNSIGNED
-		{ $$ = new BasicTypeDecl(Types::UNSIGNED_INT); }
+		{ $$ = new TypeModifier(TypeModifier::Signedness::UNSIGNED); }
 	| BOOL
 		{ $$ = new BasicTypeDecl(Types::BOOL); }
 	| COMPLEX
-		{ $$ = new BasicTypeDecl(Types::COMPLEX); }
+		{ $$ = new TypeModifier(TypeModifier::Complex::COMPLEX); }
 	| IMAGINARY
-		{ $$ = new BasicTypeDecl(Types::IMAGINARY); }
+		{ $$ = new TypeModifier(TypeModifier::Complex::IMAGINARY); }
 	| struct_or_union_specifier
 		{ $$ = $1; }
 	| enum_specifier
@@ -496,12 +506,16 @@ enumerator
 
 type_qualifier
 	: CONST
+		{ $$ = new TypeModifier(CVRQualifier::CONST); }
 	| RESTRICT
+		{ $$ = new TypeModifier(CVRQualifier::RESTRICT); }
 	| VOLATILE
+		{ $$ = new TypeModifier(CVRQualifier::VOLATILE); }
 	;
 
 function_specifier
 	: INLINE
+		{ $$ = new TypeModifier(FunctionSpecifier::INLINE); }
 	;
 
 declarator

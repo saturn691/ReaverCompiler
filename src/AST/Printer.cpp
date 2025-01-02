@@ -30,29 +30,35 @@ void Printer::visit(const BasicTypeDecl &node)
     case Types::BOOL:
         os << "bool";
         break;
-    case Types::UNSIGNED_CHAR:
-        os << "unsigned char";
-        break;
     case Types::CHAR:
         os << "char";
         break;
-    case Types::UNSIGNED_SHORT:
-        os << "unsigned short";
+    case Types::UNSIGNED_CHAR:
+        os << "unsigned char";
         break;
     case Types::SHORT:
         os << "short";
         break;
-    case Types::UNSIGNED_INT:
-        os << "unsigned int";
+    case Types::UNSIGNED_SHORT:
+        os << "unsigned short";
         break;
     case Types::INT:
         os << "int";
         break;
-    case Types::UNSIGNED_LONG:
-        os << "unsigned long";
+    case Types::UNSIGNED_INT:
+        os << "unsigned int";
         break;
     case Types::LONG:
         os << "long";
+        break;
+    case Types::UNSIGNED_LONG:
+        os << "unsigned long";
+        break;
+    case Types::LONG_LONG:
+        os << "long long";
+        break;
+    case Types::UNSIGNED_LONG_LONG:
+        os << "unsigned long long";
         break;
     case Types::FLOAT:
         os << "float";
@@ -63,12 +69,37 @@ void Printer::visit(const BasicTypeDecl &node)
     case Types::LONG_DOUBLE:
         os << "long double";
         break;
-    case Types::COMPLEX:
-        os << "_Complex";
+    case Types::FLOAT_COMPLEX:
+        os << "float _Complex";
         break;
-    case Types::IMAGINARY:
-        os << "_Imaginary";
+    case Types::DOUBLE_COMPLEX:
+        os << "double _Complex";
         break;
+    case Types::LONG_DOUBLE_COMPLEX:
+        os << "long double _Complex";
+        break;
+    case Types::FLOAT_IMAGINARY:
+        os << "float _Imaginary";
+        break;
+    case Types::DOUBLE_IMAGINARY:
+        os << "double _Imaginary";
+        break;
+    case Types::LONG_DOUBLE_IMAGINARY:
+        os << "long double _Imaginary";
+        break;
+    }
+}
+
+void Printer::visit(const CompoundTypeDecl &node)
+{
+    // Parser puts this the wrong way round, iterate backwards
+    for (auto it = node.nodes_.rbegin(); it != node.nodes_.rend(); ++it)
+    {
+        std::visit([this](const auto &type) { type->accept(*this); }, *it);
+        if (&*it != &node.nodes_.front())
+        {
+            os << " ";
+        }
     }
 }
 
@@ -280,6 +311,103 @@ void Printer::visit(const Typedef &node)
 {
     os << "typedef ";
     node.type_->accept(*this);
+}
+
+void Printer::visit(const TypeModifier &node)
+{
+    using Complex = TypeModifier::Complex;
+    using Length = TypeModifier::Length;
+    using Signedness = TypeModifier::Signedness;
+    using StorageClass = TypeModifier::StorageClass;
+
+    std::ostream &oss = this->os;
+
+    auto visitComplex = [&oss](Complex c)
+    {
+        switch (c)
+        {
+        case Complex::COMPLEX:
+            oss << "_Complex";
+            break;
+        case Complex::IMAGINARY:
+            oss << "_Imaginary";
+            break;
+        }
+    };
+    auto visitTypeQualifier = [&oss](CVRQualifier cvr)
+    {
+        switch (cvr)
+        {
+        case CVRQualifier::CONST:
+            oss << "const";
+            break;
+        case CVRQualifier::VOLATILE:
+            oss << "volatile";
+            break;
+        case CVRQualifier::RESTRICT:
+            oss << "restrict";
+            break;
+        }
+    };
+    auto visitFunctionSpecifier = [&oss](FunctionSpecifier fs)
+    {
+        switch (fs)
+        {
+        case FunctionSpecifier::INLINE:
+            oss << "inline";
+            break;
+        }
+    };
+    auto visitLength = [&oss](Length l)
+    {
+        switch (l)
+        {
+        case Length::LONG:
+            oss << "long";
+            break;
+        }
+    };
+
+    auto visitSignedness = [&oss](Signedness s)
+    {
+        switch (s)
+        {
+        case Signedness::SIGNED:
+            oss << "signed";
+            break;
+        case Signedness::UNSIGNED:
+            oss << "unsigned";
+            break;
+        }
+    };
+    auto visitStorageClass = [&oss](StorageClass sc)
+    {
+        switch (sc)
+        {
+        case StorageClass::AUTO:
+            oss << "auto";
+            break;
+        case StorageClass::REGISTER:
+            oss << "register";
+            break;
+        case StorageClass::STATIC:
+            oss << "static";
+            break;
+        case StorageClass::EXTERN:
+            oss << "extern";
+            break;
+        }
+    };
+
+    std::visit(
+        overloads{
+            visitComplex,
+            visitFunctionSpecifier,
+            visitLength,
+            visitStorageClass,
+            visitSignedness,
+            visitTypeQualifier},
+        node.modifier_);
 }
 
 /******************************************************************************

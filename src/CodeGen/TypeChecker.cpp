@@ -50,6 +50,43 @@ void TypeChecker::visit(const BasicTypeDecl &node)
     typeMap_[&node] = std::make_unique<BasicType>(node.type_);
 }
 
+void TypeChecker::visit(const CompoundTypeDecl &node)
+{
+    // Default to int if no type is found (e.g. signed)
+    currentType_ = std::make_unique<BasicType>(Types::INT);
+
+    // First pass: Find base type
+    for (const auto &variant : node.nodes_)
+    {
+        std::visit(
+            [this](const auto &decl)
+            {
+                if (!dynamic_cast<const TypeModifier *>(decl.get()))
+                {
+                    decl->accept(*this);
+                    currentType_ = typeMap_[decl.get()]->clone();
+                }
+            },
+            variant);
+    }
+
+    // Second pass: Apply modifiers
+    for (const auto &variant : node.nodes_)
+    {
+        std::visit(
+            [this](const auto &decl)
+            {
+                if (dynamic_cast<const TypeModifier *>(decl.get()))
+                {
+                    decl->accept(*this);
+                }
+            },
+            variant);
+    }
+
+    typeMap_[&node] = currentType_->clone();
+}
+
 void TypeChecker::visit(const DeclNode &node)
 {
     // Pass type information down
@@ -363,6 +400,189 @@ void TypeChecker::visit(const Typedef &node)
     // normal declaration
     node.type_->accept(*this);
     typeMap_[&node] = typeMap_[node.type_.get()]->clone();
+}
+
+void TypeChecker::visit(const TypeModifier &node)
+{
+    using Complex = TypeModifier::Complex;
+    using Length = TypeModifier::Length;
+    using Signedness = TypeModifier::Signedness;
+    using StorageClass = TypeModifier::StorageClass;
+
+    auto visitComplex = [this](Complex c)
+    {
+        // MUST be a BasicType
+        auto *basicType =
+            dynamic_cast<const BasicType *>(this->currentType_.get());
+        if (!basicType)
+        {
+            throw std::runtime_error("Expected basic type");
+        }
+
+        Types t;
+        switch (c)
+        {
+        case Complex::COMPLEX:
+            switch (basicType->type_)
+            {
+            case Types::FLOAT:
+                t = Types::FLOAT_COMPLEX;
+                break;
+            case Types::DOUBLE:
+                t = Types::DOUBLE_COMPLEX;
+                break;
+            case Types::LONG_DOUBLE:
+                t = Types::LONG_DOUBLE_COMPLEX;
+                break;
+            default:
+                throw std::runtime_error("Invalid type for complex modifier");
+            }
+            break;
+        case Complex::IMAGINARY:
+            switch (basicType->type_)
+            {
+            case Types::FLOAT:
+                t = Types::FLOAT_IMAGINARY;
+                break;
+            case Types::DOUBLE:
+                t = Types::DOUBLE_IMAGINARY;
+                break;
+            case Types::LONG_DOUBLE:
+                t = Types::LONG_DOUBLE_IMAGINARY;
+                break;
+            default:
+                throw std::runtime_error("Invalid type for imaginary modifier");
+            }
+            break;
+        }
+
+        this->currentType_ = std::make_unique<BasicType>(t);
+    };
+    auto visitCVRQualifier = [this](CVRQualifier cvr)
+    {
+        switch (cvr)
+        {
+        case CVRQualifier::CONST:
+            this->currentType_->cvrQualifier_ = CVRQualifier::CONST;
+            break;
+        case CVRQualifier::VOLATILE:
+            this->currentType_->cvrQualifier_ = CVRQualifier::VOLATILE;
+            break;
+        case CVRQualifier::RESTRICT:
+            this->currentType_->cvrQualifier_ = CVRQualifier::RESTRICT;
+            break;
+        }
+    };
+    auto visitFunctionSpecifier = [this](FunctionSpecifier fs)
+    {
+        switch (fs)
+        {
+        case FunctionSpecifier::INLINE:
+            this->currentType_->functionSpecifier_ = FunctionSpecifier::INLINE;
+            break;
+        }
+    };
+    auto visitLength = [this](Length l)
+    {
+        // MUST be a BasicType
+        auto *basicType =
+            dynamic_cast<const BasicType *>(this->currentType_.get());
+        if (!basicType)
+        {
+            throw std::runtime_error("Expected basic type");
+        }
+
+        Types t;
+        switch (basicType->type_)
+        {
+        case Types::INT:
+            t = Types::LONG;
+            break;
+        case Types::UNSIGNED_INT:
+            t = Types::UNSIGNED_LONG;
+            break;
+        case Types::LONG:
+            t = Types::LONG_LONG;
+            break;
+        case Types::UNSIGNED_LONG:
+            t = Types::UNSIGNED_LONG_LONG;
+            break;
+        default:
+            throw std::runtime_error("Invalid type for length modifier");
+        }
+
+        this->currentType_ = std::make_unique<BasicType>(t);
+    };
+    auto visitSignedness = [this](Signedness s)
+    {
+        // MUST be a BasicType
+        auto *basicType =
+            dynamic_cast<const BasicType *>(this->currentType_.get());
+        if (!basicType)
+        {
+            throw std::runtime_error("Expected basic type");
+        }
+
+        switch (s)
+        {
+        case Signedness::SIGNED:
+            break; // This is default behaviour, no need to do anything
+        case Signedness::UNSIGNED:
+            Types ty;
+            switch (basicType->type_)
+            {
+            case Types::CHAR:
+                ty = Types::UNSIGNED_CHAR;
+                break;
+            case Types::SHORT:
+                ty = Types::UNSIGNED_SHORT;
+                break;
+            case Types::INT:
+                ty = Types::UNSIGNED_INT;
+                break;
+            case Types::LONG:
+                ty = Types::UNSIGNED_LONG;
+                break;
+            case Types::LONG_LONG:
+                ty = Types::UNSIGNED_LONG_LONG;
+                break;
+            default:
+                throw std::runtime_error(
+                    "Invalid type for signedness modifier");
+            }
+            this->currentType_ = std::make_unique<BasicType>(ty);
+            break;
+        }
+    };
+    auto visitStorageClass = [this](StorageClass sc)
+    {
+        switch (sc)
+        {
+        case StorageClass::AUTO:
+        case StorageClass::REGISTER:
+            this->currentType_->linkage_ = Linkage::NONE;
+            this->currentType_->storageDuration_ = StorageDuration::AUTO;
+            break;
+        case StorageClass::STATIC:
+            this->currentType_->linkage_ = Linkage::INTERNAL;
+            this->currentType_->storageDuration_ = StorageDuration::STATIC;
+            break;
+        case StorageClass::EXTERN:
+            this->currentType_->linkage_ = Linkage::EXTERNAL;
+            this->currentType_->storageDuration_ = StorageDuration::STATIC;
+            break;
+        }
+    };
+
+    std::visit(
+        overloads{
+            visitComplex,
+            visitCVRQualifier,
+            visitFunctionSpecifier,
+            visitLength,
+            visitSignedness,
+            visitStorageClass},
+        node.modifier_);
 }
 
 /******************************************************************************

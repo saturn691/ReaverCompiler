@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace AST
@@ -13,6 +14,10 @@ using Ptr = std::unique_ptr<const T>;
 class Decl;
 class ParamType;
 class StructDeclList;
+enum class CVRQualifier;
+enum class FunctionSpecifier;
+enum class Linkage;
+enum class StorageDuration;
 
 /**
  * Base class for types.
@@ -20,12 +25,20 @@ class StructDeclList;
 class BaseType
 {
 public:
+    BaseType() = default;
+    BaseType(const BaseType &other);
     virtual ~BaseType() = default;
     virtual bool operator==(const BaseType &other) const = 0;
     virtual bool operator!=(const BaseType &other) const = 0;
     virtual bool operator<(const BaseType &other) const = 0;
     virtual bool operator<=(const BaseType &other) const = 0;
     virtual Ptr<BaseType> clone() const = 0;
+
+    // Qualifiers (mutable because we use Ptr<> everywhere and cba)
+    mutable std::optional<CVRQualifier> cvrQualifier_ = std::nullopt;
+    mutable std::optional<FunctionSpecifier> functionSpecifier_ = std::nullopt;
+    mutable std::optional<Linkage> linkage_ = std::nullopt;
+    mutable std::optional<StorageDuration> storageDuration_ = std::nullopt;
 };
 
 template <typename Derived>
@@ -83,7 +96,7 @@ enum class Types
 {
     VOID,
     BOOL,
-    CHAR,
+    CHAR, // We let char be signed (implementation-defined) for simplicity
     UNSIGNED_CHAR,
     SHORT,
     UNSIGNED_SHORT,
@@ -91,11 +104,58 @@ enum class Types
     UNSIGNED_INT,
     LONG,
     UNSIGNED_LONG,
+    LONG_LONG,
+    UNSIGNED_LONG_LONG,
     FLOAT,
     DOUBLE,
     LONG_DOUBLE,
-    COMPLEX,
-    IMAGINARY
+    FLOAT_COMPLEX,
+    DOUBLE_COMPLEX,
+    LONG_DOUBLE_COMPLEX,
+    FLOAT_IMAGINARY,
+    DOUBLE_IMAGINARY,
+    LONG_DOUBLE_IMAGINARY
+};
+
+/**
+ * Every object has a storage duration, which limits the object lifetime.
+ */
+enum class StorageDuration
+{
+    AUTO,     // Block scope
+    STATIC,   // Initialised once, lasts entire execution of the program
+    ALLOCATED // Dynamically allocated (ignore)
+};
+
+/**
+ * Linkage refers to the ability of an identifier (variable or function) to be
+ * referred to in other scopes. If a variable or function with the same
+ * identifier is declared in several scopes, but cannot be referred to from all
+ * of them, then several instances of the variable are generated.
+ */
+enum class Linkage
+{
+    NONE,     // Block scope
+    INTERNAL, // File scope
+    EXTERNAL  // Global scope
+};
+
+/**
+ * Not mutually exclusive
+ */
+enum class CVRQualifier
+{
+    CONST,    // Cannot be modified
+    VOLATILE, // Can be modified by something external
+    RESTRICT  // No aliasing
+};
+
+/**
+ * Inline? Compiler hint, we can ignore this.
+ */
+enum class FunctionSpecifier
+{
+    INLINE
 };
 
 class ArrayType final : public Type<ArrayType>

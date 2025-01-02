@@ -15,6 +15,13 @@ using namespace AST;
 
 namespace CodeGen
 {
+using Symbol = std::variant<
+    llvm::AllocaInst *,
+    llvm::GlobalVariable *,
+    llvm::Constant *,
+    std::monostate>;
+using SymbolTable = std::vector<std::unordered_map<std::string, Symbol>>;
+
 class CodeGenModule : public Visitor
 {
 public:
@@ -26,6 +33,7 @@ public:
     // Declarations
     void visit(const ArrayDecl &node) override;
     void visit(const BasicTypeDecl &node) override;
+    void visit(const CompoundTypeDecl &node) override;
     void visit(const DeclNode &node) override;
     void visit(const DefinedTypeDecl &node) override;
     void visit(const Enum &node) override;
@@ -46,6 +54,7 @@ public:
     void visit(const StructMemberList &node) override;
     void visit(const TranslationUnit &node) override;
     void visit(const Typedef &node) override;
+    void visit(const TypeModifier &node) override;
 
     // Expressions (should not be called directly)
     void visit(const ArrayAccess &node) override;
@@ -100,17 +109,12 @@ private:
     ValueCategory valueCategory_ = ValueCategory::RVALUE;
     bool isGlobal_ = true;
 
-    using SymbolTable =
-        std::vector<std::unordered_map<std::string, llvm::AllocaInst *>>;
-    using ConstTable =
-        std::vector<std::unordered_map<std::string, llvm::Constant *>>;
-
     SymbolTable symbolTable_;
-    ConstTable constTable_;
     std::stack<llvm::BasicBlock *> breakStack_;
     std::stack<llvm::BasicBlock *> continueStack_;
 
-    llvm::Function *getCurrentFunction();
+    llvm::Function *getCurrentFunction() const;
+    std::string getLocalStaticName(const std::string &name) const;
     llvm::Type *getLLVMType(const BaseNode *node);
     llvm::Type *getLLVMType(const BaseType *type);
     llvm::Type *getLLVMType(Types ty);
@@ -118,11 +122,8 @@ private:
     llvm::Value *visitAsLValue(const Expr &node);
     llvm::Value *visitAsRValue(const Expr &node);
     llvm::Function *visitAsFnDesignator(const Expr &expr);
-    void symbolTablePush(std::string id, llvm::AllocaInst *alloca);
-    llvm::AllocaInst *symbolTableLookup(std::string id) const;
-
-    void constTablePush(std::string id, llvm::Constant *constant);
-    llvm::Constant *constTableLookup(std::string id) const;
+    void symbolTablePush(std::string id, Symbol symbol);
+    Symbol symbolTableLookup(std::string id) const;
 
     void pushScope();
     void popScope();

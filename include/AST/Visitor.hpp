@@ -13,6 +13,7 @@ class BlockItemList;
 class Break;
 class Case;
 class CompoundStmt;
+class CompoundTypeDecl;
 class Constant;
 class Continue;
 class DeclNode;
@@ -50,6 +51,7 @@ class TernaryOp;
 class Return;
 class TranslationUnit;
 class Typedef;
+class TypeModifier;
 class UnaryOp;
 class While;
 
@@ -64,6 +66,7 @@ public:
     // Declarations
     virtual void visit(const ArrayDecl &node) = 0;
     virtual void visit(const BasicTypeDecl &node) = 0;
+    virtual void visit(const CompoundTypeDecl &node) = 0;
     virtual void visit(const DeclNode &node) = 0;
     virtual void visit(const DefinedTypeDecl &node) = 0;
     virtual void visit(const Enum &node) = 0;
@@ -84,6 +87,7 @@ public:
     virtual void visit(const StructMemberList &node) = 0;
     virtual void visit(const TranslationUnit &node) = 0;
     virtual void visit(const Typedef &node) = 0;
+    virtual void visit(const TypeModifier &node) = 0;
 
     // Expressions
     virtual void visit(const ArrayAccess &node) = 0;
@@ -115,4 +119,13 @@ public:
     virtual void visit(const Switch &node) = 0;
     virtual void visit(const While &node) = 0;
 };
+
+// Helper class to visit multiple lambdas
+template <class... Ts>
+struct overloads : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts>
+overloads(Ts...) -> overloads<Ts...>;
 } // namespace AST

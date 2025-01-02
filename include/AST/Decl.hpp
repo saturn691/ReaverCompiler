@@ -72,6 +72,28 @@ public:
 };
 
 /**
+ * Compound type declaration
+ * e.g. `int restrict`, `inline const unsigned char`
+ */
+class CompoundTypeDecl final : public Node<CompoundTypeDecl>,
+                               public NodeList<TypeDecl>,
+                               public TypeDecl
+{
+public:
+    using NodeList::NodeList;
+
+    std::string getID() const override
+    {
+        return "";
+    }
+
+    Ptr<BaseType> getType() const override
+    {
+        return nullptr;
+    }
+};
+
+/**
  * Declaration node
  * e.g. `int a = 1;`
  */
@@ -455,6 +477,77 @@ public:
     }
 
     Ptr<TypeDecl> type_;
+};
+
+/**
+ * Type modifiers
+ * e.g. `const`, `volatile`, `inline`
+ */
+class TypeModifier final : public Node<TypeModifier>, public TypeDecl
+{
+public:
+    enum class Complex
+    {
+        COMPLEX,
+        IMAGINARY
+    };
+
+    enum class Signedness
+    {
+        SIGNED,
+        UNSIGNED
+    };
+
+    enum class StorageClass
+    {
+        AUTO,
+        REGISTER,
+        STATIC,
+        EXTERN,
+    };
+
+    enum class Length
+    {
+        LONG
+    };
+
+    TypeModifier(Complex c) : modifier_(c)
+    {
+    }
+    TypeModifier(CVRQualifier cvr) : modifier_(cvr)
+    {
+    }
+    TypeModifier(FunctionSpecifier fs) : modifier_(fs)
+    {
+    }
+    TypeModifier(Length l) : modifier_(l)
+    {
+    }
+    TypeModifier(StorageClass sc) : modifier_(sc)
+    {
+    }
+    TypeModifier(Signedness s) : modifier_(s)
+    {
+    }
+
+    std::string getID() const override
+    {
+        return "";
+    }
+
+    Ptr<BaseType> getType() const override
+    {
+        return nullptr;
+    }
+
+    std::variant<
+        Complex,
+        CVRQualifier,
+        FunctionSpecifier,
+        Length,
+        Signedness,
+        StorageClass>
+        modifier_;
 };
 
 } // namespace AST

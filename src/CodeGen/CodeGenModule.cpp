@@ -150,13 +150,25 @@ void CodeGenModule::visit(const BasicTypeDecl &node)
     // Intentionally left blank
 }
 
+void CodeGenModule::visit(const CompoundTypeDecl &node)
+{
+    // For struct/enum/union definitions
+    for (const auto &typeDecl : node.nodes_)
+    {
+        std::visit(
+            [this](const auto &typeDecl) { typeDecl->accept(*this); },
+            typeDecl);
+    }
+}
+
 void CodeGenModule::visit(const DeclNode &node)
 {
     // For struct/union definitions
     node.type_->accept(*this);
 
     // Allocate memory for the variable
-    if (node.initDeclList_)
+    // Exception for typedefs, don't want to allocate "memory" for them
+    if (node.initDeclList_ && !dynamic_cast<const Typedef *>(node.type_.get()))
     {
         node.initDeclList_->accept(*this);
     }
@@ -174,7 +186,7 @@ void CodeGenModule::visit(const Enum &node)
     {
         for (const auto &member : enumType->consts_)
         {
-            constTablePush(
+            symbolTablePush(
                 member.first,
                 llvm::ConstantInt::get(
                     llvm::Type::getInt32Ty(*context_), member.second, false));
@@ -218,9 +230,11 @@ void CodeGenModule::visit(const FnDef &node)
 
         llvm::FunctionType *fnType =
             llvm::FunctionType::get(retType, paramTypes, false);
+        auto linkage = (type->linkage_ == Linkage::INTERNAL)
+                           ? llvm::Function::InternalLinkage
+                           : llvm::Function::ExternalLinkage;
 
-        fn = llvm::Function::Create(
-            fnType, llvm::Function::ExternalLinkage, fnName, module_.get());
+        fn = llvm::Function::Create(fnType, linkage, fnName, module_.get());
     }
 
     llvm::BasicBlock *bb = llvm::BasicBlock::Create(*context_, "entry", fn);
@@ -270,35 +284,138 @@ void CodeGenModule::visit(const FnDef &node)
 
 void CodeGenModule::visit(const InitDecl &node)
 {
-    llvm::Type *type = getLLVMType(typeMap_[&node].get());
+    auto *ty = typeMap_[&node].get();
+    llvm::Type *type = getLLVMType(ty);
+    bool hasStatic = ty->linkage_ == Linkage::INTERNAL;
+    bool hasExtern = ty->linkage_ == Linkage::EXTERNAL;
+    auto linkage = hasStatic ? llvm::Function::InternalLinkage
+                             : llvm::Function::ExternalLinkage;
+
+    // C99 6.7.8.10: Essentially everything with a "static storage duration"
+    // is initialized to 0 (unless specified otherwise). So the tentative
+    // definition acts as an actual definition here.
+    llvm::Constant *init = nullptr;
+    if (!hasExtern)
+    {
+        if (!type->isAggregateType())
+        {
+            if (node.expr_ && node.expr_->eval())
+            {
+                init = llvm::ConstantInt::get(
+                    llvm::Type::getInt32Ty(*context_),
+                    *node.expr_->eval(),
+                    false);
+            }
+            else
+            {
+                init = llvm::ConstantInt::get(
+                    llvm::Type::getInt32Ty(*context_), 0, false);
+            }
+        }
+        else if (type->isArrayTy())
+        {
+            init = llvm::ConstantAggregateZero::get(type);
+        }
+    }
+
     if (type->isFunctionTy())
     {
-        // Function declaration
-        llvm::Function *fn = llvm::Function::Create(
-            static_cast<llvm::FunctionType *>(type),
-            llvm::Function::ExternalLinkage,
-            node.getID(),
-            module_.get());
+        // Global or local function declaration
+        llvm::Function *fn = module_->getFunction(node.getID());
+
+        if (!fn)
+        {
+            // Function declaration
+            fn = llvm::Function::Create(
+                static_cast<llvm::FunctionType *>(type),
+                linkage,
+                node.getID(),
+                module_.get());
+        }
+        else if (
+            hasExtern && fn->getLinkage() != llvm::GlobalValue::InternalLinkage)
+        {
+            // Function redeclaration, but extern overwrites everything EXCEPT
+            // internal linkage
+            fn->setLinkage(llvm::Function::ExternalLinkage);
+        }
     }
     else if (isGlobal_)
     {
-        if (type->isArrayTy())
+        llvm::GlobalVariable *gb =
+            module_->getGlobalVariable(node.getID(), true);
+        if (gb)
         {
-            // Global array declaration
-            module_->getOrInsertGlobal(node.getID(), type);
+            if (node.expr_ || !gb->hasInitializer())
+            {
+                // Definition
+                gb->setInitializer(init);
+                // Linkage can't be changed. If static keyword is found after
+                // external linkage, that is UB
+            }
+            // else: redeclaration, do nothing
         }
+        else
+        {
+            // Declaration
+            gb = new llvm::GlobalVariable(
+                *module_,
+                type,
+                /* isConstant */ false,
+                linkage,
+                init,
+                node.getID());
+        }
+        symbolTablePush(node.getID(), gb);
+    }
+    else if (hasStatic)
+    {
+        // Local static variable acts like a global variable, but cannot be
+        // tentative
+        std::string name = getLocalStaticName(node.getID());
+        llvm::GlobalVariable *gb = new llvm::GlobalVariable(
+            *module_,
+            type,
+            /* isConstant */ false,
+            llvm::GlobalValue::InternalLinkage,
+            init,
+            name);
+        symbolTablePush(node.getID(), gb);
     }
     else
     {
-        // Allocate memory for the variable
-        llvm::AllocaInst *alloca =
-            builder_->CreateAlloca(type, nullptr, node.getID());
-        symbolTablePush(node.getID(), alloca);
+        // Local non-static variable
+        llvm::Value *var;
+        if (hasExtern)
+        {
+            llvm::GlobalVariable *gb =
+                module_->getGlobalVariable(node.getID(), true);
+            if (!gb)
+            {
+                // Variable is already declared somewhere else
+                gb = new llvm::GlobalVariable(
+                    *module_,
+                    type,
+                    /* isConstant */ false,
+                    llvm::GlobalValue::ExternalLinkage,
+                    /* Initializer */ nullptr,
+                    node.getID());
+            }
+            symbolTablePush(node.getID(), gb);
+        }
+        else
+        {
+            // Allocate memory for the variable
+            llvm::AllocaInst *alloca =
+                builder_->CreateAlloca(type, nullptr, node.getID());
+            symbolTablePush(node.getID(), alloca);
+            var = alloca;
+        }
 
         if (node.expr_)
         {
             llvm::Value *initVal = visitAsRValue(*node.expr_);
-            builder_->CreateStore(initVal, alloca);
+            builder_->CreateStore(initVal, var);
         }
     }
 }
@@ -404,6 +521,11 @@ void CodeGenModule::visit(const TranslationUnit &node)
 }
 
 void CodeGenModule::visit(const Typedef &node)
+{
+    // Intentionally left blank
+}
+
+void CodeGenModule::visit(const TypeModifier &node)
 {
     // Intentionally left blank
 }
@@ -675,20 +797,37 @@ void CodeGenModule::visit(const FnCall &node)
 
 void CodeGenModule::visit(const Identifier &node)
 {
+    Symbol symbol = symbolTableLookup(node.getID());
     if (valueCategory_ == ValueCategory::LVALUE)
     {
-        currentValue_ = symbolTableLookup(node.getID());
+        if (auto **alloca = std::get_if<llvm::AllocaInst *>(&symbol))
+        {
+            currentValue_ = *alloca;
+        }
+        else if (auto **global = std::get_if<llvm::GlobalVariable *>(&symbol))
+        {
+            currentValue_ = *global;
+        }
+        else
+        {
+            throw std::runtime_error("Unknown identifier: " + node.getID());
+        }
     }
     else if (valueCategory_ == ValueCategory::RVALUE)
     {
-        if (llvm::AllocaInst *alloca = symbolTableLookup(node.getID()))
+        if (auto **alloca = std::get_if<llvm::AllocaInst *>(&symbol))
         {
             currentValue_ = builder_->CreateLoad(
-                alloca->getAllocatedType(), alloca, node.getID());
+                (*alloca)->getAllocatedType(), *alloca, node.getID());
         }
-        else if (llvm::Constant *constant = constTableLookup(node.getID()))
+        else if (auto **constant = std::get_if<llvm::Constant *>(&symbol))
         {
-            currentValue_ = constant;
+            currentValue_ = *constant;
+        }
+        else if (auto **global = std::get_if<llvm::GlobalVariable *>(&symbol))
+        {
+            currentValue_ = builder_->CreateLoad(
+                (*global)->getValueType(), *global, node.getID());
         }
         else
         {
@@ -1200,9 +1339,14 @@ void CodeGenModule::visit(const While &node)
  *                          Private methods                                   *
  *****************************************************************************/
 
-llvm::Function *CodeGenModule::getCurrentFunction()
+llvm::Function *CodeGenModule::getCurrentFunction() const
 {
     return builder_->GetInsertBlock()->getParent();
+}
+
+std::string CodeGenModule::getLocalStaticName(const std::string &name) const
+{
+    return getCurrentFunction()->getName().str() + "." + name;
 }
 
 llvm::Type *CodeGenModule::getLLVMType(const BaseNode *node)
@@ -1273,6 +1417,9 @@ llvm::Type *CodeGenModule::getLLVMType(Types ty)
     case Types::LONG:
     case Types::UNSIGNED_LONG:
         return llvm::Type::getInt64Ty(*context_);
+    case Types::LONG_LONG:
+    case Types::UNSIGNED_LONG_LONG:
+        return llvm::Type::getInt128Ty(*context_);
     case Types::FLOAT:
         return llvm::Type::getFloatTy(*context_);
     case Types::DOUBLE:
@@ -1325,12 +1472,12 @@ llvm::Function *CodeGenModule::visitAsFnDesignator(const Expr &expr)
     return static_cast<llvm::Function *>(currentValue_);
 }
 
-void CodeGenModule::symbolTablePush(std::string id, llvm::AllocaInst *alloca)
+void CodeGenModule::symbolTablePush(std::string id, Symbol symbol)
 {
-    symbolTable_.back()[id] = alloca;
+    symbolTable_.back()[id] = symbol;
 }
 
-llvm::AllocaInst *CodeGenModule::symbolTableLookup(std::string id) const
+Symbol CodeGenModule::symbolTableLookup(std::string id) const
 {
     for (auto it = symbolTable_.rbegin(); it != symbolTable_.rend(); ++it)
     {
@@ -1341,39 +1488,17 @@ llvm::AllocaInst *CodeGenModule::symbolTableLookup(std::string id) const
         }
     }
 
-    return nullptr;
-}
-
-void CodeGenModule::constTablePush(std::string id, llvm::Constant *constant)
-{
-    constTable_.back()[id] = constant;
-}
-
-llvm::Constant *CodeGenModule::constTableLookup(std::string id) const
-{
-    for (auto it = constTable_.rbegin(); it != constTable_.rend(); ++it)
-    {
-        auto search = it->find(id);
-        if (search != it->end())
-        {
-            return search->second;
-        }
-    }
-
-    return nullptr;
+    return std::monostate{};
 }
 
 void CodeGenModule::pushScope()
 {
-    symbolTable_.push_back(
-        std::unordered_map<std::string, llvm::AllocaInst *>());
-    constTable_.push_back(std::unordered_map<std::string, llvm::Constant *>());
+    symbolTable_.push_back(std::unordered_map<std::string, Symbol>());
 }
 
 void CodeGenModule::popScope()
 {
     symbolTable_.pop_back();
-    constTable_.pop_back();
 }
 
 llvm::Value *CodeGenModule::runUsualArithmeticConversions(

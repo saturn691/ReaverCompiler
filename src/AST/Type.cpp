@@ -3,13 +3,25 @@
 namespace AST
 {
 
+BaseType::BaseType(const BaseType &other)
+{
+    cvrQualifier_ = other.cvrQualifier_;
+    functionSpecifier_ = other.functionSpecifier_;
+    linkage_ = other.linkage_;
+    storageDuration_ = other.storageDuration_;
+}
+
 ArrayType::ArrayType(Ptr<BaseType> type, size_t size)
     : type_(std::move(type)), size_(size)
 {
+    cvrQualifier_ = type_->cvrQualifier_;
+    functionSpecifier_ = type_->functionSpecifier_;
+    linkage_ = type_->linkage_;
+    storageDuration_ = type_->storageDuration_;
 }
 
 ArrayType::ArrayType(const ArrayType &other)
-    : type_(other.type_->clone()), size_(other.size_)
+    : type_(other.type_->clone()), size_(other.size_), BaseType(other)
 {
 }
 
@@ -30,7 +42,8 @@ bool ArrayType::operator<(const BaseType &other) const
 BasicType::BasicType(Types type) : type_(type)
 {
 }
-BasicType::BasicType(const BasicType &other) : type_(other.type_)
+BasicType::BasicType(const BasicType &other)
+    : type_(other.type_), BaseType(other)
 {
 }
 
@@ -57,6 +70,7 @@ bool BasicType::isSigned() const
     case Types::UNSIGNED_SHORT:
     case Types::UNSIGNED_INT:
     case Types::UNSIGNED_LONG:
+    case Types::UNSIGNED_LONG_LONG:
         return false;
     default:
         return true;
@@ -69,7 +83,7 @@ EnumType::EnumType(std::string name, EnumConsts consts)
 }
 
 EnumType::EnumType(const EnumType &other)
-    : name_(other.name_), consts_(other.consts_)
+    : name_(other.name_), consts_(other.consts_), BaseType(other)
 {
 }
 
@@ -91,11 +105,15 @@ bool EnumType::operator<(const BaseType &other) const
 FnType::FnType(Ptr<ParamType> params, Ptr<BaseType> retType)
     : params_(std::move(params)), retType_(std::move(retType))
 {
+    cvrQualifier_ = retType_->cvrQualifier_;
+    functionSpecifier_ = retType_->functionSpecifier_;
+    linkage_ = retType_->linkage_;
+    storageDuration_ = retType_->storageDuration_;
 }
 
 FnType::FnType(const FnType &other)
     : params_(other.params_->cloneAsDerived()),
-      retType_(other.retType_->clone())
+      retType_(other.retType_->clone()), BaseType(other)
 {
 }
 
@@ -123,7 +141,7 @@ ParamType::ParamType(Params types) : types_(std::move(types))
 {
 }
 
-ParamType::ParamType(const ParamType &other)
+ParamType::ParamType(const ParamType &other) : BaseType(other)
 {
     for (const auto &type : other.types_)
     {
@@ -186,8 +204,14 @@ const BaseType *ParamType::at(size_t i) const
 
 PtrType::PtrType(Ptr<BaseType> type) : type_(std::move(type))
 {
+    cvrQualifier_ = type_->cvrQualifier_;
+    functionSpecifier_ = type_->functionSpecifier_;
+    linkage_ = type_->linkage_;
+    storageDuration_ = type_->storageDuration_;
 }
-PtrType::PtrType(const PtrType &other) : type_(other.type_->clone())
+
+PtrType::PtrType(const PtrType &other)
+    : type_(other.type_->clone()), BaseType(other)
 {
 }
 
@@ -217,7 +241,7 @@ StructType::StructType(Type type, std::string name, Ptr<ParamType> members)
 }
 
 StructType::StructType(const StructType &other)
-    : type_(other.type_), name_(other.name_)
+    : type_(other.type_), name_(other.name_), BaseType(other)
 {
     if (other.params_)
     {
