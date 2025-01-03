@@ -10,6 +10,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace AST;
 
@@ -62,6 +63,7 @@ public:
     void visit(const ArgExprList &node) override;
     void visit(const BinaryOp &node) override;
     void visitLogicalOp(const BinaryOp &node);
+    void visit(const Cast &node) override;
     void visit(const Constant &node) override;
     void visit(const FnCall &node) override;
     void visit(const Identifier &node) override;
@@ -108,6 +110,7 @@ private:
     llvm::SwitchInst *currentSwitch_ = nullptr;
     ValueCategory valueCategory_ = ValueCategory::RVALUE;
     bool isGlobal_ = true;
+    llvm::TargetMachine *targetMachine_;
 
     SymbolTable symbolTable_;
     std::stack<llvm::BasicBlock *> breakStack_;
@@ -128,11 +131,16 @@ private:
     void pushScope();
     void popScope();
 
+    Types getArithmeticConversionType(const BaseType *lhs, const BaseType *rhs);
     llvm::Value *runUsualArithmeticConversions(
         const BaseType *lhs,
         const BaseType *rhs,
-        llvm::Value *val);
+        llvm::Value *lhsVal);
     void runIntegerPromotions(const BaseType *type, llvm::Value *&val);
+    llvm::Value *runCast(
+        llvm::Value *val,
+        const BaseType *initialType,
+        const BaseType *expectedType);
 };
 
 } // namespace CodeGen

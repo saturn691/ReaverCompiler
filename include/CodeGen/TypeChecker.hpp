@@ -50,6 +50,7 @@ public:
     void visit(const Assignment &node) override;
     void visit(const ArgExprList &node) override;
     void visit(const BinaryOp &node) override;
+    void visit(const Cast &node) override;
     void visit(const Constant &node) override;
     void visit(const FnCall &node) override;
     void visit(const Identifier &node) override;

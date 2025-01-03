@@ -16,7 +16,6 @@
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_os_ostream.h>
-#include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/TargetParser/Host.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>
@@ -44,6 +43,27 @@ CodeGenModule::CodeGenModule(std::string outputFile, TypeMap &typeMap)
     llvm::InitializeAllTargetMCs();
     llvm::InitializeAllAsmPrinters();
     llvm::InitializeAllAsmParsers();
+
+    auto targetTriple = llvm::sys::getDefaultTargetTriple();
+    auto CPU = "generic";
+    auto features = "";
+
+    std::string error;
+    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+    if (!target)
+    {
+        llvm::errs() << error;
+    }
+
+    // PIC = Position Independent Code
+    llvm::TargetOptions opt;
+    targetMachine_ = target->createTargetMachine(
+        targetTriple, CPU, features, opt, llvm::Reloc::Model::PIC_);
+
+    module_->setDataLayout(targetMachine_->createDataLayout());
+    module_->setTargetTriple(targetTriple);
+    module_->setSourceFileName(outputFile_);
+    module_->setModuleIdentifier(outputFile_);
 }
 
 void CodeGenModule::emitLLVM()
@@ -62,25 +82,6 @@ void CodeGenModule::emitLLVM()
 
 void CodeGenModule::emitObject()
 {
-    auto targetTriple = llvm::sys::getDefaultTargetTriple();
-    auto CPU = "generic";
-    auto features = "";
-
-    std::string error;
-    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
-    if (!target)
-    {
-        llvm::errs() << error;
-    }
-
-    // PIC = Position Independent Code
-    llvm::TargetOptions opt;
-    auto targetMachine = target->createTargetMachine(
-        targetTriple, CPU, features, opt, llvm::Reloc::Model::PIC_);
-
-    module_->setDataLayout(targetMachine->createDataLayout());
-    module_->setTargetTriple(targetTriple);
-
     // Emit the code
     llvm::legacy::PassManager passManager;
     auto fileType = llvm::CodeGenFileType::ObjectFile;
@@ -93,7 +94,7 @@ void CodeGenModule::emitObject()
         return;
     }
 
-    if (targetMachine->addPassesToEmitFile(passManager, os, nullptr, fileType))
+    if (targetMachine_->addPassesToEmitFile(passManager, os, nullptr, fileType))
     {
         llvm::errs() << "TargetMachine can't emit a file of this type\n";
         return;
@@ -301,15 +302,11 @@ void CodeGenModule::visit(const InitDecl &node)
         {
             if (node.expr_ && node.expr_->eval())
             {
-                init = llvm::ConstantInt::get(
-                    llvm::Type::getInt32Ty(*context_),
-                    *node.expr_->eval(),
-                    false);
+                init = llvm::ConstantInt::get(type, *node.expr_->eval(), false);
             }
             else
             {
-                init = llvm::ConstantInt::get(
-                    llvm::Type::getInt32Ty(*context_), 0, false);
+                init = llvm::ConstantInt::get(type, 0, false);
             }
         }
         else if (type->isArrayTy())
@@ -415,6 +412,8 @@ void CodeGenModule::visit(const InitDecl &node)
         if (node.expr_)
         {
             llvm::Value *initVal = visitAsRValue(*node.expr_);
+            auto *initTy = typeMap_[node.expr_.get()].get();
+            initVal = runCast(initVal, initTy, ty);
             builder_->CreateStore(initVal, var);
         }
     }
@@ -578,6 +577,9 @@ void CodeGenModule::visit(const Assignment &node)
 
     llvm::Value *lhs = visitAsLValue(*node.lhs_);
     llvm::Value *rhs = visitAsRValue(*node.rhs_);
+    auto *lhsType = typeMap_[node.lhs_.get()].get();
+    auto *rhsType = typeMap_[node.rhs_.get()].get();
+    rhs = runCast(rhs, rhsType, lhsType);
 
     switch (node.op_)
     {
@@ -615,13 +617,14 @@ void CodeGenModule::visit(const BinaryOp &node)
 
     llvm::Value *lhs = visitAsRValue(*node.lhs_);
     llvm::Value *rhs = visitAsRValue(*node.rhs_);
-
-    lhs = runUsualArithmeticConversions(
-        typeMap_[node.lhs_.get()].get(), typeMap_[node.rhs_.get()].get(), lhs);
-    rhs = runUsualArithmeticConversions(
-        typeMap_[node.rhs_.get()].get(), typeMap_[node.lhs_.get()].get(), rhs);
+    auto *lhsType = typeMap_[node.lhs_.get()].get();
+    auto *rhsType = typeMap_[node.rhs_.get()].get();
+    lhs = runUsualArithmeticConversions(lhsType, rhsType, lhs);
+    rhs = runUsualArithmeticConversions(rhsType, lhsType, rhs);
 
     bool isFloat = lhs->getType()->isFloatingPointTy();
+    bool isSigned =
+        BasicType(getArithmeticConversionType(lhsType, rhsType)).isSigned();
 
     switch (node.op_)
     {
@@ -653,12 +656,16 @@ void CodeGenModule::visit(const BinaryOp &node)
                                   : builder_->CreateMul(lhs, rhs, "mul");
         break;
     case Op::DIV:
-        currentValue_ = (isFloat) ? builder_->CreateFDiv(lhs, rhs, "div")
-                                  : builder_->CreateSDiv(lhs, rhs, "div");
+        currentValue_ =
+            (isFloat) ? builder_->CreateFDiv(lhs, rhs, "div")
+                      : ((isSigned) ? builder_->CreateSDiv(lhs, rhs, "div")
+                                    : builder_->CreateUDiv(lhs, rhs, "div"));
         break;
     case Op::MOD:
-        currentValue_ = (isFloat) ? builder_->CreateFRem(lhs, rhs, "mod")
-                                  : builder_->CreateSRem(lhs, rhs, "mod");
+        currentValue_ =
+            (isFloat) ? builder_->CreateFRem(lhs, rhs, "mod")
+                      : ((isSigned) ? builder_->CreateSRem(lhs, rhs, "mod")
+                                    : builder_->CreateURem(lhs, rhs, "mod"));
         break;
     case Op::AND:
         currentValue_ = builder_->CreateAnd(lhs, rhs, "and");
@@ -673,7 +680,8 @@ void CodeGenModule::visit(const BinaryOp &node)
         currentValue_ = builder_->CreateShl(lhs, rhs, "shl");
         break;
     case Op::SHR:
-        currentValue_ = builder_->CreateAShr(lhs, rhs, "shr");
+        currentValue_ = (isSigned) ? builder_->CreateAShr(lhs, rhs, "shr")
+                                   : builder_->CreateLShr(lhs, rhs, "shr");
         break;
     case Op::EQ:
         currentValue_ = builder_->CreateICmpEQ(lhs, rhs, "eq");
@@ -682,16 +690,20 @@ void CodeGenModule::visit(const BinaryOp &node)
         currentValue_ = builder_->CreateICmpNE(lhs, rhs, "ne");
         break;
     case Op::LT:
-        currentValue_ = builder_->CreateICmpSLT(lhs, rhs, "lt");
+        currentValue_ = (isSigned) ? builder_->CreateICmpSLT(lhs, rhs, "lt")
+                                   : builder_->CreateICmpULT(lhs, rhs, "lt");
         break;
     case Op::GT:
-        currentValue_ = builder_->CreateICmpSGT(lhs, rhs, "gt");
+        currentValue_ = (isSigned) ? builder_->CreateICmpSGT(lhs, rhs, "gt")
+                                   : builder_->CreateICmpUGT(lhs, rhs, "gt");
         break;
     case Op::LE:
-        currentValue_ = builder_->CreateICmpSLE(lhs, rhs, "le");
+        currentValue_ = (isSigned) ? builder_->CreateICmpSLE(lhs, rhs, "le")
+                                   : builder_->CreateICmpULE(lhs, rhs, "le");
         break;
     case Op::GE:
-        currentValue_ = builder_->CreateICmpSGE(lhs, rhs, "ge");
+        currentValue_ = (isSigned) ? builder_->CreateICmpSGE(lhs, rhs, "ge")
+                                   : builder_->CreateICmpUGE(lhs, rhs, "ge");
         break;
     case Op::LAND:
     case Op::LOR:
@@ -748,6 +760,20 @@ void CodeGenModule::visitLogicalOp(const BinaryOp &node)
     currentValue_ = phi;
 }
 
+void CodeGenModule::visit(const Cast &node)
+{
+    if (valueCategory_ == ValueCategory::LVALUE)
+    {
+        throw std::runtime_error("Cast to LValue not supported");
+    }
+
+    llvm::Value *expr = visitAsRValue(*node.expr_);
+    auto *initialType = typeMap_[node.expr_.get()].get();
+    auto *expectedType = typeMap_[node.type_.get()].get();
+
+    currentValue_ = runCast(expr, initialType, expectedType);
+}
+
 void CodeGenModule::visit(const Constant &node)
 {
     if (valueCategory_ != ValueCategory::RVALUE)
@@ -755,7 +781,10 @@ void CodeGenModule::visit(const Constant &node)
         throw std::runtime_error("Constant to LValue not supported");
     }
 
-    llvm::Type *type = getLLVMType(typeMap_[&node].get());
+    auto *ty = typeMap_[&node].get();
+    auto basicType = dynamic_cast<const BasicType *>(ty);
+    llvm::Type *type = getLLVMType(ty);
+
     if (type->isIntegerTy(8))
     {
         // Gets the 1 or 2 characters between the single quotes
@@ -763,11 +792,15 @@ void CodeGenModule::visit(const Constant &node)
     }
     else if (type->isFloatTy())
     {
-        currentValue_ = llvm::ConstantFP::get(type, std::stof(node.value_));
+        currentValue_ = llvm::ConstantFP::get(type, std::stod(node.value_));
+    }
+    else if (!basicType->isSigned())
+    {
+        currentValue_ = llvm::ConstantInt::get(type, std::stoull(node.value_));
     }
     else
     {
-        currentValue_ = llvm::ConstantInt::get(type, std::stoi(node.value_));
+        currentValue_ = llvm::ConstantInt::get(type, std::stoll(node.value_));
     }
 }
 
@@ -783,11 +816,20 @@ void CodeGenModule::visit(const FnCall &node)
     std::vector<llvm::Value *> args;
     if (node.args_)
     {
-        for (const auto &arg : node.args_->nodes_)
+        for (size_t i = 0; i < node.args_->nodes_.size(); i++)
         {
+            auto &arg = node.args_->nodes_[i];
             std::visit(
-                [this, &args](const auto &arg)
-                { args.push_back(visitAsRValue(*arg)); },
+                [this, &args, &node, &fn, i](const auto &arg)
+                {
+                    llvm::Value *argVal = visitAsRValue(*arg);
+                    auto *initialType = typeMap_[arg.get()].get();
+                    auto *expectedType = dynamic_cast<const ParamType *>(
+                                             typeMap_[node.args_.get()].get())
+                                             ->at(i);
+                    argVal = runCast(argVal, initialType, expectedType);
+                    args.push_back(argVal);
+                },
                 arg);
         }
     }
@@ -855,7 +897,7 @@ void CodeGenModule::visit(const SizeOf &node)
     }
 
     llvm::Type *type = (node.expr_) ? getLLVMType(node.expr_.get())
-                                    : getLLVMType(node.type_->getType().get());
+                                    : getLLVMType(node.type_.get());
 
     currentValue_ = llvm::ConstantInt::get(
         llvm::Type::getInt64Ty(*context_),
@@ -1263,9 +1305,9 @@ void CodeGenModule::visit(const Return &node)
     if (retValue)
     {
         // Check the type of retValue and cast to expected
-        llvm::Type *expectedType = getCurrentFunction()->getReturnType();
-        retValue = builder_->CreateCast(
-            llvm::Instruction::CastOps::ZExt, retValue, expectedType);
+        auto *initialType = typeMap_[node.expr_.get()].get();
+        auto *expectedType = typeMap_[&node].get();
+        retValue = runCast(retValue, initialType, expectedType);
 
         builder_->CreateRet(retValue);
     }
@@ -1501,31 +1543,37 @@ void CodeGenModule::popScope()
     symbolTable_.pop_back();
 }
 
-llvm::Value *CodeGenModule::runUsualArithmeticConversions(
+Types CodeGenModule::getArithmeticConversionType(
     const BaseType *lhs,
-    const BaseType *rhs,
-    llvm::Value *val)
+    const BaseType *rhs)
 {
     auto lhsBasic = dynamic_cast<const BasicType *>(lhs);
     auto rhsBasic = dynamic_cast<const BasicType *>(rhs);
 
     if (!lhsBasic || !rhsBasic)
     {
-        // Could be pointer type, in which case no conversion is needed
-        return val;
+        return Types::VOID;
     }
 
-    Types t = TypeChecker::runUsualArithmeticConversions(
+    return TypeChecker::runUsualArithmeticConversions(
         lhsBasic->type_, rhsBasic->type_);
+}
 
-    // sext is not allowed for i1 (because 1 -> -1)
-    // doesn't matter if we want to promote to signed int
-    if (BasicType(t).isSigned() && !val->getType()->isIntegerTy(1))
+llvm::Value *CodeGenModule::runUsualArithmeticConversions(
+    const BaseType *lhs,
+    const BaseType *rhs,
+    llvm::Value *lhsVal)
+{
+    Types t = getArithmeticConversionType(lhs, rhs);
+
+    if (t == Types::VOID)
     {
-        return builder_->CreateSExt(val, getLLVMType(t));
+        return lhsVal;
     }
 
-    return builder_->CreateZExt(val, getLLVMType(t));
+    auto *expectedType = new BasicType(t);
+
+    return runCast(lhsVal, lhs, expectedType);
 }
 
 void CodeGenModule::runIntegerPromotions(
@@ -1552,6 +1600,72 @@ void CodeGenModule::runIntegerPromotions(
     {
         val = builder_->CreateZExt(val, getLLVMType(t));
     }
+}
+
+llvm::Value *CodeGenModule::runCast(
+    llvm::Value *val,
+    const BaseType *initialType,
+    const BaseType *expectedType)
+{
+    // Will try to do anything to make the types match
+    auto valType = val->getType();
+    auto type = getLLVMType(expectedType);
+
+    if (valType == type)
+    {
+        return val;
+    }
+    if (valType->isFloatingPointTy() && type->isIntegerTy())
+    {
+        return builder_->CreateFPToSI(val, type);
+    }
+    if (valType->isIntegerTy() && type->isFloatingPointTy())
+    {
+        return builder_->CreateSIToFP(val, type);
+    }
+    if (valType->isPointerTy() && type->isIntegerTy())
+    {
+        return builder_->CreatePtrToInt(val, type);
+    }
+    if (valType->isIntegerTy() && type->isPointerTy())
+    {
+        return builder_->CreateIntToPtr(val, type);
+    }
+    if (valType->isPointerTy() && type->isPointerTy())
+    {
+        return builder_->CreateBitCast(val, type);
+    }
+
+    // Should be basic types now
+    auto *initialBasic = dynamic_cast<const BasicType *>(initialType);
+    auto *expectedBasic = dynamic_cast<const BasicType *>(expectedType);
+
+    if (!initialBasic || !expectedBasic)
+    {
+        return val;
+    }
+
+    // int -> long (sext)
+    // int -> unsigned long (sext, C99 6.3.1.3)
+    // unsigned int -> long (zext)
+    // unsigned int -> unsigned long (zext)
+    bool isSigned = initialBasic->isSigned();
+
+    if (valType->isIntegerTy(1) && type->isIntegerTy())
+    {
+        // Special case for booleans
+        return builder_->CreateZExt(val, type);
+    }
+    if (valType->isIntegerTy() && type->isIntegerTy())
+    {
+        return builder_->CreateIntCast(val, type, isSigned);
+    }
+    if (valType->isFloatingPointTy() && type->isFloatingPointTy())
+    {
+        return builder_->CreateFPCast(val, type);
+    }
+
+    return val;
 }
 
 } // namespace CodeGen

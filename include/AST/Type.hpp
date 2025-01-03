@@ -30,6 +30,8 @@ public:
     virtual ~BaseType() = default;
     virtual bool operator==(const BaseType &other) const = 0;
     virtual bool operator!=(const BaseType &other) const = 0;
+
+    // Compatibility operator. Says nothing about truncation.
     virtual bool operator<(const BaseType &other) const = 0;
     virtual bool operator<=(const BaseType &other) const = 0;
     virtual Ptr<BaseType> clone() const = 0;

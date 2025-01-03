@@ -54,11 +54,7 @@ bool BasicType::operator==(const BasicType &other) const
 
 bool BasicType::operator<(const BaseType &other) const
 {
-    if (auto otherType = dynamic_cast<const BasicType *>(&other))
-    {
-        return type_ < otherType->type_;
-    }
-    return false;
+    return dynamic_cast<const BasicType *>(&other);
 }
 
 bool BasicType::isSigned() const

@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <limits>
 
 namespace CodeGen
 {
@@ -704,19 +705,33 @@ void TypeChecker::visit(const BinaryOp &node)
     }
 }
 
+void TypeChecker::visit(const Cast &node)
+{
+    // Check the type of the expression
+    node.expr_->accept(*this);
+
+    // Check the type of the cast
+    node.type_->accept(*this);
+    auto *castType = typeMap_[node.type_.get()].get();
+    auto *exprType = typeMap_[node.expr_.get()].get();
+    checkType(exprType, castType);
+
+    typeMap_[&node] = castType->clone();
+}
+
 void TypeChecker::visit(const Constant &node)
 {
-    // Here we can infer the type of the constant
+    // C99 6.4.4 Constants
     Types t;
     std::string value = node.value_;
 
-    // Floating point constant
     if (value.find('.') != std::string::npos ||
         value.find('e') != std::string::npos ||
         value.find('E') != std::string::npos ||
         value.find('p') != std::string::npos ||
         value.find('P') != std::string::npos)
     {
+        // Floating point constant
         if (value.back() == 'f' || value.back() == 'F')
         {
             t = Types::FLOAT;
@@ -732,7 +747,7 @@ void TypeChecker::visit(const Constant &node)
     }
     else if (value.find("'") != std::string::npos)
     {
-        // TODO wchar_t
+        // Character constant
         if (value.size() == 3 || (value[1] == '\\' && value.size() == 4))
         {
             t = Types::CHAR;
@@ -744,18 +759,70 @@ void TypeChecker::visit(const Constant &node)
     }
     else
     {
-        // TODO this is not exactly correct
-        if (value.back() == 'u' || value.back() == 'U')
+        // Integer constant
+        auto x = value.find_first_not_of("0123456789x");
+        std::string suffix = (x == std::string::npos) ? "" : value.substr(x);
+        bool isUnsigned = suffix.find('u') != std::string::npos ||
+                          suffix.find('U') != std::string::npos;
+        bool isLong = suffix.find('l') != std::string::npos ||
+                      suffix.find('L') != std::string::npos;
+        bool isLongLong = suffix.find("ll") != std::string::npos ||
+                          suffix.find("LL") != std::string::npos;
+
+        // Helper function to determine the type of the integer constant
+        auto getTypeForValue = [](const std::string &value, bool isUnsigned)
         {
-            t = Types::UNSIGNED_INT;
+            if (isUnsigned)
+            {
+                unsigned long long val = std::stoull(value);
+                if (val <= std::numeric_limits<unsigned int>::max())
+                {
+                    return Types::UNSIGNED_INT;
+                }
+                else if (val <= std::numeric_limits<unsigned long>::max())
+                {
+                    return Types::UNSIGNED_LONG;
+                }
+                else
+                {
+                    return Types::UNSIGNED_LONG_LONG;
+                }
+            }
+            else
+            {
+                long long val = std::stoll(value);
+                if (val <= std::numeric_limits<int>::max() &&
+                    val >= std::numeric_limits<int>::min())
+                {
+                    return Types::INT;
+                }
+                else if (
+                    val <= std::numeric_limits<long>::max() &&
+                    val >= std::numeric_limits<long>::min())
+                {
+                    return Types::LONG;
+                }
+                else
+                {
+                    return Types::LONG_LONG;
+                }
+            }
+        };
+
+        if (isLongLong)
+        {
+            t = isUnsigned ? Types::UNSIGNED_LONG_LONG : Types::LONG_LONG;
         }
-        else if (value.back() == 'l' || value.back() == 'L')
+        else if (isLong)
         {
-            t = Types::LONG;
+            t = isUnsigned
+                    ? std::max(
+                          Types::UNSIGNED_LONG, getTypeForValue(value, true))
+                    : std::max(Types::LONG, getTypeForValue(value, false));
         }
         else
         {
-            t = Types::INT;
+            t = getTypeForValue(value, isUnsigned);
         }
     }
 
@@ -800,6 +867,9 @@ void TypeChecker::visit(const FnCall &node)
         {
             checkType(argType->at(i), fnType->params_->at(i));
         }
+
+        // All get casted to the declared types
+        typeMap_[node.args_.get()] = fnType->params_->clone();
     }
 
     typeMap_[&node] = fnType->retType_->clone();
@@ -930,21 +1000,15 @@ void TypeChecker::visit(const UnaryOp &node)
         break;
     case UnaryOp::Op::PLUS:
     case UnaryOp::Op::MINUS:
-        if (!(*actual == BasicType(Types::INT) ||
-              *actual == BasicType(Types::FLOAT) ||
-              *actual == BasicType(Types::DOUBLE)))
+        if (!dynamic_cast<const BasicType *>(actual))
         {
-            os_ << "Error: Expected integer or floating point type"
-                << std::endl;
+            os_ << "Error: Expected arithmetic type" << std::endl;
         }
         typeMap_[&node] = actual->clone();
         break;
     case UnaryOp::Op::NOT:
     case UnaryOp::Op::LNOT:
-        if (!(*actual == BasicType(Types::INT)))
-        {
-            os_ << "Error: Expected integer type" << std::endl;
-        }
+        assertIsIntegerTy(actual);
         typeMap_[&node] = actual->clone();
         break;
     case UnaryOp::Op::POST_DEC:
@@ -987,7 +1051,7 @@ void TypeChecker::visit(const Case &node)
         auto *actual = typeMap_[node.expr_.get()].get();
         if (!(*actual == BasicType(Types::INT)))
         {
-            os_ << "Error: Expected integer type" << std::endl;
+            os_ << "Error: Expected integer type (Case)" << std::endl;
             return;
         }
     }
@@ -1067,6 +1131,9 @@ void TypeChecker::visit(const Return &node)
     }
 
     checkType(actual, fnType->retType_.get());
+
+    // Will be casted to the return type of the function
+    typeMap_[&node] = fnType->retType_->clone();
 }
 
 void TypeChecker::visit(const Switch &node)
@@ -1077,7 +1144,7 @@ void TypeChecker::visit(const Switch &node)
     auto *actual = typeMap_[node.expr_.get()].get();
     if (!(*actual == BasicType(Types::INT)))
     {
-        os_ << "Error: Expected integer type" << std::endl;
+        os_ << "Error: Expected integer type (Switch)" << std::endl;
         return;
     }
 
@@ -1174,12 +1241,17 @@ bool TypeChecker::assertIsIntegerTy(const BaseType *type)
     if (auto *basicType = dynamic_cast<const BasicType *>(type))
     {
         std::vector<Types> allowed = {
+            Types::BOOL,
             Types::CHAR,
-            Types::INT,
-            Types::LONG,
             Types::UNSIGNED_CHAR,
+            Types::INT,
+            Types::SHORT,
+            Types::UNSIGNED_SHORT,
             Types::UNSIGNED_INT,
+            Types::LONG,
             Types::UNSIGNED_LONG,
+            Types::LONG_LONG,
+            Types::UNSIGNED_LONG_LONG,
         };
         if (std::find(allowed.begin(), allowed.end(), basicType->type_) !=
             allowed.end())

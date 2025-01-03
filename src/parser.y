@@ -98,8 +98,8 @@
 %type <struct_member_list> struct_declaration_list
 %type <struct_type> struct_or_union
 %type <unary_op> unary_operator
-%type <compound_type> declaration_specifiers
-%type <type> type_specifier specifier_qualifier_list
+%type <compound_type> declaration_specifiers specifier_qualifier_list
+%type <type> type_specifier 
 %type <type> type_name struct_or_union_specifier type_qualifier
 %type <type> function_specifier storage_class_specifier
 %type <expr> primary_expression postfix_expression unary_expression
@@ -194,6 +194,7 @@ cast_expression
 	: unary_expression
 		{ $$ = $1; }
 	| '(' type_name ')' cast_expression
+		{ $$ = new Cast($2, $4); }
 	;
 
 multiplicative_expression
@@ -456,10 +457,13 @@ struct_declaration
 
 specifier_qualifier_list
 	: type_specifier specifier_qualifier_list
+		{ $2->pushBack($1); $$ = $2; }
 	| type_specifier
-		{ $$ = $1; }
+		{ $$ = new CompoundTypeDecl($1); }
 	| type_qualifier specifier_qualifier_list
+		{ $2->pushBack($1); $$ = $2; }
 	| type_qualifier
+		{ $$ = new CompoundTypeDecl($1); }
 	;
 
 struct_declarator_list

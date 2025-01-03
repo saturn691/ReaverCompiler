@@ -12,6 +12,7 @@ class BinaryOp;
 class BlockItemList;
 class Break;
 class Case;
+class Cast;
 class CompoundStmt;
 class CompoundTypeDecl;
 class Constant;
@@ -94,6 +95,7 @@ public:
     virtual void visit(const Assignment &node) = 0;
     virtual void visit(const ArgExprList &node) = 0;
     virtual void visit(const BinaryOp &node) = 0;
+    virtual void visit(const Cast &node) = 0;
     virtual void visit(const Constant &node) = 0;
     virtual void visit(const FnCall &node) = 0;
     virtual void visit(const Identifier &node) = 0;

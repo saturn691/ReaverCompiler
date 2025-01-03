@@ -539,6 +539,14 @@ void Printer::visit(const BinaryOp &node)
     node.rhs_->accept(*this);
 }
 
+void Printer::visit(const Cast &node)
+{
+    os << "(";
+    node.type_->accept(*this);
+    os << ")";
+    node.expr_->accept(*this);
+}
+
 void Printer::visit(const Constant &node)
 {
     os << node.value_;

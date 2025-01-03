@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <optional>
 #include <unordered_map>
 
@@ -13,6 +14,8 @@ namespace AST
 class Expr : public Stmt
 {
 public:
+    using EvalType = std::optional<long long>;
+
     virtual ~Expr() = default;
 
     virtual bool isLValue() const
@@ -20,7 +23,7 @@ public:
         return false;
     }
 
-    virtual std::optional<int> eval() const
+    virtual EvalType eval() const
     {
         return std::nullopt;
     }
@@ -122,7 +125,7 @@ public:
     {
     }
 
-    std::optional<int> eval() const override
+    EvalType eval() const override
     {
         auto l = lhs_->eval();
         auto r = rhs_->eval();
@@ -181,6 +184,21 @@ public:
 };
 
 /**
+ * Explicit cast expression
+ * e.g. `(int) 1.1`
+ */
+class Cast final : public Node<Cast>, public Expr
+{
+public:
+    Cast(const TypeDecl *type, const Expr *expr) : type_(type), expr_(expr)
+    {
+    }
+
+    Ptr<TypeDecl> type_;
+    Ptr<Expr> expr_;
+};
+
+/**
  * Constant
  * e.g. `10`, `0x12`, `1.1f`
  */
@@ -189,9 +207,15 @@ class Constant final : public Node<Constant>, public Expr
 public:
     Constant(std::string value);
 
-    std::optional<int> eval() const override
+    EvalType eval() const override
     {
-        return std::stoi(value_);
+        if (std::stoull(value_) > std::numeric_limits<long long>::max())
+        {
+            // We can put this unsigned long long into a signed long long
+            // The bit representation will be the same
+            return std::stoull(value_);
+        }
+        return std::stoll(value_);
     }
 
     char getChar() const;
@@ -263,7 +287,7 @@ public:
         return expr_->isLValue();
     }
 
-    std::optional<int> eval() const override
+    EvalType eval() const override
     {
         return expr_->eval();
     }
@@ -408,7 +432,7 @@ public:
         return op_ == Op::DEREF;
     }
 
-    std::optional<int> eval() const override
+    EvalType eval() const override
     {
         auto e = expr_->eval();
 
