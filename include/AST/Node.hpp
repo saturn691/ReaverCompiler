@@ -51,6 +51,9 @@ private:
     friend Derived;
 };
 
+/**
+ * Base class for nodes that contain a list of nodes
+ */
 template <typename... Ts>
 class NodeList
 {
@@ -86,5 +89,14 @@ public:
 
     std::vector<std::variant<std::unique_ptr<const Ts>...>> nodes_;
 };
+
+// Helper class to visit multiple lambdas
+template <class... Ts>
+struct overloads : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts>
+overloads(Ts...) -> overloads<Ts...>;
 
 } // namespace AST

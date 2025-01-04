@@ -11,11 +11,32 @@
 
 namespace AST
 {
+struct EvalType
+{
+    EvalType();
+    EvalType(double value);
+    EvalType(uint64_t value);
+    EvalType(int64_t value);
+
+    std::optional<double> getDouble() const;
+    std::optional<uint64_t> getUInt() const;
+    std::optional<int64_t> getInt() const;
+    operator bool() const;
+
+    template <typename T>
+    bool is() const
+    {
+        return std::holds_alternative<T>(value);
+    }
+
+    Types getType() const;
+
+    std::variant<std::monostate, double, uint64_t, int64_t> value;
+};
+
 class Expr : public Stmt
 {
 public:
-    using EvalType = std::optional<long long>;
-
     virtual ~Expr() = default;
 
     virtual bool isLValue() const
@@ -25,7 +46,7 @@ public:
 
     virtual EvalType eval() const
     {
-        return std::nullopt;
+        return EvalType();
     }
 };
 
@@ -120,63 +141,9 @@ public:
         LOR,
     };
 
-    BinaryOp(const Expr *lhs, const Expr *rhs, Op op)
-        : lhs_(lhs), rhs_(rhs), op_(op)
-    {
-    }
+    BinaryOp(const Expr *lhs, const Expr *rhs, Op op);
 
-    EvalType eval() const override
-    {
-        auto l = lhs_->eval();
-        auto r = rhs_->eval();
-
-        if (!l || !r)
-        {
-            return std::nullopt;
-        }
-
-        switch (op_)
-        {
-        case Op::ADD:
-            return *l + *r;
-        case Op::SUB:
-            return *l - *r;
-        case Op::MUL:
-            return *l * *r;
-        case Op::DIV:
-            return *l / *r;
-        case Op::MOD:
-            return *l % *r;
-        case Op::AND:
-            return *l & *r;
-        case Op::OR:
-            return *l | *r;
-        case Op::XOR:
-            return *l ^ *r;
-        case Op::SHL:
-            return *l << *r;
-        case Op::SHR:
-            return *l >> *r;
-        case Op::EQ:
-            return *l == *r;
-        case Op::NE:
-            return *l != *r;
-        case Op::LT:
-            return *l < *r;
-        case Op::GT:
-            return *l > *r;
-        case Op::LE:
-            return *l <= *r;
-        case Op::GE:
-            return *l >= *r;
-        case Op::LAND:
-            return *l && *r;
-        case Op::LOR:
-            return *l || *r;
-        }
-
-        return std::nullopt;
-    }
+    EvalType eval() const override;
 
     Ptr<Expr> lhs_;
     Ptr<Expr> rhs_;
@@ -207,16 +174,7 @@ class Constant final : public Node<Constant>, public Expr
 public:
     Constant(std::string value);
 
-    EvalType eval() const override
-    {
-        if (std::stoull(value_) > std::numeric_limits<long long>::max())
-        {
-            // We can put this unsigned long long into a signed long long
-            // The bit representation will be the same
-            return std::stoull(value_);
-        }
-        return std::stoll(value_);
-    }
+    EvalType eval() const override;
 
     char getChar() const;
 
@@ -248,7 +206,7 @@ public:
  * Identifier
  * e.g. `a`, `foo`
  */
-class Identifier final : public Node<Identifier>, public Expr, public Decl
+class Identifier final : public Node<Identifier>, public Decl, public Expr
 {
 public:
     Identifier(std::string name) : name_(std::move(name))
@@ -272,27 +230,48 @@ public:
  * Parenthesized expression
  * e.g. `(a + b)`
  */
-class Paren final : public Node<Paren>, public Expr
+class Paren final : public Node<Paren>, public Decl, public Expr
 {
 public:
     Paren(const Expr *expr) : expr_(expr)
     {
     }
+    Paren(const Decl *decl) : decl_(decl)
+    {
+    }
+
+    std::string getID() const override
+    {
+        if (decl_)
+        {
+            return decl_->getID();
+        }
+        return "";
+    }
 
     bool isLValue() const override
     {
-        // cppreference: The following expressions are lvalues ...
-        // "parenthesized expression if the unparenthesized expression is an
-        // lvalue"
-        return expr_->isLValue();
+        if (expr_)
+        {
+            // cppreference: The following expressions are lvalues ...
+            // "parenthesized expression if the unparenthesized expression is an
+            // lvalue"
+            return expr_->isLValue();
+        }
+        return false;
     }
 
     EvalType eval() const override
     {
-        return expr_->eval();
+        if (expr_)
+        {
+            return expr_->eval();
+        }
+        return {};
     }
 
-    Ptr<Expr> expr_;
+    Ptr<Decl> decl_; // Optional
+    Ptr<Expr> expr_; // Optional
 };
 
 /**
@@ -432,37 +411,7 @@ public:
         return op_ == Op::DEREF;
     }
 
-    EvalType eval() const override
-    {
-        auto e = expr_->eval();
-
-        if (!e)
-        {
-            return std::nullopt;
-        }
-
-        switch (op_)
-        {
-        case Op::PLUS:
-            return +*e;
-        case Op::MINUS:
-            return -*e;
-        case Op::NOT:
-            return ~*e;
-        case Op::LNOT:
-            return !*e;
-        case Op::POST_DEC:
-            return *e;
-        case Op::POST_INC:
-            return *e;
-        case Op::PRE_DEC:
-            return --*e;
-        case Op::PRE_INC:
-            return ++*e;
-        default:
-            return std::nullopt;
-        }
-    }
+    EvalType eval() const override;
 
     Ptr<Expr> expr_;
     Op op_;

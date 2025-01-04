@@ -21,6 +21,16 @@ TypeChecker::TypeChecker(std::ostream &os) : os_(os)
  *                          Declarations                                      *
  *****************************************************************************/
 
+void TypeChecker::visit(const AbstractTypeDecl &node)
+{
+    // Does not instantiate a type, rather passes information down
+    Ptr<BaseType> oldType = currentType_->clone();
+    node.type_->accept(*this);
+    node.decl_->accept(*this);
+    typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
+    currentType_ = std::move(oldType);
+}
+
 void TypeChecker::visit(const ArrayDecl &node)
 {
     // Type check the size
@@ -35,7 +45,7 @@ void TypeChecker::visit(const ArrayDecl &node)
     if (size)
     {
         currentType_ =
-            std::make_unique<ArrayType>(currentType_->clone(), *size);
+            std::make_unique<ArrayType>(currentType_->clone(), *size.getUInt());
     }
     else
     {
@@ -119,9 +129,9 @@ void TypeChecker::visit(const Enum &node)
         int lastSeenVal = -1;
         for (const auto &member : node.members_->nodes_)
         {
-            auto enumMember = std::get<0>(member).get();
+            auto *enumMember = std::get<0>(member).get();
 
-            int val = (enumMember->expr_) ? *enumMember->expr_->eval()
+            int val = (enumMember->expr_) ? *enumMember->expr_->eval().getUInt()
                                           : lastSeenVal + 1;
             enumConsts.push_back({enumMember->getID(), val});
             lastSeenVal = val;
@@ -299,6 +309,14 @@ void TypeChecker::visit(const PtrNode &node)
 {
     // Changes the type
     currentType_ = std::make_unique<PtrType>(currentType_->clone());
+    if (node.ptr_)
+    {
+        node.ptr_->accept(*this);
+    }
+
+    // Technically not the truth, but our TypeChecker is dependent on this
+    // otherwise, we have to do a lot of state tracking (annoying)
+    typeMap_[&node] = currentType_->clone();
 }
 
 void TypeChecker::visit(const Struct &node)
@@ -663,6 +681,8 @@ void TypeChecker::visit(const BinaryOp &node)
     case Op::GT:
     case Op::LE:
     case Op::GE:
+    case Op::LAND:
+    case Op::LOR:
         // Result is always a bool
         typeMap_[&node] = std::make_unique<BasicType>(Types::BOOL);
         break;
@@ -714,7 +734,9 @@ void TypeChecker::visit(const Cast &node)
     node.type_->accept(*this);
     auto *castType = typeMap_[node.type_.get()].get();
     auto *exprType = typeMap_[node.expr_.get()].get();
-    checkType(exprType, castType);
+
+    // Since C is uncivilized, we can cast pretty much anything to anything
+    // Therefore, don't run checkType()
 
     typeMap_[&node] = castType->clone();
 }
@@ -890,8 +912,22 @@ void TypeChecker::visit(const Identifier &node)
 
 void TypeChecker::visit(const Paren &node)
 {
-    node.expr_->accept(*this);
-    typeMap_[&node] = typeMap_[node.expr_.get()]->clone();
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+        typeMap_[&node] = typeMap_[node.expr_.get()]->clone();
+    }
+    else
+    {
+        node.decl_->accept(*this);
+
+        // Abstract declarators could skip this step (if PtrNode)
+        // Normal declarators pass this information up
+        if (typeMap_[node.decl_.get()])
+        {
+            typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
+        }
+    }
 }
 
 void TypeChecker::visit(const SizeOf &node)
@@ -998,26 +1034,22 @@ void TypeChecker::visit(const UnaryOp &node)
             os_ << "Error: Expected pointer type" << std::endl;
         }
         break;
-    case UnaryOp::Op::PLUS:
-    case UnaryOp::Op::MINUS:
-        if (!dynamic_cast<const BasicType *>(actual))
-        {
-            os_ << "Error: Expected arithmetic type" << std::endl;
-        }
-        typeMap_[&node] = actual->clone();
-        break;
     case UnaryOp::Op::NOT:
-    case UnaryOp::Op::LNOT:
         assertIsIntegerTy(actual);
         typeMap_[&node] = actual->clone();
+        break;
+    case UnaryOp::Op::LNOT:
+        typeMap_[&node] = std::make_unique<BasicType>(Types::BOOL);
         break;
     case UnaryOp::Op::POST_DEC:
     case UnaryOp::Op::POST_INC:
     case UnaryOp::Op::PRE_DEC:
     case UnaryOp::Op::PRE_INC:
-        if (!(*actual <= BasicType(Types::INT)))
+    case UnaryOp::Op::PLUS:
+    case UnaryOp::Op::MINUS:
+        if (!dynamic_cast<const BasicType *>(actual))
         {
-            os_ << "Error: Expected implicit integer type" << std::endl;
+            os_ << "Error: Expected arithmetic type" << std::endl;
         }
         typeMap_[&node] = actual->clone();
         break;

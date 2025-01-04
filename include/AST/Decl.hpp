@@ -33,6 +33,32 @@ public:
 };
 
 /**
+ * Abstract type declarators
+ * e.g. `int *[3]`, `int(*const [])(unsigned int, ...)`
+ */
+class AbstractTypeDecl final : public Node<AbstractTypeDecl>, public TypeDecl
+{
+public:
+    AbstractTypeDecl(const TypeDecl *type, const Decl *decl)
+        : type_(type), decl_(decl)
+    {
+    }
+
+    std::string getID() const override
+    {
+        return decl_->getID();
+    }
+
+    Ptr<BaseType> getType() const override
+    {
+        return type_->getType();
+    }
+
+    Ptr<TypeDecl> type_;
+    Ptr<Decl> decl_;
+};
+
+/**
  * Array declaration
  * e.g. `a[10]`
  */
@@ -340,12 +366,17 @@ public:
  * Pointer node
  * e.g. `*` or `const*`
  */
-class PtrNode final : public Node<PtrNode>
+class PtrNode final : public Node<PtrNode>, public Decl
 {
 public:
     PtrNode() = default;
     PtrNode(const PtrNode *ptr) : ptr_(ptr)
     {
+    }
+
+    std::string getID() const override
+    {
+        return "";
     }
 
     unsigned int getPointerLevel() const

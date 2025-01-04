@@ -32,6 +32,7 @@ public:
     void optimize();
 
     // Declarations
+    void visit(const AbstractTypeDecl &node) override;
     void visit(const ArrayDecl &node) override;
     void visit(const BasicTypeDecl &node) override;
     void visit(const CompoundTypeDecl &node) override;
@@ -63,6 +64,7 @@ public:
     void visit(const ArgExprList &node) override;
     void visit(const BinaryOp &node) override;
     void visitLogicalOp(const BinaryOp &node);
+    void visitPtrOp(const BinaryOp &node);
     void visit(const Cast &node) override;
     void visit(const Constant &node) override;
     void visit(const FnCall &node) override;
@@ -131,7 +133,13 @@ private:
     void pushScope();
     void popScope();
 
+    // These generate code in the LLVM IR
+    llvm::Value *isNotZero(llvm::Value *val);
     Types getArithmeticConversionType(const BaseType *lhs, const BaseType *rhs);
+    llvm::Value *runConversions(
+        const BaseType *lhs,
+        const BaseType *rhs,
+        llvm::Value *lhsVal);
     llvm::Value *runUsualArithmeticConversions(
         const BaseType *lhs,
         const BaseType *rhs,

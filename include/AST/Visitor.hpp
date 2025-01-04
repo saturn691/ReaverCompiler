@@ -3,6 +3,7 @@
 namespace AST
 {
 // Forward declarations
+class AbstractTypeDecl;
 class ArrayAccess;
 class ArrayDecl;
 class Assignment;
@@ -65,6 +66,7 @@ public:
     virtual ~Visitor() = default;
 
     // Declarations
+    virtual void visit(const AbstractTypeDecl &node) = 0;
     virtual void visit(const ArrayDecl &node) = 0;
     virtual void visit(const BasicTypeDecl &node) = 0;
     virtual void visit(const CompoundTypeDecl &node) = 0;
@@ -121,13 +123,4 @@ public:
     virtual void visit(const Switch &node) = 0;
     virtual void visit(const While &node) = 0;
 };
-
-// Helper class to visit multiple lambdas
-template <class... Ts>
-struct overloads : Ts...
-{
-    using Ts::operator()...;
-};
-template <class... Ts>
-overloads(Ts...) -> overloads<Ts...>;
 } // namespace AST

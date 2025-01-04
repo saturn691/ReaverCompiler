@@ -73,20 +73,28 @@
 
 %type <string> IDENTIFIER CONSTANT STRING_LITERAL TYPE_NAME
 
-%type <tu> translation_unit
-%type <func_def> function_definition
 %type <assignment_op> assignment_operator
 %type <arg_expr_list> argument_expression_list
 %type <block_item_> block_item
 %type <block_item_list_> block_item_list
 %type <compound_stmt> compound_statement
+%type <compound_type> declaration_specifiers specifier_qualifier_list
+%type <decl> declarator direct_declarator abstract_declarator 
+%type <decl> direct_abstract_declarator
 %type <decl_node> declaration
 %type <enum_> enum_specifier
 %type <enum_member> enumerator
 %type <enum_member_list> enumerator_list
 %type <ext_decl> external_declaration
+%type <expr> initializer constant_expression
+%type <expr> primary_expression postfix_expression unary_expression
+%type <expr> cast_expression multiplicative_expression additive_expression
+%type <expr> shift_expression relational_expression equality_expression
+%type <expr> and_expression exclusive_or_expression inclusive_or_expression
+%type <expr> logical_and_expression logical_or_expression
+%type <expr> conditional_expression assignment_expression expression
 %type <expr_stmt> expression_statement
-%type <decl> declarator direct_declarator
+%type <func_def> function_definition
 %type <init_decl> init_declarator
 %type <init_decl_list> init_declarator_list
 %type <param_decl> parameter_declaration
@@ -97,20 +105,13 @@
 %type <struct_member> struct_declaration
 %type <struct_member_list> struct_declaration_list
 %type <struct_type> struct_or_union
-%type <unary_op> unary_operator
-%type <compound_type> declaration_specifiers specifier_qualifier_list
 %type <type> type_specifier 
 %type <type> type_name struct_or_union_specifier type_qualifier
 %type <type> function_specifier storage_class_specifier
-%type <expr> primary_expression postfix_expression unary_expression
-%type <expr> cast_expression multiplicative_expression additive_expression
-%type <expr> shift_expression relational_expression equality_expression
-%type <expr> and_expression exclusive_or_expression inclusive_or_expression
-%type <expr> logical_and_expression logical_or_expression
-%type <expr> conditional_expression assignment_expression expression
-%type <expr> initializer constant_expression
+%type <unary_op> unary_operator
 %type <stmt> statement labeled_statement jump_statement
 %type <stmt> selection_statement iteration_statement
+%type <tu> translation_unit
 
 
 %start root
@@ -534,6 +535,7 @@ direct_declarator
 	: IDENTIFIER
 		{ $$ = new Identifier(std::string(*$1)); }
 	| '(' declarator ')'
+		{ $$ = new Paren($2); }
 	| direct_declarator '[' type_qualifier_list assignment_expression ']'
 	| direct_declarator '[' type_qualifier_list ']'
 	| direct_declarator '[' assignment_expression ']'
@@ -556,6 +558,7 @@ pointer
 		{ $$ = new PtrNode(); }
 	| '*' type_qualifier_list
 	| '*' pointer
+		{ $$ = new PtrNode($2); }
 	| '*' type_qualifier_list pointer
 	;
 
@@ -583,6 +586,7 @@ parameter_declaration
 	: declaration_specifiers declarator
 		{ $$ = new ParamDecl($1, $2); }
 	| declaration_specifiers abstract_declarator
+		{ $$ = new ParamDecl(new AbstractTypeDecl($1, $2)); }
 	| declaration_specifiers
 		{ $$ = new ParamDecl($1); }
 	;
@@ -596,16 +600,21 @@ type_name
 	: specifier_qualifier_list
 		{ $$ = $1; }
 	| specifier_qualifier_list abstract_declarator
+		{ $$ = new AbstractTypeDecl($1, $2); }
 	;
 
 abstract_declarator
 	: pointer
+		{ $$ = $1; }
 	| direct_abstract_declarator
+		{ $$ = $1; }
 	| pointer direct_abstract_declarator
+		{ $$ = new PtrDecl($1, $2); }
 	;
 
 direct_abstract_declarator
 	: '(' abstract_declarator ')'
+		{ $$ = new Paren($2); }
 	| '[' ']'
 	| '[' assignment_expression ']'
 	| direct_abstract_declarator '[' ']'

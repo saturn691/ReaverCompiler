@@ -54,7 +54,10 @@ bool BasicType::operator==(const BasicType &other) const
 
 bool BasicType::operator<(const BaseType &other) const
 {
-    return dynamic_cast<const BasicType *>(&other);
+    // Compatible with other type, also compatible with pointers (only if it is
+    // 0, but give benefit of the doubt)
+    return dynamic_cast<const BasicType *>(&other) ||
+           dynamic_cast<const PtrType *>(&other);
 }
 
 bool BasicType::isSigned() const

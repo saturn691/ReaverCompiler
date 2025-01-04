@@ -14,6 +14,7 @@ public:
     }
 
     // Declarations
+    void visit(const AbstractTypeDecl &node) override;
     void visit(const ArrayDecl &node) override;
     void visit(const BasicTypeDecl &node) override;
     void visit(const CompoundTypeDecl &node) override;

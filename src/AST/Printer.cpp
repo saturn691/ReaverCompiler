@@ -12,6 +12,13 @@ namespace AST
  *                          Declarations                                      *
  *****************************************************************************/
 
+void Printer::visit(const AbstractTypeDecl &node)
+{
+    node.type_->accept(*this);
+    os << " ";
+    node.decl_->accept(*this);
+}
+
 void Printer::visit(const ArrayDecl &node)
 {
     node.decl_->accept(*this);
@@ -236,6 +243,10 @@ void Printer::visit(const PtrDecl &node)
 void Printer::visit(const PtrNode &node)
 {
     os << "*";
+    if (node.ptr_)
+    {
+        node.ptr_->accept(*this);
+    }
 }
 
 void Printer::visit(const Struct &node)
@@ -571,7 +582,14 @@ void Printer::visit(const Identifier &node)
 void Printer::visit(const Paren &node)
 {
     os << "(";
-    node.expr_->accept(*this);
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+    }
+    else
+    {
+        node.decl_->accept(*this);
+    }
     os << ")";
 }
 

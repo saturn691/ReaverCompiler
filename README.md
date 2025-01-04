@@ -29,13 +29,18 @@ cmake --build .
 
 To run the compiler, run the following command, replacing the flags,
 
-- `-S` for the input file path
 - `-o` for the output file path
 
 For example, this will compile the example program:
 
 ```bash
-build/rcc -S "./compiler_tests/_example/example.c" -o "./example.s"
+build/rcc ./tests/_example/example.c -o ./example.o
+```
+
+Then, invoke your linker to link the object file.
+
+```bash
+clang ./tests/_example/example_driver.c example.o
 ```
 
 ## Credits

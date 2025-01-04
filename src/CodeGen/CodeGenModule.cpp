@@ -140,6 +140,11 @@ void CodeGenModule::optimize()
  *                          Declarations                                      *
  *****************************************************************************/
 
+void CodeGenModule::visit(const AbstractTypeDecl &node)
+{
+    // Intentionally left blank
+}
+
 void CodeGenModule::visit(const ArrayDecl &node)
 {
     // Allocate memory for the array
@@ -298,20 +303,33 @@ void CodeGenModule::visit(const InitDecl &node)
     llvm::Constant *init = nullptr;
     if (!hasExtern)
     {
-        if (!type->isAggregateType())
+        if (type->isIntegerTy() || type->isFloatingPointTy())
         {
             if (node.expr_ && node.expr_->eval())
             {
-                init = llvm::ConstantInt::get(type, *node.expr_->eval(), false);
+                auto eval = node.expr_->eval();
+
+                init = (type->isFloatingPointTy())
+                           ? llvm::ConstantFP::get(type, *eval.getDouble())
+                           : llvm::ConstantInt::get(
+                                 type, *eval.getUInt(), /* isSigned */ false);
             }
             else
             {
-                init = llvm::ConstantInt::get(type, 0, false);
+                init =
+                    (type->isFloatingPointTy())
+                        ? llvm::ConstantFP::get(type, 0.0)
+                        : llvm::ConstantInt::get(type, 0, /* isSigned */ false);
             }
         }
         else if (type->isArrayTy())
         {
             init = llvm::ConstantAggregateZero::get(type);
+        }
+        else if (type->isPointerTy())
+        {
+            init = llvm::ConstantPointerNull::get(
+                static_cast<llvm::PointerType *>(type));
         }
     }
 
@@ -615,10 +633,18 @@ void CodeGenModule::visit(const BinaryOp &node)
         return;
     }
 
-    llvm::Value *lhs = visitAsRValue(*node.lhs_);
-    llvm::Value *rhs = visitAsRValue(*node.rhs_);
     auto *lhsType = typeMap_[node.lhs_.get()].get();
     auto *rhsType = typeMap_[node.rhs_.get()].get();
+
+    if (dynamic_cast<const PtrType *>(lhsType) ||
+        dynamic_cast<const PtrType *>(rhsType))
+    {
+        visitPtrOp(node);
+        return;
+    }
+
+    llvm::Value *lhs = visitAsRValue(*node.lhs_);
+    llvm::Value *rhs = visitAsRValue(*node.rhs_);
     lhs = runUsualArithmeticConversions(lhsType, rhsType, lhs);
     rhs = runUsualArithmeticConversions(rhsType, lhsType, rhs);
 
@@ -629,23 +655,8 @@ void CodeGenModule::visit(const BinaryOp &node)
     switch (node.op_)
     {
     case Op::ADD:
-        if (lhs->getType()->isPointerTy() || rhs->getType()->isPointerTy())
-        {
-            // Pointer arithmetic (getelementptr inbounds)
-            if (rhs->getType()->isPointerTy())
-            {
-                // Pointer becomes lhs
-                std::swap(lhs, rhs);
-            }
-
-            currentValue_ = builder_->CreateInBoundsGEP(
-                getPointerElementType(&node), lhs, rhs, "add");
-        }
-        else
-        {
-            currentValue_ = (isFloat) ? builder_->CreateFAdd(lhs, rhs, "add")
-                                      : builder_->CreateAdd(lhs, rhs, "add");
-        }
+        currentValue_ = (isFloat) ? builder_->CreateFAdd(lhs, rhs, "add")
+                                  : builder_->CreateAdd(lhs, rhs, "add");
         break;
     case Op::SUB:
         currentValue_ = (isFloat) ? builder_->CreateFSub(lhs, rhs, "sub")
@@ -684,26 +695,32 @@ void CodeGenModule::visit(const BinaryOp &node)
                                    : builder_->CreateLShr(lhs, rhs, "shr");
         break;
     case Op::EQ:
-        currentValue_ = builder_->CreateICmpEQ(lhs, rhs, "eq");
+        currentValue_ = (isFloat) ? builder_->CreateFCmpOEQ(lhs, rhs, "eq")
+                                  : builder_->CreateICmpEQ(lhs, rhs, "eq");
         break;
     case Op::NE:
-        currentValue_ = builder_->CreateICmpNE(lhs, rhs, "ne");
+        currentValue_ = (isFloat) ? builder_->CreateFCmpONE(lhs, rhs, "ne")
+                                  : builder_->CreateICmpNE(lhs, rhs, "ne");
         break;
     case Op::LT:
-        currentValue_ = (isSigned) ? builder_->CreateICmpSLT(lhs, rhs, "lt")
-                                   : builder_->CreateICmpULT(lhs, rhs, "lt");
+        currentValue_ = (isFloat)    ? builder_->CreateFCmpOLT(lhs, rhs, "lt")
+                        : (isSigned) ? builder_->CreateICmpSLT(lhs, rhs, "lt")
+                                     : builder_->CreateICmpULT(lhs, rhs, "lt");
         break;
     case Op::GT:
-        currentValue_ = (isSigned) ? builder_->CreateICmpSGT(lhs, rhs, "gt")
-                                   : builder_->CreateICmpUGT(lhs, rhs, "gt");
+        currentValue_ = (isFloat)    ? builder_->CreateFCmpOGT(lhs, rhs, "gt")
+                        : (isSigned) ? builder_->CreateICmpSGT(lhs, rhs, "gt")
+                                     : builder_->CreateICmpUGT(lhs, rhs, "gt");
         break;
     case Op::LE:
-        currentValue_ = (isSigned) ? builder_->CreateICmpSLE(lhs, rhs, "le")
-                                   : builder_->CreateICmpULE(lhs, rhs, "le");
+        currentValue_ = (isFloat)    ? builder_->CreateFCmpOLE(lhs, rhs, "le")
+                        : (isSigned) ? builder_->CreateICmpSLE(lhs, rhs, "le")
+                                     : builder_->CreateICmpULE(lhs, rhs, "le");
         break;
     case Op::GE:
-        currentValue_ = (isSigned) ? builder_->CreateICmpSGE(lhs, rhs, "ge")
-                                   : builder_->CreateICmpUGE(lhs, rhs, "ge");
+        currentValue_ = (isFloat)    ? builder_->CreateFCmpOGE(lhs, rhs, "ge")
+                        : (isSigned) ? builder_->CreateICmpSGE(lhs, rhs, "ge")
+                                     : builder_->CreateICmpUGE(lhs, rhs, "ge");
         break;
     case Op::LAND:
     case Op::LOR:
@@ -720,14 +737,10 @@ void CodeGenModule::visitLogicalOp(const BinaryOp &node)
     llvm::BasicBlock *lhsBB = builder_->GetInsertBlock();
     llvm::BasicBlock *rhsBB = llvm::BasicBlock::Create(*context_, "rhs");
     llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(*context_, "after");
-    auto *lhsType = typeMap_[node.lhs_.get()].get();
-    auto *rhsType = typeMap_[node.rhs_.get()].get();
 
     // LHS
     llvm::Value *lhs = visitAsRValue(*node.lhs_);
-    lhs = runUsualArithmeticConversions(lhsType, rhsType, lhs);
-    llvm::Value *zero = llvm::ConstantInt::get(lhs->getType(), 0);
-    llvm::Value *lhsBool = builder_->CreateICmpNE(lhs, zero, "lhsVal");
+    llvm::Value *lhsBool = isNotZero(lhs);
     lhsBB = builder_->GetInsertBlock();
 
     if (node.op_ == Op::LAND)
@@ -744,8 +757,7 @@ void CodeGenModule::visitLogicalOp(const BinaryOp &node)
     fn->insert(fn->end(), rhsBB);
     builder_->SetInsertPoint(rhsBB);
     llvm::Value *rhs = visitAsRValue(*node.rhs_);
-    rhs = runUsualArithmeticConversions(rhsType, lhsType, rhs);
-    llvm::Value *rhsBool = builder_->CreateICmpNE(rhs, zero, "rhsVal");
+    llvm::Value *rhsBool = isNotZero(rhs);
     builder_->CreateBr(afterBB);
     rhsBB = builder_->GetInsertBlock();
 
@@ -758,6 +770,97 @@ void CodeGenModule::visitLogicalOp(const BinaryOp &node)
     phi->addIncoming(rhsBool, rhsBB);
 
     currentValue_ = phi;
+}
+
+void CodeGenModule::visitPtrOp(const BinaryOp &node)
+{
+    using Op = BinaryOp::Op;
+
+    llvm::Value *lhs = visitAsRValue(*node.lhs_);
+    llvm::Value *rhs = visitAsRValue(*node.rhs_);
+
+    // Helper function for comparisons
+    auto castComparison = [this](llvm::Value *&lhs, llvm::Value *&rhs) -> void
+    {
+        if (lhs->getType()->isIntegerTy())
+        {
+            lhs = builder_->CreateIntToPtr(lhs, rhs->getType(), "inttoptr");
+        }
+        else if (rhs->getType()->isIntegerTy())
+        {
+            rhs = builder_->CreateIntToPtr(rhs, lhs->getType(), "inttoptr");
+        }
+    };
+
+    switch (node.op_)
+    {
+    case Op::ADD:
+        // Pointer arithmetic (getelementptr inbounds)
+        if (rhs->getType()->isPointerTy())
+        {
+            // Pointer becomes lhs
+            std::swap(lhs, rhs);
+        }
+
+        currentValue_ = builder_->CreateInBoundsGEP(
+            getPointerElementType(&node), lhs, rhs, "add");
+
+        break;
+    case Op::SUB:
+        // LHS must be a pointer (otherwise type error)
+        // Pointer subtraction
+        if (rhs->getType()->isPointerTy())
+        {
+            llvm::Type *ptrType = getPointerElementType(&node);
+            currentValue_ = builder_->CreatePtrDiff(ptrType, lhs, rhs, "sub");
+        }
+        else
+        {
+            // Pointer arithmetic
+            rhs = builder_->CreateMul(
+                rhs, llvm::ConstantInt::get(rhs->getType(), -1), "neg");
+            currentValue_ = builder_->CreateInBoundsGEP(
+                getPointerElementType(&node), lhs, rhs, "sub");
+        }
+        break;
+    case Op::EQ:
+        castComparison(lhs, rhs);
+        currentValue_ = builder_->CreateICmpEQ(lhs, rhs, "eq");
+        break;
+    case Op::NE:
+        castComparison(lhs, rhs);
+        currentValue_ = builder_->CreateICmpNE(lhs, rhs, "ne");
+        break;
+    case Op::LT:
+        castComparison(lhs, rhs);
+        currentValue_ = builder_->CreateICmpULT(lhs, rhs, "lt");
+        break;
+    case Op::GT:
+        castComparison(lhs, rhs);
+        currentValue_ = builder_->CreateICmpUGT(lhs, rhs, "gt");
+        break;
+    case Op::LE:
+        castComparison(lhs, rhs);
+        currentValue_ = builder_->CreateICmpULE(lhs, rhs, "le");
+        break;
+    case Op::GE:
+        castComparison(lhs, rhs);
+        currentValue_ = builder_->CreateICmpUGE(lhs, rhs, "ge");
+        break;
+    case Op::MUL:
+    case Op::DIV:
+    case Op::MOD:
+    case Op::AND:
+    case Op::OR:
+    case Op::XOR:
+    case Op::SHL:
+    case Op::SHR:
+        // Undefined behaviour
+    case Op::LAND:
+    case Op::LOR:
+        // Handled in a different function
+        break;
+    }
 }
 
 void CodeGenModule::visit(const Cast &node)
@@ -790,17 +893,17 @@ void CodeGenModule::visit(const Constant &node)
         // Gets the 1 or 2 characters between the single quotes
         currentValue_ = llvm::ConstantInt::get(type, node.getChar());
     }
-    else if (type->isFloatTy())
+    else if (type->isFloatingPointTy())
     {
-        currentValue_ = llvm::ConstantFP::get(type, std::stod(node.value_));
+        currentValue_ = llvm::ConstantFP::get(type, *node.eval().getDouble());
     }
     else if (!basicType->isSigned())
     {
-        currentValue_ = llvm::ConstantInt::get(type, std::stoull(node.value_));
+        currentValue_ = llvm::ConstantInt::get(type, *node.eval().getUInt());
     }
     else
     {
-        currentValue_ = llvm::ConstantInt::get(type, std::stoll(node.value_));
+        currentValue_ = llvm::ConstantInt::get(type, *node.eval().getInt());
     }
 }
 
@@ -886,7 +989,14 @@ void CodeGenModule::visit(const Paren &node)
 {
     // Intentionally don't use the LValue/RValue handling
     // This method is "blind" to the value category, it passes it down
-    node.expr_->accept(*this);
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+    }
+    else
+    {
+        node.decl_->accept(*this);
+    }
 }
 
 void CodeGenModule::visit(const SizeOf &node)
@@ -962,11 +1072,10 @@ void CodeGenModule::visit(const TernaryOp &node)
     llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(*context_, "after");
     auto lhsType = typeMap_[node.lhs_.get()].get();
     auto rhsType = typeMap_[node.rhs_.get()].get();
-    llvm ::Type *type = getLLVMType(&node);
 
     llvm::Value *cond = visitAsRValue(*node.cond_);
     llvm::Value *zero = llvm::ConstantInt::get(cond->getType(), 0);
-    llvm::Value *condBool = builder_->CreateICmpNE(cond, zero, "cond");
+    llvm::Value *condBool = isNotZero(cond);
 
     // True - evaluate LHS. False - evaluate RHS.
     builder_->CreateCondBr(condBool, lhsBB, rhsBB);
@@ -974,7 +1083,7 @@ void CodeGenModule::visit(const TernaryOp &node)
     // LHS
     builder_->SetInsertPoint(lhsBB);
     llvm::Value *lhs = visitAsRValue(*node.lhs_);
-    lhs = runUsualArithmeticConversions(lhsType, rhsType, lhs);
+    lhs = runConversions(lhsType, rhsType, lhs);
     builder_->CreateBr(afterBB);
     lhsBB = builder_->GetInsertBlock();
 
@@ -982,14 +1091,14 @@ void CodeGenModule::visit(const TernaryOp &node)
     fn->insert(fn->end(), rhsBB);
     builder_->SetInsertPoint(rhsBB);
     llvm::Value *rhs = visitAsRValue(*node.rhs_);
-    rhs = runUsualArithmeticConversions(rhsType, lhsType, rhs);
+    rhs = runConversions(rhsType, lhsType, rhs);
     builder_->CreateBr(afterBB);
     rhsBB = builder_->GetInsertBlock();
 
     // After
     fn->insert(fn->end(), afterBB);
     builder_->SetInsertPoint(afterBB);
-    llvm::PHINode *phi = builder_->CreatePHI(type, 2, "phi");
+    llvm::PHINode *phi = builder_->CreatePHI(lhs->getType(), 2, "phi");
     phi->addIncoming(lhs, lhsBB);
     phi->addIncoming(rhs, rhsBB);
 
@@ -1010,7 +1119,12 @@ void CodeGenModule::visit(const UnaryOp &node)
     }
     else
     {
-        llvm::Value *expr;
+        llvm::Value *expr, *add, *sub;
+        llvm::Type *type = getLLVMType(node.expr_.get());
+        bool isFloat = type->isFloatingPointTy();
+        llvm::Value *one =
+            (isFloat) ? llvm::ConstantFP::get(type, 1.0)
+                      : llvm::ConstantInt::get(type, 1, /* isSigned */ false);
 
         switch (node.op_)
         {
@@ -1030,7 +1144,8 @@ void CodeGenModule::visit(const UnaryOp &node)
             break;
         case UnaryOp::Op::MINUS:
             expr = visitAsRValue(*node.expr_);
-            currentValue_ = builder_->CreateNeg(expr, "neg");
+            currentValue_ = (isFloat) ? builder_->CreateFNeg(expr, "neg")
+                                      : builder_->CreateNeg(expr, "neg");
             break;
         case UnaryOp::Op::NOT:
             expr = visitAsRValue(*node.expr_);
@@ -1038,38 +1153,45 @@ void CodeGenModule::visit(const UnaryOp &node)
             break;
         case UnaryOp::Op::LNOT:
             expr = visitAsRValue(*node.expr_);
-            currentValue_ = builder_->CreateICmpEQ(
-                expr, llvm::ConstantInt::get(expr->getType(), 0), "lnot");
+            currentValue_ =
+                (isFloat) ? builder_->CreateFCmpOEQ(
+                                expr, llvm::ConstantFP::get(type, 0.0), "lnot")
+                : (type->isPointerTy())
+                    ? builder_->CreateICmpEQ(
+                          expr,
+                          llvm::ConstantPointerNull::get(
+                              static_cast<llvm::PointerType *>(type)),
+                          "lnot")
+                    : builder_->CreateICmpEQ(
+                          expr,
+                          llvm::ConstantInt::get(type, 0, /* isSigned */ false),
+                          "lnot");
             break;
         case UnaryOp::Op::POST_DEC:
             // `x--` is equivalent to `x = x - 1; return x;`
             expr = visitAsRValue(*node.expr_);
-            builder_->CreateStore(
-                builder_->CreateSub(
-                    expr,
-                    llvm::ConstantInt::get(expr->getType(), 1),
-                    "postdec"),
-                visitAsLValue(*node.expr_));
+            sub = (isFloat) ? builder_->CreateFSub(expr, one, "postdec")
+                            : builder_->CreateSub(expr, one, "postdec");
+            builder_->CreateStore(sub, visitAsLValue(*node.expr_));
             break;
         case UnaryOp::Op::POST_INC:
             // `x++` is equivalent to `x = x + 1; return x;`
             expr = visitAsRValue(*node.expr_);
-            builder_->CreateStore(
-                builder_->CreateAdd(
-                    expr,
-                    llvm::ConstantInt::get(expr->getType(), 1),
-                    "postinc"),
-                visitAsLValue(*node.expr_));
+            add = (isFloat) ? builder_->CreateFAdd(expr, one, "postinc")
+                            : builder_->CreateAdd(expr, one, "postinc");
+            builder_->CreateStore(add, visitAsLValue(*node.expr_));
             break;
         case UnaryOp::Op::PRE_DEC:
             expr = visitAsRValue(*node.expr_);
-            currentValue_ = builder_->CreateSub(
-                expr, llvm::ConstantInt::get(expr->getType(), 1), "postdec");
+            currentValue_ = (isFloat)
+                                ? builder_->CreateFSub(expr, one, "predec")
+                                : builder_->CreateSub(expr, one, "predec");
             break;
         case UnaryOp::Op::PRE_INC:
             expr = visitAsRValue(*node.expr_);
-            currentValue_ = builder_->CreateAdd(
-                expr, llvm::ConstantInt::get(expr->getType(), 1), "postinc");
+            currentValue_ = (isFloat)
+                                ? builder_->CreateFAdd(expr, one, "preinc")
+                                : builder_->CreateAdd(expr, one, "preinc");
             break;
         }
     }
@@ -1112,7 +1234,7 @@ void CodeGenModule::visit(const Case &node)
     {
         // Must evaluate, it is a constant expression
         // Must be an int (or unsigned int) due to integer promotion
-        int value = node.expr_->eval().value();
+        uint64_t value = *node.expr_->eval().getUInt();
         currentSwitch_->addCase(
             llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), value),
             caseBB);
@@ -1164,8 +1286,7 @@ void CodeGenModule::visit(const DoWhile &node)
     fn->insert(fn->end(), condBB);
     builder_->SetInsertPoint(condBB);
     llvm::Value *cond = visitAsRValue(*node.cond_);
-    cond = builder_->CreateICmpNE(
-        cond, llvm::ConstantInt::get(cond->getType(), 0), "loopcond");
+    cond = isNotZero(cond);
     builder_->CreateCondBr(cond, loopBB, afterBB);
 
     // After loop
@@ -1203,8 +1324,7 @@ void CodeGenModule::visit(const For &node)
     if (node.cond_->expr_)
     {
         llvm::Value *cond = visitAsRValue(*node.cond_->expr_);
-        cond = builder_->CreateICmpNE(
-            cond, llvm::ConstantInt::get(cond->getType(), 0), "loopcond");
+        cond = isNotZero(cond);
         builder_->CreateCondBr(cond, loopBB, afterBB);
     }
     else
@@ -1242,8 +1362,7 @@ void CodeGenModule::visit(const For &node)
 void CodeGenModule::visit(const IfElse &node)
 {
     llvm::Value *cond = visitAsRValue(*node.cond_);
-    cond = builder_->CreateICmpNE(
-        cond, llvm::ConstantInt::get(cond->getType(), 0), "ifcond");
+    cond = isNotZero(cond);
 
     llvm::Function *fn = getCurrentFunction();
 
@@ -1357,8 +1476,7 @@ void CodeGenModule::visit(const While &node)
     // Condition
     builder_->SetInsertPoint(condBB);
     llvm::Value *cond = visitAsRValue(*node.cond_);
-    cond = builder_->CreateICmpNE(
-        cond, llvm::ConstantInt::get(cond->getType(), 0), "loopcond");
+    cond = isNotZero(cond);
 
     // Loop body
     ScopeGuard<std::stack<llvm::BasicBlock *>> sg(breakStack_, afterBB);
@@ -1543,6 +1661,32 @@ void CodeGenModule::popScope()
     symbolTable_.pop_back();
 }
 
+llvm::Value *CodeGenModule::isNotZero(llvm::Value *val)
+{
+    llvm::Type *type = val->getType();
+    if (type->isFloatingPointTy())
+    {
+        return builder_->CreateFCmpONE(val, llvm::ConstantFP::get(type, 0));
+    }
+    else if (type->isIntegerTy(1))
+    {
+        // Already a boolean, no need to compare
+        return val;
+    }
+    else if (type->isIntegerTy())
+    {
+        return builder_->CreateICmpNE(val, llvm::ConstantInt::get(type, 0));
+    }
+    else if (type->isPointerTy())
+    {
+        return builder_->CreateICmpNE(
+            val,
+            llvm::ConstantPointerNull::get(
+                llvm::cast<llvm::PointerType>(type)));
+    }
+    throw std::runtime_error("Unknown type");
+}
+
 Types CodeGenModule::getArithmeticConversionType(
     const BaseType *lhs,
     const BaseType *rhs)
@@ -1557,6 +1701,23 @@ Types CodeGenModule::getArithmeticConversionType(
 
     return TypeChecker::runUsualArithmeticConversions(
         lhsBasic->type_, rhsBasic->type_);
+}
+
+llvm::Value *CodeGenModule::runConversions(
+    const BaseType *lhs,
+    const BaseType *rhs,
+    llvm::Value *lhsVal)
+{
+    // lhsVal = 0 (nullptr), rhs = PtrType
+    if (auto val = llvm::dyn_cast<llvm::Constant>(lhsVal))
+    {
+        if (val->isZeroValue() && dynamic_cast<const PtrType *>(rhs))
+        {
+            return runCast(lhsVal, lhs, rhs);
+        }
+    }
+
+    return runUsualArithmeticConversions(lhs, rhs, lhsVal);
 }
 
 llvm::Value *CodeGenModule::runUsualArithmeticConversions(
@@ -1615,14 +1776,6 @@ llvm::Value *CodeGenModule::runCast(
     {
         return val;
     }
-    if (valType->isFloatingPointTy() && type->isIntegerTy())
-    {
-        return builder_->CreateFPToSI(val, type);
-    }
-    if (valType->isIntegerTy() && type->isFloatingPointTy())
-    {
-        return builder_->CreateSIToFP(val, type);
-    }
     if (valType->isPointerTy() && type->isIntegerTy())
     {
         return builder_->CreatePtrToInt(val, type);
@@ -1645,11 +1798,25 @@ llvm::Value *CodeGenModule::runCast(
         return val;
     }
 
+    bool initialSigned = initialBasic->isSigned();
+    bool expectedSigned = expectedBasic->isSigned();
+
+    if (valType->isFloatingPointTy() && type->isIntegerTy())
+    {
+        return (expectedSigned) ? builder_->CreateFPToSI(val, type)
+                                : builder_->CreateFPToUI(val, type);
+    }
+    if (valType->isIntegerTy() && type->isFloatingPointTy())
+    {
+        return (initialSigned) ? builder_->CreateSIToFP(val, type)
+                               : builder_->CreateUIToFP(val, type);
+    }
+
     // int -> long (sext)
     // int -> unsigned long (sext, C99 6.3.1.3)
     // unsigned int -> long (zext)
     // unsigned int -> unsigned long (zext)
-    bool isSigned = initialBasic->isSigned();
+    bool isSigned = initialSigned;
 
     if (valType->isIntegerTy(1) && type->isIntegerTy())
     {
