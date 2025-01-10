@@ -69,6 +69,12 @@ public:
     void visit(const Constant &node) override;
     void visit(const FnCall &node) override;
     void visit(const Identifier &node) override;
+    void visit(const Init &node) override;
+    void visit(const InitList &node) override;
+    void visitRecursiveStore(
+        const InitList &node,
+        std::vector<llvm::Value *> indices);
+    llvm::Constant *visitRecursiveConst(const InitList &node);
     void visit(const Paren &node) override;
     void visit(const SizeOf &node) override;
     void visit(const StringLiteral &node) override;
@@ -98,6 +104,7 @@ private:
     std::unique_ptr<llvm::LLVMContext> context_;
     std::unique_ptr<llvm::IRBuilder<>> builder_;
     std::unique_ptr<llvm::Module> module_;
+    llvm::TargetMachine *targetMachine_;
 
     enum class ValueCategory
     {
@@ -108,16 +115,34 @@ private:
 
     // Contextual information (unfortunately). Use the guard for safety.
     // Used as a "return value" for the visitor
-    llvm::Value *currentValue_ = nullptr;
-    llvm::SwitchInst *currentSwitch_ = nullptr;
-    ValueCategory valueCategory_ = ValueCategory::RVALUE;
-    bool isGlobal_ = true;
-    llvm::TargetMachine *targetMachine_;
-
-    SymbolTable symbolTable_;
+    llvm::Value *currentValue_ = nullptr;                 // For Expr
+    ValueCategory valueCategory_ = ValueCategory::RVALUE; // For Expr
+    llvm::Value *currentStore_ = nullptr;                 // For InitDecl
+    bool isGlobal_ = true;                                // For InitDecl
+    const BaseType *currentExpectedType_ = nullptr;       // For InitDecl
+    llvm::SwitchInst *currentSwitch_ = nullptr;           // For Switch/Case
+    SymbolTable symbolTable_;                             // For Decl
+    // For Break/While/For/Do-While/Switch
     std::stack<llvm::BasicBlock *> breakStack_;
+    // For Continue/While/For/Do-While
     std::stack<llvm::BasicBlock *> continueStack_;
 
+    llvm::AllocaInst *
+    createAlignedAlloca(llvm::Type *type, const llvm::Twine &name);
+    llvm::GlobalVariable *createAlignedGlobalVariable(
+        llvm::Module &M,
+        llvm::Type *Ty,
+        bool isConstant,
+        llvm::GlobalVariable::LinkageTypes Linkage,
+        llvm::Constant *Initializer,
+        const llvm::Twine &Name = "",
+        llvm::GlobalVariable *InsertBefore = nullptr,
+        llvm::GlobalVariable::ThreadLocalMode ThreadLocalMode =
+            llvm::GlobalVariable::NotThreadLocal,
+        std::optional<unsigned> AddressSpace = std::nullopt,
+        bool isExternallyInitialized = false);
+
+    llvm::Align getAlign(llvm::Type *type) const;
     llvm::Function *getCurrentFunction() const;
     std::string getLocalStaticName(const std::string &name) const;
     llvm::Type *getLLVMType(const BaseNode *node);
@@ -126,7 +151,15 @@ private:
     llvm::Type *getPointerElementType(const BaseNode *node);
     llvm::Value *visitAsLValue(const Expr &node);
     llvm::Value *visitAsRValue(const Expr &node);
-    llvm::Function *visitAsFnDesignator(const Expr &expr);
+    llvm::Value *
+    visitAsCastedRValue(const Expr &node, const BaseType *expectedType);
+    llvm::Function *visitAsFnDesignator(const Expr &node);
+    llvm::Constant *
+    visitAsConstant(const Expr &node, const BaseType *expectedType);
+    void visitAsStore(
+        const Expr &node,
+        llvm::Value *val,
+        const BaseType *expectedType);
     void symbolTablePush(std::string id, Symbol symbol);
     Symbol symbolTableLookup(std::string id) const;
 

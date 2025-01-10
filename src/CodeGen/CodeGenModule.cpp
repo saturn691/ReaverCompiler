@@ -257,7 +257,7 @@ void CodeGenModule::visit(const FnDef &node)
     {
         std::string paramName = arg.getName().str();
         llvm::AllocaInst *allocaInst =
-            builder_->CreateAlloca(arg.getType(), nullptr, arg.getName());
+            createAlignedAlloca(arg.getType(), arg.getName());
         symbolTablePush(paramName, allocaInst);
         builder_->CreateStore(&arg, allocaInst);
     }
@@ -297,42 +297,6 @@ void CodeGenModule::visit(const InitDecl &node)
     auto linkage = hasStatic ? llvm::Function::InternalLinkage
                              : llvm::Function::ExternalLinkage;
 
-    // C99 6.7.8.10: Essentially everything with a "static storage duration"
-    // is initialized to 0 (unless specified otherwise). So the tentative
-    // definition acts as an actual definition here.
-    llvm::Constant *init = nullptr;
-    if (!hasExtern)
-    {
-        if (type->isIntegerTy() || type->isFloatingPointTy())
-        {
-            if (node.expr_ && node.expr_->eval())
-            {
-                auto eval = node.expr_->eval();
-
-                init = (type->isFloatingPointTy())
-                           ? llvm::ConstantFP::get(type, *eval.getDouble())
-                           : llvm::ConstantInt::get(
-                                 type, *eval.getUInt(), /* isSigned */ false);
-            }
-            else
-            {
-                init =
-                    (type->isFloatingPointTy())
-                        ? llvm::ConstantFP::get(type, 0.0)
-                        : llvm::ConstantInt::get(type, 0, /* isSigned */ false);
-            }
-        }
-        else if (type->isArrayTy())
-        {
-            init = llvm::ConstantAggregateZero::get(type);
-        }
-        else if (type->isPointerTy())
-        {
-            init = llvm::ConstantPointerNull::get(
-                static_cast<llvm::PointerType *>(type));
-        }
-    }
-
     if (type->isFunctionTy())
     {
         // Global or local function declaration
@@ -355,13 +319,30 @@ void CodeGenModule::visit(const InitDecl &node)
             fn->setLinkage(llvm::Function::ExternalLinkage);
         }
     }
-    else if (isGlobal_)
+    else if (isGlobal_ || hasStatic)
     {
-        llvm::GlobalVariable *gb =
-            module_->getGlobalVariable(node.getID(), true);
+        // Global or local static variable
+        // C99 6.7.8.10: Essentially everything with a "static storage duration"
+        // is initialized to 0 (unless specified otherwise). So the tentative
+        // definition acts as an actual definition here.
+        llvm::Constant *init = nullptr;
+
+        if (node.init_)
+        {
+            init = visitAsConstant(*node.init_.get(), ty);
+        }
+        else if (!hasExtern)
+        {
+            // Zero-initialize the variable
+            init = llvm::Constant::getNullValue(type);
+        }
+
+        std::string name =
+            (isGlobal_) ? node.getID() : getLocalStaticName(node.getID());
+        llvm::GlobalVariable *gb = module_->getGlobalVariable(name, true);
         if (gb)
         {
-            if (node.expr_ || !gb->hasInitializer())
+            if (node.init_ || !gb->hasInitializer())
             {
                 // Definition
                 gb->setInitializer(init);
@@ -373,66 +354,83 @@ void CodeGenModule::visit(const InitDecl &node)
         else
         {
             // Declaration
-            gb = new llvm::GlobalVariable(
+            gb = createAlignedGlobalVariable(
                 *module_,
                 type,
                 /* isConstant */ false,
                 linkage,
                 init,
+                name);
+        }
+
+        // Local static variables searched up by ID not name
+        symbolTablePush(node.getID(), gb);
+    }
+    else if (hasExtern)
+    {
+        // Local extern variable
+        llvm::GlobalVariable *gb =
+            module_->getGlobalVariable(node.getID(), true);
+        if (!gb)
+        {
+            // Variable is already declared somewhere else
+            gb = createAlignedGlobalVariable(
+                *module_,
+                type,
+                /* isConstant */ false,
+                llvm::GlobalValue::ExternalLinkage,
+                /* Initializer */ nullptr,
                 node.getID());
         }
         symbolTablePush(node.getID(), gb);
-    }
-    else if (hasStatic)
-    {
-        // Local static variable acts like a global variable, but cannot be
-        // tentative
-        std::string name = getLocalStaticName(node.getID());
-        llvm::GlobalVariable *gb = new llvm::GlobalVariable(
-            *module_,
-            type,
-            /* isConstant */ false,
-            llvm::GlobalValue::InternalLinkage,
-            init,
-            name);
-        symbolTablePush(node.getID(), gb);
+        // An initializer is not allowed for an extern declaration
     }
     else
     {
-        // Local non-static variable
-        llvm::Value *var;
-        if (hasExtern)
-        {
-            llvm::GlobalVariable *gb =
-                module_->getGlobalVariable(node.getID(), true);
-            if (!gb)
-            {
-                // Variable is already declared somewhere else
-                gb = new llvm::GlobalVariable(
-                    *module_,
-                    type,
-                    /* isConstant */ false,
-                    llvm::GlobalValue::ExternalLinkage,
-                    /* Initializer */ nullptr,
-                    node.getID());
-            }
-            symbolTablePush(node.getID(), gb);
-        }
-        else
-        {
-            // Allocate memory for the variable
-            llvm::AllocaInst *alloca =
-                builder_->CreateAlloca(type, nullptr, node.getID());
-            symbolTablePush(node.getID(), alloca);
-            var = alloca;
-        }
+        // Local non-static, non-extern variable
+        // Allocate memory for the variable
+        llvm::AllocaInst *alloca = createAlignedAlloca(type, node.getID());
 
-        if (node.expr_)
+        symbolTablePush(node.getID(), alloca);
+
+        if (node.init_)
         {
-            llvm::Value *initVal = visitAsRValue(*node.expr_);
-            auto *initTy = typeMap_[node.expr_.get()].get();
-            initVal = runCast(initVal, initTy, ty);
-            builder_->CreateStore(initVal, var);
+            if (type->isArrayTy())
+            {
+                try
+                {
+                    // Try to initialize as a constant (generates less code)
+                    llvm::Constant *cons = visitAsConstant(*node.init_, ty);
+                    llvm::GlobalVariable *gb = createAlignedGlobalVariable(
+                        *module_,
+                        type,
+                        /* isConstant */ true,
+                        llvm::GlobalValue::InternalLinkage,
+                        cons,
+                        "__const." + getLocalStaticName(node.getID()));
+                    builder_->CreateMemCpy(
+                        alloca,
+                        getAlign(type),
+                        gb,
+                        getAlign(type),
+                        module_->getDataLayout().getTypeAllocSize(type));
+                }
+                catch (...)
+                {
+                    // Array initialization (placed here to init only once)
+                    builder_->CreateMemSet(
+                        alloca,
+                        llvm::ConstantInt::get(
+                            llvm::Type::getInt8Ty(*context_), 0, false),
+                        module_->getDataLayout().getTypeAllocSize(type),
+                        llvm::MaybeAlign());
+                    visitAsStore(*node.init_, alloca, ty);
+                }
+            }
+            else
+            {
+                visitAsStore(*node.init_, alloca, ty);
+            }
         }
     }
 }
@@ -555,23 +553,32 @@ void CodeGenModule::visit(const TypeModifier &node)
 void CodeGenModule::visit(const ArrayAccess &node)
 {
     auto valueCategory = valueCategory_;
-    llvm::Value *index = visitAsRValue(*node.index_);
+
+    // Weird semantics of C... `a[5] == 5[a]`
+    const Expr *arrNode = node.arr_.get();
+    const Expr *indexNode = node.index_.get();
+    if (dynamic_cast<const BasicType *>(typeMap_[arrNode].get()))
+    {
+        std::swap(arrNode, indexNode);
+    }
+
+    llvm::Value *index = visitAsRValue(*indexNode);
     llvm::Type *elementType = getLLVMType(&node);
     llvm::Value *arrayPtr;
 
-    if (getLLVMType(node.arr_.get())->isPointerTy())
+    if (getLLVMType(arrNode)->isPointerTy())
     {
         // Load the pointer first
-        llvm::Value *arr = visitAsRValue(*node.arr_);
+        llvm::Value *arr = visitAsRValue(*arrNode);
         arrayPtr = builder_->CreateInBoundsGEP(elementType, arr, index, "gep");
     }
     else
     {
-        llvm::Value *arr = visitAsLValue(*node.arr_);
+        llvm::Value *arr = visitAsLValue(*arrNode);
         llvm::Value *zero =
             llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
         arrayPtr = builder_->CreateInBoundsGEP(
-            getLLVMType(node.arr_.get()), arr, {zero, index}, "gep");
+            getLLVMType(arrNode), arr, {zero, index}, "gep");
     }
 
     if (valueCategory == ValueCategory::LVALUE)
@@ -593,11 +600,9 @@ void CodeGenModule::visit(const Assignment &node)
 
     using Op = Assignment::Op;
 
-    llvm::Value *lhs = visitAsLValue(*node.lhs_);
-    llvm::Value *rhs = visitAsRValue(*node.rhs_);
     auto *lhsType = typeMap_[node.lhs_.get()].get();
-    auto *rhsType = typeMap_[node.rhs_.get()].get();
-    rhs = runCast(rhs, rhsType, lhsType);
+    llvm::Value *lhs = visitAsLValue(*node.lhs_);
+    llvm::Value *rhs = visitAsCastedRValue(*node.rhs_, lhsType);
 
     switch (node.op_)
     {
@@ -637,7 +642,9 @@ void CodeGenModule::visit(const BinaryOp &node)
     auto *rhsType = typeMap_[node.rhs_.get()].get();
 
     if (dynamic_cast<const PtrType *>(lhsType) ||
-        dynamic_cast<const PtrType *>(rhsType))
+        dynamic_cast<const PtrType *>(rhsType) ||
+        dynamic_cast<const ArrayType *>(lhsType) ||
+        dynamic_cast<const ArrayType *>(rhsType))
     {
         visitPtrOp(node);
         return;
@@ -776,8 +783,13 @@ void CodeGenModule::visitPtrOp(const BinaryOp &node)
 {
     using Op = BinaryOp::Op;
 
-    llvm::Value *lhs = visitAsRValue(*node.lhs_);
-    llvm::Value *rhs = visitAsRValue(*node.rhs_);
+    // Array types are loaded in raw (i.e. as pointers)
+    llvm::Value *lhs = (getLLVMType(node.lhs_.get())->isArrayTy())
+                           ? visitAsLValue(*node.lhs_)
+                           : visitAsRValue(*node.lhs_);
+    llvm::Value *rhs = (getLLVMType(node.rhs_.get())->isArrayTy())
+                           ? visitAsLValue(*node.rhs_)
+                           : visitAsRValue(*node.rhs_);
 
     // Helper function for comparisons
     auto castComparison = [this](llvm::Value *&lhs, llvm::Value *&rhs) -> void
@@ -808,10 +820,11 @@ void CodeGenModule::visitPtrOp(const BinaryOp &node)
         break;
     case Op::SUB:
         // LHS must be a pointer (otherwise type error)
+        // RHS must be the same type (otherwise UB)
         // Pointer subtraction
         if (rhs->getType()->isPointerTy())
         {
-            llvm::Type *ptrType = getPointerElementType(&node);
+            llvm::Type *ptrType = getPointerElementType(node.lhs_.get());
             currentValue_ = builder_->CreatePtrDiff(ptrType, lhs, rhs, "sub");
         }
         else
@@ -870,11 +883,9 @@ void CodeGenModule::visit(const Cast &node)
         throw std::runtime_error("Cast to LValue not supported");
     }
 
-    llvm::Value *expr = visitAsRValue(*node.expr_);
-    auto *initialType = typeMap_[node.expr_.get()].get();
     auto *expectedType = typeMap_[node.type_.get()].get();
 
-    currentValue_ = runCast(expr, initialType, expectedType);
+    currentValue_ = visitAsCastedRValue(*node.expr_, expectedType);
 }
 
 void CodeGenModule::visit(const Constant &node)
@@ -925,12 +936,13 @@ void CodeGenModule::visit(const FnCall &node)
             std::visit(
                 [this, &args, &node, &fn, i](const auto &arg)
                 {
-                    llvm::Value *argVal = visitAsRValue(*arg);
-                    auto *initialType = typeMap_[arg.get()].get();
                     auto *expectedType = dynamic_cast<const ParamType *>(
                                              typeMap_[node.args_.get()].get())
                                              ->at(i);
-                    argVal = runCast(argVal, initialType, expectedType);
+
+                    // Arrays cannot be passed by value
+                    llvm::Value *argVal =
+                        visitAsCastedRValue(*arg, expectedType);
                     args.push_back(argVal);
                 },
                 arg);
@@ -943,6 +955,7 @@ void CodeGenModule::visit(const FnCall &node)
 void CodeGenModule::visit(const Identifier &node)
 {
     Symbol symbol = symbolTableLookup(node.getID());
+
     if (valueCategory_ == ValueCategory::LVALUE)
     {
         if (auto **alloca = std::get_if<llvm::AllocaInst *>(&symbol))
@@ -960,7 +973,13 @@ void CodeGenModule::visit(const Identifier &node)
     }
     else if (valueCategory_ == ValueCategory::RVALUE)
     {
-        if (auto **alloca = std::get_if<llvm::AllocaInst *>(&symbol))
+        // Special handling needed for arrays, they decay to pointers
+        llvm::Type *type = getLLVMType(&node);
+        if (type->isArrayTy())
+        {
+            currentValue_ = visitAsLValue(node);
+        }
+        else if (auto **alloca = std::get_if<llvm::AllocaInst *>(&symbol))
         {
             currentValue_ = builder_->CreateLoad(
                 (*alloca)->getAllocatedType(), *alloca, node.getID());
@@ -983,6 +1002,207 @@ void CodeGenModule::visit(const Identifier &node)
     {
         currentValue_ = module_->getFunction(node.getID());
     }
+}
+
+void CodeGenModule::visit(const Init &node)
+{
+    if (valueCategory_ != ValueCategory::RVALUE)
+    {
+        throw std::runtime_error("Init to LValue not supported");
+    }
+
+    if (currentStore_)
+    {
+        // Scenario 1. visitAsStore
+        if (auto *initList = dynamic_cast<const InitList *>(node.expr_.get()))
+        {
+            initList->accept(*this);
+        }
+        else
+        {
+            llvm::Value *val =
+                visitAsCastedRValue(*node.expr_, currentExpectedType_);
+            builder_->CreateStore(val, currentStore_);
+        }
+    }
+    else
+    {
+        // Scenario 2. visitAsConstant
+        if (auto *initList = dynamic_cast<const InitList *>(node.expr_.get()))
+        {
+            initList->accept(*this);
+        }
+        else
+        {
+            // Use .value() as it could throw an exception
+            auto *expectedType = getLLVMType(currentExpectedType_);
+            auto *basicType =
+                dynamic_cast<const BasicType *>(currentExpectedType_);
+
+            if (dynamic_cast<const PtrType *>(currentExpectedType_))
+            {
+                if (node.expr_->eval().getUInt().value() == 0)
+                {
+                    currentValue_ = llvm::ConstantPointerNull::get(
+                        static_cast<llvm::PointerType *>(expectedType));
+                }
+                else
+                {
+                    throw std::runtime_error("Expected a null pointer");
+                }
+            }
+            else if (!basicType)
+            {
+                // OK, this will be caught in a try-catch block in InitDecl
+                throw std::runtime_error("Expected a basic type");
+            }
+            else if (expectedType->isFloatingPointTy())
+            {
+                currentValue_ = llvm::ConstantFP::get(
+                    expectedType, node.expr_->eval().getDouble().value());
+            }
+            else if (basicType->isSigned())
+            {
+                currentValue_ = llvm::ConstantInt::get(
+                    expectedType, node.expr_->eval().getInt().value());
+            }
+            else
+            {
+                currentValue_ = llvm::ConstantInt::get(
+                    expectedType, node.expr_->eval().getUInt().value());
+            }
+        }
+    }
+}
+
+void CodeGenModule::visit(const InitList &node)
+{
+    if (valueCategory_ != ValueCategory::RVALUE)
+    {
+        throw std::runtime_error("InitList to LValue not supported");
+    }
+
+    if (currentStore_)
+    {
+        // Scenario 1. visitAsStore
+        llvm::Value *zero =
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
+        visitRecursiveStore(node, std::vector<llvm::Value *>{zero});
+    }
+    else
+    {
+        // Scenario 2. visitAsConstant
+        currentValue_ = visitRecursiveConst(node);
+    }
+}
+
+void CodeGenModule::visitRecursiveStore(
+    const InitList &node,
+    std::vector<llvm::Value *> indices)
+{
+    for (size_t i = 0; i < node.nodes_.size(); i++)
+    {
+        const BaseType *newType;
+        if (auto *arrType =
+                dynamic_cast<const ArrayType *>(currentExpectedType_))
+        {
+            newType = arrType->type_.get(); // Change the expected type
+        }
+        else if (
+            auto *structType =
+                dynamic_cast<const StructType *>(currentExpectedType_))
+        {
+            // Some long indirection going on but whatever...
+            newType = structType->params_->types_[i].second.get();
+        }
+
+        std::visit(
+            [&](const Ptr<Init> &n)
+            {
+                // Push the index, pop on exit
+                llvm::Value *index = llvm::ConstantInt::get(
+                    llvm::Type::getInt32Ty(*context_), i);
+                ScopeGuard sg(indices, index);
+                llvm::Value *gep = builder_->CreateInBoundsGEP(
+                    getLLVMType(currentExpectedType_),
+                    currentStore_,
+                    indices,
+                    "gep");
+
+                if (auto *initList = dynamic_cast<const InitList *>(n.get()))
+                {
+                    // Recursive case
+                    ScopeGuard sg2(currentExpectedType_, newType);
+                    ScopeGuard sg3(currentStore_, gep);
+                    visitRecursiveStore(*initList, indices);
+                }
+                else
+                {
+                    // Base case (ScopeGuards inserted in function)
+                    visitAsStore(*n, gep, newType);
+                }
+            },
+            node.nodes_[i]);
+    }
+}
+
+llvm::Constant *CodeGenModule::visitRecursiveConst(const InitList &node)
+{
+    // Assume it's an array
+    std::vector<llvm::Constant *> values;
+    llvm::Type *type = getLLVMType(currentExpectedType_);
+
+    for (size_t i = 0; i < node.nodes_.size(); i++)
+    {
+        const BaseType *newType;
+        if (auto *arrType =
+                dynamic_cast<const ArrayType *>(currentExpectedType_))
+        {
+            newType = arrType->type_.get(); // Change the expected type
+        }
+        else if (
+            auto *structType =
+                dynamic_cast<const StructType *>(currentExpectedType_))
+        {
+            // Some long indirection going on but whatever...
+            newType = structType->params_->types_[i].second.get();
+        }
+        ScopeGuard sg(currentExpectedType_, newType);
+
+        std::visit(
+            [&](const auto &n)
+            {
+                if (auto *initList = dynamic_cast<const InitList *>(n.get()))
+                {
+                    // Recursive case
+                    llvm::Constant *val = visitRecursiveConst(*initList);
+                    values.push_back(val);
+                }
+                else
+                {
+                    // Base case
+                    llvm::Constant *val = visitAsConstant(*n, newType);
+                    values.push_back(val);
+                }
+            },
+            node.nodes_[i]);
+    }
+
+    if (type->isArrayTy())
+    {
+        // Fill the array with zeroes
+        while (values.size() < type->getArrayNumElements())
+        {
+            values.push_back(llvm::Constant::getNullValue(
+                static_cast<llvm::ArrayType *>(type)->getElementType()));
+        }
+
+        return llvm::ConstantArray::get(
+            static_cast<llvm::ArrayType *>(type), values);
+    }
+
+    return llvm::ConstantStruct::get(
+        static_cast<llvm::StructType *>(type), values);
 }
 
 void CodeGenModule::visit(const Paren &node)
@@ -1114,6 +1334,7 @@ void CodeGenModule::visit(const UnaryOp &node)
         {
             throw std::runtime_error("UnaryOp to LValue not supported");
         }
+
         // Looks weird, but we need to load the pointer, not get the address
         currentValue_ = visitAsRValue(*node.expr_);
     }
@@ -1125,6 +1346,8 @@ void CodeGenModule::visit(const UnaryOp &node)
         llvm::Value *one =
             (isFloat) ? llvm::ConstantFP::get(type, 1.0)
                       : llvm::ConstantInt::get(type, 1, /* isSigned */ false);
+        llvm::Value *zero =
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
 
         switch (node.op_)
         {
@@ -1133,8 +1356,18 @@ void CodeGenModule::visit(const UnaryOp &node)
             currentValue_ = expr;
             break;
         case UnaryOp::Op::DEREF:
-            expr = visitAsRValue(*node.expr_);
-            // Needs to find out the type again, because of opaque pointers
+            if (type->isArrayTy())
+            {
+                expr = visitAsLValue(*node.expr_);
+                expr = builder_->CreateInBoundsGEP(
+                    type, expr, {zero, zero}, "gep");
+            }
+            else
+            {
+                // Normal pointer type
+                expr = visitAsRValue(*node.expr_);
+            }
+            // Need to find out the type again, because of opaque pointers
             currentValue_ =
                 builder_->CreateLoad(getLLVMType(&node), expr, "deref");
             break;
@@ -1415,18 +1648,10 @@ void CodeGenModule::visit(const IfElse &node)
 
 void CodeGenModule::visit(const Return &node)
 {
-    llvm::Value *retValue = nullptr;
     if (node.expr_)
     {
-        retValue = visitAsRValue(*node.expr_);
-    }
-
-    if (retValue)
-    {
-        // Check the type of retValue and cast to expected
-        auto *initialType = typeMap_[node.expr_.get()].get();
         auto *expectedType = typeMap_[&node].get();
-        retValue = runCast(retValue, initialType, expectedType);
+        llvm::Value *retValue = visitAsCastedRValue(*node.expr_, expectedType);
 
         builder_->CreateRet(retValue);
     }
@@ -1499,6 +1724,63 @@ void CodeGenModule::visit(const While &node)
  *                          Private methods                                   *
  *****************************************************************************/
 
+llvm::AllocaInst *
+CodeGenModule::createAlignedAlloca(llvm::Type *type, const llvm::Twine &name)
+{
+    llvm::AllocaInst *inst = builder_->CreateAlloca(type, nullptr, name);
+    inst->setAlignment(getAlign(type));
+
+    return inst;
+}
+
+llvm::Align CodeGenModule::getAlign(llvm::Type *type) const
+{
+    // _Alignof returns minimum align (e.g. _Alignof(int[4]) = 4, but LLVM
+    // defaults to giving 16, as int[4] >= 16 bytes)
+    int align = module_->getDataLayout().getPrefTypeAlign(type).value();
+    int size = module_->getDataLayout().getTypeAllocSize(type);
+
+    if (size >= 16)
+    {
+        return llvm::Align(std::max(16, align));
+    }
+    else if (size >= 8)
+    {
+        return llvm::Align(std::max(8, align));
+    }
+
+    return llvm::Align(align);
+}
+
+llvm::GlobalVariable *CodeGenModule::createAlignedGlobalVariable(
+    llvm::Module &M,
+    llvm::Type *Ty,
+    bool isConstant,
+    llvm::GlobalVariable::LinkageTypes Linkage,
+    llvm::Constant *Initializer,
+    const llvm::Twine &Name,
+    llvm::GlobalVariable *InsertBefore,
+    llvm::GlobalVariable::ThreadLocalMode ThreadLocalMode,
+    std::optional<unsigned> AddressSpace,
+    bool isExternallyInitialized)
+{
+    llvm::GlobalVariable *GV = new llvm::GlobalVariable(
+        M,
+        Ty,
+        isConstant,
+        Linkage,
+        Initializer,
+        Name,
+        InsertBefore,
+        ThreadLocalMode,
+        AddressSpace,
+        isExternallyInitialized);
+
+    GV->setAlignment(getAlign(Ty));
+
+    return GV;
+}
+
 llvm::Function *CodeGenModule::getCurrentFunction() const
 {
     return builder_->GetInsertBlock()->getParent();
@@ -1506,6 +1788,16 @@ llvm::Function *CodeGenModule::getCurrentFunction() const
 
 std::string CodeGenModule::getLocalStaticName(const std::string &name) const
 {
+    // If already seen before, return "name.1" (local statics can only be
+    // defined once, if it's defined again, it's in another scope, i.e. fresh)
+    static std::unordered_map<std::string, int> counter;
+    counter[name]++;
+    if (counter[name] > 1)
+    {
+        return getCurrentFunction()->getName().str() + "." + name + "." +
+               std::to_string(counter[name]);
+    }
+
     return getCurrentFunction()->getName().str() + "." + name;
 }
 
@@ -1605,31 +1897,66 @@ llvm::Type *CodeGenModule::getPointerElementType(const BaseNode *node)
     throw std::runtime_error("Expected PtrType");
 }
 
-llvm::Value *CodeGenModule::visitAsLValue(const Expr &expr)
+llvm::Value *CodeGenModule::visitAsLValue(const Expr &node)
 {
-    if (expr.isLValue())
-    {
-        valueCategory_ = ValueCategory::LVALUE;
-        expr.accept(*this);
-        return currentValue_;
-    }
-
-    throw std::runtime_error("Expected LValue");
-}
-
-llvm::Value *CodeGenModule::visitAsRValue(const Expr &expr)
-{
-    // Everything can be decayed into an RValue
-    valueCategory_ = ValueCategory::RVALUE;
-    expr.accept(*this);
+    valueCategory_ = ValueCategory::LVALUE;
+    node.accept(*this);
     return currentValue_;
 }
 
-llvm::Function *CodeGenModule::visitAsFnDesignator(const Expr &expr)
+llvm::Value *CodeGenModule::visitAsRValue(const Expr &node)
+{
+    // Everything can be decayed into an RValue
+    valueCategory_ = ValueCategory::RVALUE;
+    node.accept(*this);
+    return currentValue_;
+}
+
+llvm::Value *CodeGenModule::visitAsCastedRValue(
+    const Expr &node,
+    const BaseType *expectedType)
+{
+    auto *initialType = typeMap_[&node].get();
+
+    if (getLLVMType(initialType)->isArrayTy())
+    {
+        // Array to pointer decay (array types cannot be passed)
+        valueCategory_ = ValueCategory::LVALUE;
+    }
+    else
+    {
+        valueCategory_ = ValueCategory::RVALUE;
+    }
+
+    node.accept(*this);
+    return runCast(currentValue_, initialType, expectedType);
+}
+
+llvm::Function *CodeGenModule::visitAsFnDesignator(const Expr &node)
 {
     valueCategory_ = ValueCategory::FN_DESIGNATOR;
-    expr.accept(*this);
+    node.accept(*this);
     return static_cast<llvm::Function *>(currentValue_);
+}
+
+llvm::Constant *
+CodeGenModule::visitAsConstant(const Expr &node, const BaseType *expectedType)
+{
+    valueCategory_ = ValueCategory::RVALUE;
+    ScopeGuard sg2(currentExpectedType_, expectedType);
+    node.accept(*this);
+    return static_cast<llvm::Constant *>(currentValue_);
+}
+
+void CodeGenModule::visitAsStore(
+    const Expr &node,
+    llvm::Value *val,
+    const BaseType *expectedType)
+{
+    ScopeGuard sg(currentStore_, static_cast<llvm::Value *>(val));
+    ScopeGuard sg2(currentExpectedType_, expectedType);
+    valueCategory_ = ValueCategory::RVALUE;
+    node.accept(*this);
 }
 
 void CodeGenModule::symbolTablePush(std::string id, Symbol symbol)

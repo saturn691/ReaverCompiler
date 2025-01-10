@@ -33,8 +33,10 @@
 	EnumMemberList					   	*enum_member_list;
 	EnumMember					   		*enum_member;
 	ExprStmt					   		*expr_stmt;
+	Init					   			*init;
 	InitDecl					   		*init_decl;
 	InitDeclList					   	*init_decl_list;
+	InitList					   		*init_list;
 	Struct::Type					   	struct_type;
 	StructDecl					   		*struct_decl;
 	StructDeclList					   	*struct_decl_list;
@@ -86,7 +88,7 @@
 %type <enum_member> enumerator
 %type <enum_member_list> enumerator_list
 %type <ext_decl> external_declaration
-%type <expr> initializer constant_expression
+%type <expr> constant_expression
 %type <expr> primary_expression postfix_expression unary_expression
 %type <expr> cast_expression multiplicative_expression additive_expression
 %type <expr> shift_expression relational_expression equality_expression
@@ -95,8 +97,10 @@
 %type <expr> conditional_expression assignment_expression expression
 %type <expr_stmt> expression_statement
 %type <func_def> function_definition
+%type <init> initializer
 %type <init_decl> init_declarator
 %type <init_decl_list> init_declarator_list
+%type <init_list> initializer_list
 %type <param_decl> parameter_declaration
 %type <param_list> parameter_list parameter_type_list
 %type <ptr_node> pointer
@@ -629,16 +633,19 @@ direct_abstract_declarator
 
 initializer
 	: assignment_expression
-		{ $$ = $1; }
+		{ $$ = new Init($1); }
 	| '{' initializer_list '}'
-		/* Array initializers */
+		{ $$ = new Init($2); }
 	| '{' initializer_list ',' '}'
+		{ $$ = new Init($2); }
 	;
 
 initializer_list
 	: initializer
+		{ $$ = new InitList($1); }
 	| designation initializer
 	| initializer_list ',' initializer
+		{ $1->pushBack($3); $$ = $1; }
 	| initializer_list ',' designation initializer
 	;
 
@@ -709,6 +716,7 @@ expression_statement
 
 selection_statement
 	: IF '(' expression ')' statement
+		/* Must be placed in this order, solves dangling else */
 		{ $$ = new IfElse($3, $5); }
 	| IF '(' expression ')' statement ELSE statement
 		{ $$ = new IfElse($3, $5, $7); }

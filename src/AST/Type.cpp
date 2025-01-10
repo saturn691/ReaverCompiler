@@ -31,11 +31,18 @@ bool ArrayType::operator==(const ArrayType &other) const
 }
 bool ArrayType::operator<(const BaseType &other) const
 {
-    // Can decay into a pointer, or a void pointer
     if (auto otherType = dynamic_cast<const PtrType *>(&other))
     {
+        // Can decay into a pointer, or a void pointer
         return PtrType(type_->clone()) <= *otherType;
     }
+    else if (auto otherType = dynamic_cast<const ArrayType *>(&other))
+    {
+        // Types can be casted as well
+        // Arrays don't have to be fully initialized e.g. int a[5] = {1};
+        return size_ <= otherType->size_ && *type_ < *otherType->type_;
+    }
+
     return false;
 }
 
@@ -221,10 +228,10 @@ bool PtrType::operator==(const PtrType &other) const
 
 bool PtrType::operator<(const BaseType &other) const
 {
-    // Can only decay into a void pointer
+    // C is uncivilized, we can cast any pointer to any pointer
     if (auto otherType = dynamic_cast<const PtrType *>(&other))
     {
-        return *otherType->type_ == BasicType(Types::VOID);
+        return true;
     }
     return false;
 }

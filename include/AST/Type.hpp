@@ -55,14 +55,14 @@ public:
 
     Ptr<Derived> cloneAsDerived() const
     {
-        return std::make_unique<Derived>(derived());
+        return std::make_unique<Derived>(static_cast<const Derived &>(*this));
     }
 
     bool operator==(const BaseType &other) const override
     {
         if (auto otherType = dynamic_cast<const Derived *>(&other))
         {
-            return derived() == *otherType;
+            return static_cast<const Derived &>(*this) == *otherType;
         }
 
         return false;
@@ -81,11 +81,6 @@ public:
     virtual bool operator==(const Derived &other) const = 0;
 
 private:
-    const Derived &derived() const
-    {
-        return static_cast<const Derived &>(*this);
-    }
-
     Type() = default;
     Type(const Type &) = default;
     friend Derived;

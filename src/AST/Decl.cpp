@@ -41,8 +41,8 @@ InitDecl::InitDecl(const Decl *decl) : decl_(decl)
 {
 }
 
-InitDecl::InitDecl(const Decl *decl, const Expr *expr)
-    : decl_(decl), expr_(expr)
+InitDecl::InitDecl(const Decl *decl, const Init *init)
+    : decl_(decl), init_(init)
 {
 }
 

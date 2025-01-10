@@ -38,15 +38,10 @@ public:
 
     void accept(Visitor &visitor) const override
     {
-        visitor.visit(derived());
+        visitor.visit(static_cast<const Derived &>(*this));
     }
 
 private:
-    const Derived &derived() const
-    {
-        return static_cast<const Derived &>(*this);
-    }
-
     Node() = default;
     friend Derived;
 };

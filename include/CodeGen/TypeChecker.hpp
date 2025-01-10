@@ -55,6 +55,8 @@ public:
     void visit(const Constant &node) override;
     void visit(const FnCall &node) override;
     void visit(const Identifier &node) override;
+    void visit(const Init &node) override;
+    void visit(const InitList &node) override;
     void visit(const Paren &node) override;
     void visit(const SizeOf &node) override;
     void visit(const StringLiteral &node) override;

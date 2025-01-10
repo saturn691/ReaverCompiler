@@ -227,6 +227,30 @@ public:
 };
 
 /**
+ * Initializer (intermediate node)
+ * e.g. `1`, `{1, 2}`
+ */
+class Init final : public Node<Init>, public Expr
+{
+public:
+    Init(const Expr *expr) : expr_(expr)
+    {
+    }
+
+    Ptr<Expr> expr_;
+};
+
+/**
+ * Initializer list
+ * e.g. `{1, 2}`
+ */
+class InitList final : public NodeList<Init>, public Node<InitList>, public Expr
+{
+public:
+    using NodeList::NodeList;
+};
+
+/**
  * Parenthesized expression
  * e.g. `(a + b)`
  */

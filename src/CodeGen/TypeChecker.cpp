@@ -227,12 +227,12 @@ void TypeChecker::visit(const InitDecl &node)
     Ptr<BaseType> expectedType = typeMap_[node.decl_.get()]->clone();
     insertType(node.getID(), expectedType->clone());
 
-    if (node.expr_)
+    if (node.init_)
     {
-        node.expr_->accept(*this);
+        node.init_->accept(*this);
 
         // Check the type of the expression
-        auto *actual = typeMap_[node.expr_.get()].get();
+        auto *actual = typeMap_[node.init_.get()].get();
         checkType(actual, expectedType.get());
     }
 
@@ -266,6 +266,15 @@ void TypeChecker::visit(const ParamDecl &node)
     else
     {
         typeMap_[&node] = currentType_->clone();
+    }
+
+    // Array types are not allowed in function parameters
+    auto *thisType = typeMap_[&node].get();
+    if (auto *arrayType = dynamic_cast<const ArrayType *>(thisType))
+    {
+        // Decay to a pointer type (we lose information, but this is OK, because
+        // we don't care about UB)
+        typeMap_[&node] = std::make_unique<PtrType>(arrayType->type_->clone());
     }
 }
 
@@ -610,9 +619,19 @@ void TypeChecker::visit(const TypeModifier &node)
 
 void TypeChecker::visit(const ArrayAccess &node)
 {
-    // Check the type of the array
+    // Check the type of the array and index
     node.arr_->accept(*this);
+    node.index_->accept(*this);
     auto *arrayType = typeMap_[node.arr_.get()].get();
+    auto *indexType = typeMap_[node.index_.get()].get();
+
+    // Weird semantics but allowed in C... `a[5] == 5[a]`
+    if (dynamic_cast<const BasicType *>(arrayType))
+    {
+        // Swap for the purposes of type checking
+        std::swap(arrayType, indexType);
+    }
+
     if (auto *t = dynamic_cast<const ArrayType *>(arrayType))
     {
         typeMap_[&node] = t->type_->clone();
@@ -627,8 +646,6 @@ void TypeChecker::visit(const ArrayAccess &node)
     }
 
     // Check the type of the index
-    node.index_->accept(*this);
-    auto *indexType = typeMap_[node.index_.get()].get();
     assertIsIntegerTy(indexType);
 }
 
@@ -690,23 +707,44 @@ void TypeChecker::visit(const BinaryOp &node)
         // Pointer arithmetic
         auto *lhsPtr = dynamic_cast<const PtrType *>(lhs);
         auto *rhsPtr = dynamic_cast<const PtrType *>(rhs);
-        if (lhsPtr)
+        auto *lhsArray = dynamic_cast<const ArrayType *>(lhs);
+        auto *rhsArray = dynamic_cast<const ArrayType *>(rhs);
+        if (lhsPtr || lhsArray)
         {
-            if (rhsPtr)
+            if (rhsPtr || rhsArray)
             {
-                // Pointer subtraction
+                // Pointer subtraction, must be same type
+                checkType(lhs, rhs);
                 typeMap_[&node] = std::make_unique<BasicType>(Types::INT);
             }
             else
             {
                 // Pointer arithmetic
-                typeMap_[&node] = lhsPtr->clone();
+                if (lhsArray)
+                {
+                    // Array decay
+                    typeMap_[&node] =
+                        std::make_unique<PtrType>(lhsArray->type_->clone());
+                }
+                else
+                {
+                    typeMap_[&node] = lhsPtr->clone();
+                }
             }
         }
-        else if (rhsPtr)
+        else if (rhsPtr || rhsArray)
         {
             // Pointer arithmetic
-            typeMap_[&node] = rhsPtr->clone();
+            if (rhsArray)
+            {
+                // Array decay
+                typeMap_[&node] =
+                    std::make_unique<PtrType>(rhsArray->type_->clone());
+            }
+            else
+            {
+                typeMap_[&node] = rhsPtr->clone();
+            }
         }
         else
         {
@@ -910,6 +948,31 @@ void TypeChecker::visit(const Identifier &node)
     }
 }
 
+void TypeChecker::visit(const Init &node)
+{
+    node.expr_->accept(*this);
+    typeMap_[&node] = typeMap_[node.expr_.get()]->clone();
+}
+
+void TypeChecker::visit(const InitList &node)
+{
+    Ptr<BaseType> type = nullptr;
+    for (const auto &init : node.nodes_)
+    {
+        std::visit(
+            [this, &type](const auto &init)
+            {
+                init->accept(*this);
+                type = typeMap_[init.get()]->clone();
+            },
+            init);
+    }
+
+    // Could be struct or array, handle struct later
+    typeMap_[&node] =
+        std::make_unique<ArrayType>(std::move(type), node.nodes_.size());
+}
+
 void TypeChecker::visit(const Paren &node)
 {
     if (node.expr_)
@@ -1029,9 +1092,13 @@ void TypeChecker::visit(const UnaryOp &node)
         {
             typeMap_[&node] = ptr->type_->clone();
         }
+        else if (auto *arr = dynamic_cast<const ArrayType *>(actual))
+        {
+            typeMap_[&node] = arr->type_->clone();
+        }
         else
         {
-            os_ << "Error: Expected pointer type" << std::endl;
+            os_ << "Error: Expected pointer/array type" << std::endl;
         }
         break;
     case UnaryOp::Op::NOT:

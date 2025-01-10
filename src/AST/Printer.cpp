@@ -191,10 +191,10 @@ void Printer::visit(const FnDef &node)
 void Printer::visit(const InitDecl &node)
 {
     node.decl_->accept(*this);
-    if (node.expr_)
+    if (node.init_)
     {
         os << " = ";
-        node.expr_->accept(*this);
+        node.init_->expr_->accept(*this);
     }
 }
 
@@ -577,6 +577,26 @@ void Printer::visit(const FnCall &node)
 void Printer::visit(const Identifier &node)
 {
     os << node.name_;
+}
+
+void Printer::visit(const Init &node)
+{
+    node.expr_->accept(*this);
+}
+
+void Printer::visit(const InitList &node)
+{
+    os << "{";
+    for (const auto &expr : node.nodes_)
+    {
+        std::visit(
+            [this](const auto &expr) { expr->expr_->accept(*this); }, expr);
+        if (expr != node.nodes_.back())
+        {
+            os << ", ";
+        }
+    }
+    os << "}";
 }
 
 void Printer::visit(const Paren &node)

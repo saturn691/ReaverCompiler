@@ -7,6 +7,7 @@ namespace AST
 {
 // Forward declarations
 class CompoundStmt;
+class Init;
 class InitDeclList;
 class PtrNode;
 
@@ -285,12 +286,12 @@ class InitDecl final : public Node<InitDecl>, public Decl
 {
 public:
     InitDecl(const Decl *decl);
-    InitDecl(const Decl *decl, const Expr *expr);
+    InitDecl(const Decl *decl, const Init *init);
 
     std::string getID() const override;
 
     Ptr<Decl> decl_;
-    Ptr<Expr> expr_;
+    Ptr<Init> init_;
 };
 
 /**
