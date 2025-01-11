@@ -3,6 +3,7 @@
 namespace AST
 {
 // Forward declarations
+class AbstractArrayDecl;
 class AbstractTypeDecl;
 class ArrayAccess;
 class ArrayDecl;
@@ -68,6 +69,7 @@ public:
     virtual ~Visitor() = default;
 
     // Declarations
+    virtual void visit(const AbstractArrayDecl &node) = 0;
     virtual void visit(const AbstractTypeDecl &node) = 0;
     virtual void visit(const ArrayDecl &node) = 0;
     virtual void visit(const BasicTypeDecl &node) = 0;

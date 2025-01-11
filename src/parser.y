@@ -637,8 +637,10 @@ direct_abstract_declarator
 		{ $$ = new Paren($2); }
 	| '[' ']'
 	| '[' assignment_expression ']'
+		{ $$ = new AbstractArrayDecl($2); }
 	| direct_abstract_declarator '[' ']'
 	| direct_abstract_declarator '[' assignment_expression ']'
+		{ $$ = new AbstractArrayDecl($1, $3); }
 	| '[' '*' ']'
 	| direct_abstract_declarator '[' '*' ']'
 	| '(' ')'

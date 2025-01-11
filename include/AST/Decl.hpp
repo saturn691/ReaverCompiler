@@ -34,6 +34,30 @@ public:
 };
 
 /**
+ * Abstract array declarators
+ * e.g. `[2][3]`, `[10]`
+ */
+class AbstractArrayDecl final : public Node<AbstractArrayDecl>, public Decl
+{
+public:
+    AbstractArrayDecl(const Decl *decl, const Expr *size)
+        : decl_(decl), size_(size)
+    {
+    }
+    AbstractArrayDecl(const Expr *size) : size_(size)
+    {
+    }
+
+    std::string getID() const override
+    {
+        return decl_->getID();
+    }
+
+    Ptr<Decl> decl_; // Optional
+    Ptr<Expr> size_;
+};
+
+/**
  * Abstract type declarators
  * e.g. `int *[3]`, `int(*const [])(unsigned int, ...)`
  */

@@ -12,6 +12,17 @@ namespace AST
  *                          Declarations                                      *
  *****************************************************************************/
 
+void Printer::visit(const AbstractArrayDecl &node)
+{
+    if (node.decl_)
+    {
+        node.decl_->accept(*this);
+    }
+    os << "[";
+    node.size_->accept(*this);
+    os << "]";
+}
+
 void Printer::visit(const AbstractTypeDecl &node)
 {
     node.type_->accept(*this);

@@ -21,6 +21,38 @@ TypeChecker::TypeChecker(std::ostream &os) : os_(os)
  *                          Declarations                                      *
  *****************************************************************************/
 
+void TypeChecker::visit(const AbstractArrayDecl &node)
+{
+    // Type check the size
+    node.size_->accept(*this);
+    assertIsIntegerTy(typeMap_[node.size_.get()].get());
+
+    // Attempt to get a size (otherwise, VLA)
+    auto size = node.size_->eval();
+
+    if (size)
+    {
+        currentType_ =
+            std::make_unique<ArrayType>(currentType_->clone(), *size.getUInt());
+    }
+    else
+    {
+        currentType_ = std::make_unique<ArrayType>(currentType_->clone(), 0);
+    }
+
+    if (node.decl_)
+    {
+        node.decl_->accept(*this);
+        typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
+    }
+    else
+    {
+        // Technically not the truth, but our TypeChecker is dependent on this
+        // otherwise, we have to do a lot of state tracking (annoying)
+        typeMap_[&node] = currentType_->clone();
+    }
+}
+
 void TypeChecker::visit(const AbstractTypeDecl &node)
 {
     // Does not instantiate a type, rather passes information down
@@ -820,7 +852,8 @@ void TypeChecker::visit(const Constant &node)
         // Character constant
         if (value.size() == 3 || (value[1] == '\\' && value.size() == 4))
         {
-            t = Types::CHAR;
+            // C99 6.4.4.4: An integer character constant has type int
+            t = Types::INT;
         }
         else
         {
@@ -1013,7 +1046,10 @@ void TypeChecker::visit(const SizeOf &node)
     {
         node.type_->accept(*this);
     }
-    typeMap_[&node] = std::make_unique<BasicType>(Types::UNSIGNED_INT);
+
+    // C99 6.5.3.4 The sizeof operator has type size_t
+    // Implementation defined but LLVM uses uint64_t
+    typeMap_[&node] = std::make_unique<BasicType>(Types::UNSIGNED_LONG);
 }
 
 void TypeChecker::visit(const StringLiteral &node)
@@ -1076,9 +1112,18 @@ void TypeChecker::visit(const TernaryOp &node)
 
     if (thenExprBasic && elseExprBasic)
     {
-        typeMap_[&node] =
-            std::make_unique<BasicType>(runUsualArithmeticConversions(
-                thenExprBasic->type_, elseExprBasic->type_));
+        // Both operands can be void type
+        if (thenExprBasic->type_ == Types::VOID &&
+            elseExprBasic->type_ == Types::VOID)
+        {
+            typeMap_[&node] = std::make_unique<BasicType>(Types::VOID);
+        }
+        else
+        {
+            typeMap_[&node] =
+                std::make_unique<BasicType>(runUsualArithmeticConversions(
+                    thenExprBasic->type_, elseExprBasic->type_));
+        }
     }
     else
     {
@@ -1228,10 +1273,6 @@ void TypeChecker::visit(const IfElse &node)
 
 void TypeChecker::visit(const Return &node)
 {
-    node.expr_->accept(*this);
-
-    // Return type must match FnDef return type
-    auto *actual = typeMap_[node.expr_.get()].get();
 
     // Cast expected to FnType
     auto *t = typeMap_[currentFunction_].get();
@@ -1242,7 +1283,19 @@ void TypeChecker::visit(const Return &node)
         return;
     }
 
-    checkType(actual, fnType->retType_.get());
+    if (node.expr_)
+    {
+        node.expr_->accept(*this);
+
+        // Return type must match FnDef return type
+        auto *actual = typeMap_[node.expr_.get()].get();
+        checkType(actual, fnType->retType_.get());
+    }
+    else
+    {
+        auto voidType = std::make_unique<BasicType>(Types::VOID);
+        checkType(voidType.get(), fnType->retType_.get());
+    }
 
     // Will be casted to the return type of the function
     typeMap_[&node] = fnType->retType_->clone();

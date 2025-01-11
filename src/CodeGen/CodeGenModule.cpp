@@ -140,6 +140,11 @@ void CodeGenModule::optimize()
  *                          Declarations                                      *
  *****************************************************************************/
 
+void CodeGenModule::visit(const AbstractArrayDecl &node)
+{
+    // Intentionally left blank
+}
+
 void CodeGenModule::visit(const AbstractTypeDecl &node)
 {
     // Intentionally left blank
@@ -1319,6 +1324,8 @@ void CodeGenModule::visit(const TernaryOp &node)
     llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(*context_, "after");
     auto lhsType = typeMap_[node.lhs_.get()].get();
     auto rhsType = typeMap_[node.rhs_.get()].get();
+    // Void types in the ternary operator (lhsType and rhsType) is valid in C
+    bool isVoidType = getLLVMType(&node)->isVoidTy();
 
     llvm::Value *cond = visitAsRValue(*node.cond_);
     llvm::Value *zero = llvm::ConstantInt::get(cond->getType(), 0);
@@ -1330,7 +1337,10 @@ void CodeGenModule::visit(const TernaryOp &node)
     // LHS
     builder_->SetInsertPoint(lhsBB);
     llvm::Value *lhs = visitAsRValue(*node.lhs_);
-    lhs = runConversions(lhsType, rhsType, lhs);
+    if (!isVoidType)
+    {
+        lhs = runConversions(lhsType, rhsType, lhs);
+    }
     builder_->CreateBr(afterBB);
     lhsBB = builder_->GetInsertBlock();
 
@@ -1338,18 +1348,29 @@ void CodeGenModule::visit(const TernaryOp &node)
     fn->insert(fn->end(), rhsBB);
     builder_->SetInsertPoint(rhsBB);
     llvm::Value *rhs = visitAsRValue(*node.rhs_);
-    rhs = runConversions(rhsType, lhsType, rhs);
+    if (!isVoidType)
+    {
+        rhs = runConversions(rhsType, lhsType, rhs);
+    }
     builder_->CreateBr(afterBB);
     rhsBB = builder_->GetInsertBlock();
 
     // After
     fn->insert(fn->end(), afterBB);
     builder_->SetInsertPoint(afterBB);
-    llvm::PHINode *phi = builder_->CreatePHI(lhs->getType(), 2, "phi");
-    phi->addIncoming(lhs, lhsBB);
-    phi->addIncoming(rhs, rhsBB);
 
-    currentValue_ = phi;
+    if (isVoidType)
+    {
+        currentValue_ = nullptr;
+    }
+    else
+    {
+        llvm::PHINode *phi = builder_->CreatePHI(lhs->getType(), 2, "phi");
+        phi->addIncoming(lhs, lhsBB);
+        phi->addIncoming(rhs, rhsBB);
+
+        currentValue_ = phi;
+    }
 }
 
 void CodeGenModule::visit(const UnaryOp &node)
