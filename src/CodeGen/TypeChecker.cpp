@@ -539,7 +539,12 @@ void TypeChecker::visit(const TypeModifier &node)
             throw std::runtime_error("Invalid type for length modifier");
         }
 
-        this->currentType_ = std::make_unique<BasicType>(t);
+        this->currentType_ = std::make_unique<BasicType>(
+            t,
+            this->currentType_->cvrQualifier_,
+            this->currentType_->functionSpecifier_,
+            this->currentType_->linkage_,
+            this->currentType_->storageDuration_);
     };
     auto visitSignedness = [this](Signedness s)
     {
@@ -578,7 +583,12 @@ void TypeChecker::visit(const TypeModifier &node)
                 throw std::runtime_error(
                     "Invalid type for signedness modifier");
             }
-            this->currentType_ = std::make_unique<BasicType>(ty);
+            this->currentType_ = std::make_unique<BasicType>(
+                ty,
+                this->currentType_->cvrQualifier_,
+                this->currentType_->functionSpecifier_,
+                this->currentType_->linkage_,
+                this->currentType_->storageDuration_);
             break;
         }
     };
@@ -1101,24 +1111,27 @@ void TypeChecker::visit(const UnaryOp &node)
             os_ << "Error: Expected pointer/array type" << std::endl;
         }
         break;
-    case UnaryOp::Op::NOT:
-        assertIsIntegerTy(actual);
-        typeMap_[&node] = actual->clone();
-        break;
     case UnaryOp::Op::LNOT:
         typeMap_[&node] = std::make_unique<BasicType>(Types::BOOL);
         break;
+    case UnaryOp::Op::NOT:
+        assertIsIntegerTy(actual);
+        // Fall through
     case UnaryOp::Op::POST_DEC:
     case UnaryOp::Op::POST_INC:
     case UnaryOp::Op::PRE_DEC:
     case UnaryOp::Op::PRE_INC:
     case UnaryOp::Op::PLUS:
     case UnaryOp::Op::MINUS:
-        if (!dynamic_cast<const BasicType *>(actual))
+        if (auto *basicType = dynamic_cast<const BasicType *>(actual))
+        {
+            typeMap_[&node] = std::make_unique<BasicType>(
+                runIntegerPromotions(basicType->type_));
+        }
+        else
         {
             os_ << "Error: Expected arithmetic type" << std::endl;
         }
-        typeMap_[&node] = actual->clone();
         break;
     }
 }

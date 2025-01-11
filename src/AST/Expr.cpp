@@ -22,6 +22,10 @@ EvalType::EvalType(int64_t value) : value(value)
 {
 }
 
+EvalType::EvalType(std::string value) : value(std::move(value))
+{
+}
+
 std::optional<double> EvalType::getDouble() const
 {
     if (std::holds_alternative<double>(value))
@@ -76,6 +80,16 @@ std::optional<int64_t> EvalType::getInt() const
     return std::nullopt;
 }
 
+std::optional<std::string> EvalType::getString() const
+{
+    if (std::holds_alternative<std::string>(value))
+    {
+        return std::get<std::string>(value);
+    }
+
+    return std::nullopt;
+}
+
 EvalType::operator bool() const
 {
     return !std::holds_alternative<std::monostate>(value);
@@ -109,7 +123,7 @@ EvalType BinaryOp::eval() const
     auto l = lhs_->eval();
     auto r = rhs_->eval();
 
-    if (!l || !r)
+    if (!l || !r || l.is<std::string>() || r.is<std::string>())
     {
         return {};
     }
@@ -253,6 +267,10 @@ EvalType Constant::eval() const
 {
     // We can put this unsigned long long or double into a signed long long
     // The bit representation will be the same
+    if (value_.find_first_of("'\"") != std::string::npos)
+    {
+        return static_cast<uint64_t>(getChar());
+    }
     if (value_.find_first_of("eEpP.") != std::string::npos)
     {
         // std::stod does not work for Inf, NaN or subnormals
@@ -348,4 +366,28 @@ EvalType UnaryOp::eval() const
 
     return {};
 }
+
+StringLiteral::StringLiteral(std::string value) : originalValue_(value)
+{
+    value_.reserve(value.size());
+
+    for (size_t i = 1; i < value.size() - 1; i++)
+    {
+        if (value[i] == '\\')
+        {
+            i++;
+            value_ += Constant::escapeChars.at(value[i]);
+        }
+        else
+        {
+            value_ += value[i];
+        }
+    }
+}
+
+EvalType StringLiteral::eval() const
+{
+    return value_;
+}
+
 } // namespace AST

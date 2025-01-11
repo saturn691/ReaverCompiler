@@ -40,7 +40,9 @@ bool ArrayType::operator<(const BaseType &other) const
     {
         // Types can be casted as well
         // Arrays don't have to be fully initialized e.g. int a[5] = {1};
-        return size_ <= otherType->size_ && *type_ < *otherType->type_;
+        // String literals can fit without the null terminator e.g. char a[3] =
+        // "abc" (size 4);
+        return size_ <= otherType->size_ + 1 && *type_ < *otherType->type_;
     }
 
     return false;
@@ -49,6 +51,21 @@ bool ArrayType::operator<(const BaseType &other) const
 BasicType::BasicType(Types type) : type_(type)
 {
 }
+
+BasicType::BasicType(
+    Types type,
+    std::optional<CVRQualifier> cvrQualifier,
+    std::optional<FunctionSpecifier> functionSpecifier,
+    std::optional<Linkage> linkage,
+    std::optional<StorageDuration> storageDuration)
+    : type_(type)
+{
+    cvrQualifier_ = cvrQualifier;
+    functionSpecifier_ = functionSpecifier;
+    linkage_ = linkage;
+    storageDuration_ = storageDuration;
+}
+
 BasicType::BasicType(const BasicType &other)
     : type_(other.type_), BaseType(other)
 {

@@ -17,10 +17,12 @@ struct EvalType
     EvalType(double value);
     EvalType(uint64_t value);
     EvalType(int64_t value);
+    EvalType(std::string value);
 
     std::optional<double> getDouble() const;
     std::optional<uint64_t> getUInt() const;
     std::optional<int64_t> getInt() const;
+    std::optional<std::string> getString() const;
     operator bool() const;
 
     template <typename T>
@@ -31,7 +33,7 @@ struct EvalType
 
     Types getType() const;
 
-    std::variant<std::monostate, double, uint64_t, int64_t> value;
+    std::variant<std::monostate, double, uint64_t, int64_t, std::string> value;
 };
 
 class Expr : public Stmt
@@ -324,23 +326,9 @@ public:
 class StringLiteral final : public Node<StringLiteral>, public Expr
 {
 public:
-    StringLiteral(std::string value) : originalValue_(value)
-    {
-        value_.reserve(value.size());
+    StringLiteral(std::string value);
 
-        for (size_t i = 1; i < value.size() - 1; i++)
-        {
-            if (value[i] == '\\')
-            {
-                i++;
-                value_ += Constant::escapeChars.at(value[i]);
-            }
-            else
-            {
-                value_ += value[i];
-            }
-        }
-    }
+    EvalType eval() const override;
 
     std::string originalValue_;
     std::string value_;
@@ -414,16 +402,16 @@ class UnaryOp final : public Node<UnaryOp>, public Expr
 public:
     enum class Op
     {
-        ADDR,
-        DEREF,
-        PLUS,
-        MINUS,
-        NOT,
-        LNOT,
-        POST_DEC,
-        POST_INC,
-        PRE_DEC,
-        PRE_INC,
+        ADDR,     // &
+        DEREF,    // *
+        PLUS,     // +
+        MINUS,    // -
+        NOT,      // ~
+        LNOT,     // !
+        POST_DEC, // x--
+        POST_INC, // x++
+        PRE_DEC,  // --x
+        PRE_INC,  // ++x
     };
 
     UnaryOp(const Expr *expr, Op op) : expr_(expr), op_(op)

@@ -60,11 +60,10 @@
 }
 
 
-%token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
-%token XOR_ASSIGN OR_ASSIGN TYPE_NAME
+%token XOR_ASSIGN OR_ASSIGN SIZEOF
 
 %token TYPEDEF EXTERN STATIC AUTO REGISTER INLINE RESTRICT
 %token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
@@ -73,7 +72,8 @@
 
 %token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
 
-%type <string> IDENTIFIER CONSTANT STRING_LITERAL TYPE_NAME
+%token <string> IDENTIFIER CONSTANT STRING_LITERAL TYPE_NAME
+%type <string> string_literal
 
 %type <assignment_op> assignment_operator
 %type <arg_expr_list> argument_expression_list
@@ -126,12 +126,28 @@ root
 		{ g_root = $1; }
 	;
 
+/* 
+C99 6.4.5: "In translation phase 6, the multibyte character sequences 
+specified by any sequence of character and wide string literals are 
+concatenated into a single multibyte character sequence."
+*/ 
+string_literal
+	: STRING_LITERAL
+		{ $$ = new std::string(*$1); }
+	| string_literal STRING_LITERAL
+		/* "a""b" = "ab" (remove the 2 middle quotation marks*/
+        { $$ = new std::string(
+			$1->substr(0, $1->length() - 1) + 
+			$2->substr(1, $2->length() - 1)); }
+	;
+
+
 primary_expression
 	: IDENTIFIER
 		{ $$ = new Identifier(std::string(*$1)); }
 	| CONSTANT
 		{ $$ = new Constant(std::string(*$1)); }
-	| STRING_LITERAL
+	| string_literal
 		{ $$ = new StringLiteral(std::string(*$1)); }
 	| '(' expression ')'
 		{ $$ = new Paren($2); }

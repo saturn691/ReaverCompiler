@@ -176,6 +176,12 @@ class BasicType final : public Type<BasicType>
 {
 public:
     BasicType(Types type);
+    BasicType(
+        Types type,
+        std::optional<CVRQualifier> cvrQualifier,
+        std::optional<FunctionSpecifier> functionSpecifier,
+        std::optional<Linkage> linkage,
+        std::optional<StorageDuration> storageDuration);
     BasicType(const BasicType &other);
 
     bool operator==(const BasicType &other) const override;

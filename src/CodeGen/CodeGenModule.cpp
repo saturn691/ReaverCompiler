@@ -1039,12 +1039,43 @@ void CodeGenModule::visit(const Init &node)
             auto *basicType =
                 dynamic_cast<const BasicType *>(currentExpectedType_);
 
-            if (dynamic_cast<const PtrType *>(currentExpectedType_))
+            if (auto *arrType =
+                    dynamic_cast<const ArrayType *>(currentExpectedType_))
+            {
+                // String literal (doesn't go through InitList)
+                int strlen = arrType->size_;
+                std::vector<llvm::Constant *> values;
+                std::string str = node.expr_->eval().getString().value();
+                for (size_t i = 0; i < strlen; i++)
+                {
+                    if (i < str.size())
+                    {
+                        values.push_back(llvm::ConstantInt::get(
+                            llvm::Type::getInt8Ty(*context_), str[i]));
+                    }
+                    else
+                    {
+                        values.push_back(llvm::ConstantInt::get(
+                            llvm::Type::getInt8Ty(*context_), 0));
+                    }
+                }
+                currentValue_ = llvm::ConstantArray::get(
+                    llvm::ArrayType::get(
+                        llvm::Type::getInt8Ty(*context_), strlen),
+                    values);
+            }
+            else if (dynamic_cast<const PtrType *>(currentExpectedType_))
             {
                 if (node.expr_->eval().getUInt().value() == 0)
                 {
                     currentValue_ = llvm::ConstantPointerNull::get(
                         static_cast<llvm::PointerType *>(expectedType));
+                }
+                else if (node.expr_->eval().is<std::string>())
+                {
+                    // String literal (decays to a pointer)
+                    currentValue_ = llvm::ConstantDataArray::getString(
+                        *context_, node.expr_->eval().getString().value());
                 }
                 else
                 {
@@ -1236,17 +1267,13 @@ void CodeGenModule::visit(const SizeOf &node)
 
 void CodeGenModule::visit(const StringLiteral &node)
 {
-    if (valueCategory_ != ValueCategory::RVALUE)
-    {
-        throw std::runtime_error("StringLiteral to LValue not supported");
-    }
-
+    // C99 6.5.1: A string literal is a primary expression. It is an lvalue with
+    // type as detailed in 6.4.5.
     llvm::GlobalVariable *str = builder_->CreateGlobalString(node.value_);
     llvm::Value *zero =
         llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
-    llvm::Value *indices[] = {zero, zero};
-    currentValue_ =
-        builder_->CreateInBoundsGEP(str->getValueType(), str, indices, "str");
+    currentValue_ = builder_->CreateInBoundsGEP(
+        str->getValueType(), str, {zero, zero}, "str");
 }
 
 void CodeGenModule::visit(const StructAccess &node)
@@ -1341,6 +1368,7 @@ void CodeGenModule::visit(const UnaryOp &node)
     else
     {
         llvm::Value *expr, *add, *sub;
+        auto *expectedType = typeMap_[&node].get();
         llvm::Type *type = getLLVMType(node.expr_.get());
         bool isFloat = type->isFloatingPointTy();
         llvm::Value *one =
@@ -1372,16 +1400,17 @@ void CodeGenModule::visit(const UnaryOp &node)
                 builder_->CreateLoad(getLLVMType(&node), expr, "deref");
             break;
         case UnaryOp::Op::PLUS:
-            expr = visitAsRValue(*node.expr_);
+            // Integer promotions may apply
+            expr = visitAsCastedRValue(*node.expr_, expectedType);
             currentValue_ = expr;
             break;
         case UnaryOp::Op::MINUS:
-            expr = visitAsRValue(*node.expr_);
+            expr = visitAsCastedRValue(*node.expr_, expectedType);
             currentValue_ = (isFloat) ? builder_->CreateFNeg(expr, "neg")
                                       : builder_->CreateNeg(expr, "neg");
             break;
         case UnaryOp::Op::NOT:
-            expr = visitAsRValue(*node.expr_);
+            expr = visitAsCastedRValue(*node.expr_, expectedType);
             currentValue_ = builder_->CreateNot(expr, "not");
             break;
         case UnaryOp::Op::LNOT:
@@ -1389,7 +1418,7 @@ void CodeGenModule::visit(const UnaryOp &node)
             currentValue_ =
                 (isFloat) ? builder_->CreateFCmpOEQ(
                                 expr, llvm::ConstantFP::get(type, 0.0), "lnot")
-                : (type->isPointerTy())
+                : (type->isPointerTy() || type->isArrayTy())
                     ? builder_->CreateICmpEQ(
                           expr,
                           llvm::ConstantPointerNull::get(
@@ -1438,6 +1467,12 @@ void CodeGenModule::visit(const BlockItemList &node)
 {
     for (const auto &item : node.nodes_)
     {
+        // Trying to insert a statement after a terminator
+        // e.g. int main() { return 0; int x; }
+        if (builder_->GetInsertBlock()->getTerminator())
+        {
+            continue;
+        }
         std::visit([this](const auto &item) { item->accept(*this); }, item);
     }
 }
