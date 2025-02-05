@@ -5,6 +5,11 @@ Reaver C Compiler (`rcc`) is a C99 compiler.
 To browse the compiler at the time of submission, which scored 90% (181/201),
 navigate to branch [`v1.0`](https://github.com/saturn691/ReaverCompiler/tree/v1.0).
 
+This compiler features a lexer, parser, preprocessor, AST and compiles to LLVM IR.
+It passes all 201/201 tests from the original coursework and 480+ additional tests.
+
+For more information, please read [`info.md`](docs/info.md).
+
 ## Getting started
 
 ### Dependencies
@@ -12,8 +17,10 @@ navigate to branch [`v1.0`](https://github.com/saturn691/ReaverCompiler/tree/v1.
 To install dependencies, run the following command:
 
 ```bash
-bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-sudo apt install flex bison
+sudo apt update && xargs -a dependencies.txt sudo apt install -y
+
+# On some systems, there are issues with libc++abi. To fix, run:
+sudo apt purge libc++abi-18-dev
 ```
 
 ### Usage
@@ -41,6 +48,15 @@ Then, invoke your linker to link the object file.
 
 ```bash
 clang ./tests/_example/example_driver.c example.o
+```
+
+### Running Unit Tests
+
+To run all unit tests, you can run these commands:
+
+```bash
+cd build
+ctest
 ```
 
 ## Credits
