@@ -6,7 +6,7 @@
 
 The compiler journey begins with ReaverCompiler 
 [`v1.0`](https://github.com/saturn691/ReaverCompiler/tree/v1.0), developed 
-from December 2023 to January 2024. As part of the coursework for Instruction 
+from December 2023 to March 2024. As part of the coursework for Instruction 
 Architectures and Compilers at Imperial College London, Kevin and I wrote the 
 original compiler, which compiled C90 to RISC-V.
 
@@ -53,14 +53,14 @@ Whilst the general gist of the compiler is the same, I spent a couple of days
 architecting the structure. I looked at cppreference, clang, rustc and many
 other resources while planning. Below I have listed the major improvements:
 
-### File Structure
+### File structure
 
 One of the things I hated the most was the amount of files; for every single node
 in the AST there was a file. Whilst this may cut down compile times, it made
 navigating so much harder. Now, the 50+ files have been reduced to 8 (in 
 [`include/AST`](../include/AST)).
 
-### Visitor design
+### Visitor design pattern
 
 Instead of adding more virtual functions, I added a single `visit()` function
 to every AST node, allowing an easy pipeline of information to code generation.

@@ -22,4 +22,5 @@ llvm-dev
 llvm-runtime
 llvm
 python3-clang
-libboost-all-dev
+libboost-filesystem-dev
+libboost-dev

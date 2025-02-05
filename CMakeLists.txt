@@ -37,7 +37,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(cli11_proj)
 
 # Boost (main.cpp)
-find_package(Boost COMPONENTS filesystem REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem)
+include_directories(${Boost_INCLUDE_DIRS})
 
 # LLVM
 find_package(LLVM REQUIRED CONFIG)
@@ -72,7 +73,7 @@ add_executable(rcc
     ${FLEX_Lexer_OUTPUTS}
 )
 include_directories(rcc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(rcc PRIVATE AST CodeGen LLVM CLI11::CLI11 ${Boost_FILESYSTEM_LIBRARY})
+target_link_libraries(rcc PRIVATE AST CodeGen LLVM CLI11::CLI11 Boost::filesystem)
 
 # Tests
 include(FetchContent)

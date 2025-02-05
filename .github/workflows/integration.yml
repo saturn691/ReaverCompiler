@@ -15,19 +15,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v2
-      
-      - uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: |
-            python3 flex bison clang-format clang-tidy clang-tools clang 
-            clangd libc++-dev libc++1 libc++abi-dev libc++abi1 libclang-dev 
-            libclang1 liblldb-dev libllvm-ocaml-dev libomp-dev libomp5 lld lldb 
-            llvm-dev llvm-runtime llvm python3-clang libboost-all-dev
 
       - name: Build and test
         id: test
-        timeout-minutes: 1
+        timeout-minutes: 10
         run: |
+          sudo apt update && xargs -a dependencies.txt sudo apt install -y
+          sudo apt purge -y libc++abi-18-dev
           ./test.py
 
       - name: Perm issue fix
