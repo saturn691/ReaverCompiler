@@ -3,12 +3,26 @@
 namespace AST
 {
 
+size_t BaseType::idProvider_ = 0;
+
+BaseType::BaseType()
+{
+    id_ = idProvider_++;
+}
+
 BaseType::BaseType(const BaseType &other)
 {
+    id_ = other.id_;
+
     cvrQualifier_ = other.cvrQualifier_;
     functionSpecifier_ = other.functionSpecifier_;
     linkage_ = other.linkage_;
     storageDuration_ = other.storageDuration_;
+}
+
+size_t BaseType::getID() const noexcept
+{
+    return id_;
 }
 
 ArrayType::ArrayType(Ptr<BaseType> type, size_t size)
@@ -44,8 +58,18 @@ bool ArrayType::operator<(const BaseType &other) const
         // "abc" (size 4);
         return size_ <= otherType->size_ + 1 && *type_ < *otherType->type_;
     }
+    else if (auto otherType = dynamic_cast<const StructType *>(&other))
+    {
+        // Initializer arrays can fit in structs
+        return size_ <= otherType->params_->size();
+    }
 
     return false;
+}
+
+bool ArrayType::isComplete() const noexcept
+{
+    return type_->isComplete();
 }
 
 BasicType::BasicType(Types type) : type_(type)
@@ -84,7 +108,12 @@ bool BasicType::operator<(const BaseType &other) const
            dynamic_cast<const PtrType *>(&other);
 }
 
-bool BasicType::isSigned() const
+bool BasicType::isComplete() const noexcept
+{
+    return true;
+}
+
+bool BasicType::isSigned() const noexcept
 {
     switch (type_)
     {
@@ -125,6 +154,11 @@ bool EnumType::operator<(const BaseType &other) const
     return false;
 }
 
+bool EnumType::isComplete() const noexcept
+{
+    return true;
+}
+
 FnType::FnType(Ptr<ParamType> params, Ptr<BaseType> retType)
     : params_(std::move(params)), retType_(std::move(retType))
 {
@@ -142,7 +176,7 @@ FnType::FnType(const FnType &other)
 
 bool FnType::operator==(const FnType &other) const
 {
-    return params_ == other.params_ && retType_ == other.retType_;
+    return *params_ == *other.params_ && *retType_ == *other.retType_;
 }
 
 bool FnType::operator<(const BaseType &other) const
@@ -158,6 +192,11 @@ bool FnType::operator<(const BaseType &other) const
     }
 
     return false;
+}
+
+bool FnType::isComplete() const noexcept
+{
+    return retType_->isComplete() && params_->isComplete();
 }
 
 ParamType::ParamType(Params types) : types_(std::move(types))
@@ -215,6 +254,19 @@ bool ParamType::operator<(const BaseType &other) const
     return false;
 }
 
+bool ParamType::isComplete() const noexcept
+{
+    for (const auto &type : types_)
+    {
+        if (!type.second->isComplete())
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 size_t ParamType::size() const
 {
     return types_.size();
@@ -253,6 +305,13 @@ bool PtrType::operator<(const BaseType &other) const
     return false;
 }
 
+bool PtrType::isComplete() const noexcept
+{
+    // A pointer to a type is always complete
+    // sizeof(incomplete*) is valid
+    return true;
+}
+
 StructType::StructType(Type type, std::string name)
     : type_(type), name_(std::move(name))
 {
@@ -261,6 +320,16 @@ StructType::StructType(Type type, std::string name)
 StructType::StructType(Type type, std::string name, Ptr<ParamType> members)
     : type_(type), name_(std::move(name)), params_(std::move(members))
 {
+}
+
+StructType::StructType(
+    Type type,
+    std::string name,
+    Ptr<ParamType> members,
+    size_t id)
+    : type_(type), name_(std::move(name)), params_(std::move(members))
+{
+    id_ = id;
 }
 
 StructType::StructType(const StructType &other)
@@ -274,13 +343,31 @@ StructType::StructType(const StructType &other)
 
 bool StructType::operator==(const StructType &other) const
 {
+    // Both nullptr = OK
     return type_ == other.type_ && name_ == other.name_ &&
-           params_ == other.params_;
+           (!params_ || !other.params_ || *params_ == *other.params_);
 }
 
 bool StructType::operator<(const BaseType &other) const
 {
     return false;
+}
+
+bool StructType::isComplete() const noexcept
+{
+    return params_ && params_->isComplete();
+}
+
+Ptr<StructType> StructType::withParams(const ParamType *params) const
+{
+    return std::make_unique<StructType>(
+        type_, name_, std::make_unique<ParamType>(*params), id_);
+}
+
+std::string StructType::getName() const noexcept
+{
+    std::string prefix = type_ == Type::STRUCT ? "struct" : "union";
+    return prefix + "." + name_;
 }
 
 Ptr<BaseType> StructType::getMemberType(std::string name) const
@@ -298,11 +385,14 @@ Ptr<BaseType> StructType::getMemberType(std::string name) const
 
 unsigned int StructType::getMemberIndex(std::string name) const
 {
-    for (size_t i = 0; i < params_->types_.size(); ++i)
+    if (params_)
     {
-        if (params_->types_[i].first == name)
+        for (size_t i = 0; i < params_->types_.size(); ++i)
         {
-            return i;
+            if (params_->types_[i].first == name)
+            {
+                return i;
+            }
         }
     }
 

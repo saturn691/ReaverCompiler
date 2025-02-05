@@ -7,6 +7,7 @@
 #include "CodeGen/ScopeGuard.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <limits>
 
@@ -15,6 +16,7 @@ namespace CodeGen
 TypeChecker::TypeChecker(std::ostream &os) : os_(os)
 {
     typeContext_.push_back({});
+    incompleteNodes_.push_back({});
 }
 
 /******************************************************************************
@@ -243,6 +245,8 @@ void TypeChecker::visit(const FnDef &node)
         insertType(param.first, param.second->clone());
     }
 
+    assert(fnType->isComplete() && "Function type is incomplete");
+
     // Now run the type check (on the body)
     node.body_->accept(*this);
     popScope();
@@ -258,6 +262,11 @@ void TypeChecker::visit(const InitDecl &node)
     }
     Ptr<BaseType> expectedType = typeMap_[node.decl_.get()]->clone();
     insertType(node.getID(), expectedType->clone());
+
+    if (!expectedType->isComplete())
+    {
+        insertIncompleteNode(&node);
+    }
 
     if (node.init_)
     {
@@ -364,15 +373,47 @@ void TypeChecker::visit(const Struct &node)
 {
     if (node.members_)
     {
-        // If it's a definition, we need to add to the context
-        // Will "return" a ParamType
-        node.members_->accept(*this);
-        Ptr<ParamType> members =
-            dynamic_cast<const ParamType *>(typeMap_[node.members_.get()].get())
-                ->cloneAsDerived();
+        // Struct Definition
 
-        typeMap_[&node] = std::make_unique<StructType>(
-            StructType::Type::STRUCT, node.name_, std::move(members));
+        // Grab the declaration/definition, if it exists
+        auto it = typeContext_.back().find(node.getID());
+        auto t = lookupType(node.getID());
+        if (t && it != typeContext_.back().end())
+        {
+            // In the same scope there exists a declaration/definition
+            if (t->isComplete())
+            {
+                throw std::runtime_error("Redefinition of struct");
+            }
+
+            // Declaration found, now definition
+            node.members_->accept(*this);
+            Ptr<ParamType> members = dynamic_cast<const ParamType *>(
+                                         typeMap_[node.members_.get()].get())
+                                         ->cloneAsDerived();
+            size_t id = t->getID();
+
+            typeMap_[&node] = std::make_unique<StructType>(
+                StructType::Type::STRUCT, node.name_, std::move(members), id);
+        }
+        else
+        {
+            // Necessary for the self referential struct to have the same ID
+            Ptr<StructType> emptyStruct = std::make_unique<StructType>(
+                StructType::Type::STRUCT, node.name_);
+            insertType(node.getID(), emptyStruct->clone());
+            node.members_->accept(*this);
+            Ptr<ParamType> members = dynamic_cast<const ParamType *>(
+                                         typeMap_[node.members_.get()].get())
+                                         ->cloneAsDerived();
+
+            typeMap_[&node] = std::make_unique<StructType>(
+                StructType::Type::STRUCT,
+                node.name_,
+                std::move(members),
+                emptyStruct->getID());
+        }
+
         insertType(node.getID(), typeMap_[&node]->clone());
     }
     else
@@ -386,13 +427,16 @@ void TypeChecker::visit(const Struct &node)
         {
             typeMap_[&node] = std::make_unique<StructType>(
                 StructType::Type::STRUCT, node.name_);
+            insertIncompleteNode(&node);
         }
     }
 }
 
 void TypeChecker::visit(const StructDecl &node)
 {
-    typeMap_[&node] = currentType_->clone();
+    ScopeGuard guard(fromDecl_, true);
+    node.decl_->accept(*this);
+    typeMap_[&node] = typeMap_[node.decl_.get()]->clone();
 }
 
 void TypeChecker::visit(const StructDeclList &node)
@@ -450,8 +494,10 @@ void TypeChecker::visit(const TranslationUnit &node)
 {
     for (const auto &decl : node.nodes_)
     {
-        std::visit([this](const auto &decl) { decl->accept(*this); }, decl);
+        std::visit([&](const auto &decl) { decl->accept(*this); }, decl);
     }
+
+    clearIncompleteNodes();
 }
 
 void TypeChecker::visit(const Typedef &node)
@@ -989,6 +1035,11 @@ void TypeChecker::visit(const Identifier &node)
     {
         typeMap_[&node] = lookupType(node.getID());
     }
+
+    if (!typeMap_[&node]->isComplete())
+    {
+        insertIncompleteNode(&node);
+    }
 }
 
 void TypeChecker::visit(const Init &node)
@@ -1083,7 +1134,16 @@ void TypeChecker::visit(const StructPtrAccess &node)
     {
         if (auto *s = dynamic_cast<const StructType *>(t->type_.get()))
         {
-            typeMap_[&node] = s->getMemberType(node.member_)->clone();
+            // Necessary for self-referential structs (allowed in C)
+            auto typePtr = lookupType(s->getName(), s->getID());
+            auto *filledStruct =
+                dynamic_cast<const StructType *>(typePtr.get());
+            typeMap_[&node] =
+                filledStruct->getMemberType(node.member_)->clone();
+
+            // Fill in the struct
+            typeMap_[node.expr_.get()] = std::make_unique<PtrType>(
+                s->withParams(filledStruct->params_.get()));
         }
         else
         {
@@ -1166,6 +1226,21 @@ void TypeChecker::visit(const UnaryOp &node)
     case UnaryOp::Op::POST_INC:
     case UnaryOp::Op::PRE_DEC:
     case UnaryOp::Op::PRE_INC:
+        if (auto *basicType = dynamic_cast<const BasicType *>(actual))
+        {
+            typeMap_[&node] = std::make_unique<BasicType>(
+                runIntegerPromotions(basicType->type_));
+        }
+        else if (auto *ptrType = dynamic_cast<const PtrType *>(actual))
+        {
+            typeMap_[&node] = actual->clone();
+        }
+        else
+        {
+            os_ << "Error: Expected arithmetic type" << std::endl;
+        }
+        break;
+
     case UnaryOp::Op::PLUS:
     case UnaryOp::Op::MINUS:
         if (auto *basicType = dynamic_cast<const BasicType *>(actual))
@@ -1273,7 +1348,6 @@ void TypeChecker::visit(const IfElse &node)
 
 void TypeChecker::visit(const Return &node)
 {
-
     // Cast expected to FnType
     auto *t = typeMap_[currentFunction_].get();
     auto *fnType = dynamic_cast<const FnType *>(t);
@@ -1429,27 +1503,147 @@ bool TypeChecker::assertIsIntegerTy(const BaseType *type)
     return false;
 }
 
+void TypeChecker::clearIncompleteNodes()
+{
+    // Check for incomplete types
+    // Brute force approach, keep checking until no more incomplete types
+    std::vector<const BaseNode *> incompleteNodes = incompleteNodes_.back();
+    bool incompleteFunction = false;
+    while (incompleteNodes.size() > 0)
+    {
+        std::vector<const BaseNode *> newIncompleteNodes;
+        for (const auto &node : incompleteNodes)
+        {
+            const BaseType *ty = typeMap_[node].get();
+            Ptr<BaseType> newType = tryComplete(ty);
+            if (newType)
+            {
+                typeMap_[node] = std::move(newType);
+            }
+            else
+            {
+                newIncompleteNodes.push_back(node);
+            }
+        }
+
+        if (incompleteNodes.size() == newIncompleteNodes.size())
+        {
+            // No progress made, not all structs are required to resolve
+            // However, all functions that are called must be resolved
+            if (incompleteFunction)
+            {
+                throw std::runtime_error("Failed to resolve function type");
+            }
+
+            return;
+        }
+
+        incompleteNodes = newIncompleteNodes;
+    }
+}
+
+Ptr<BaseType> TypeChecker::tryComplete(const BaseType *type)
+{
+    if (auto *sType = dynamic_cast<const StructType *>(type))
+    {
+        // Try to find struct definition
+        if (auto t = lookupType(sType->getName()))
+        {
+            return t->clone();
+        }
+    }
+    else if (auto *pType = dynamic_cast<const ParamType *>(type))
+    {
+        Params types;
+        for (const auto &type : pType->types_)
+        {
+            if (type.second->isComplete())
+            {
+                types.push_back({type.first, type.second->clone()});
+            }
+            else
+            {
+                auto t = tryComplete(type.second.get());
+                if (!t)
+                {
+                    return nullptr;
+                }
+                types.push_back({type.first, std::move(t)});
+            }
+        }
+        return std::make_unique<ParamType>(std::move(types));
+    }
+    else if (auto *fType = dynamic_cast<const FnType *>(type))
+    {
+        // Search through typeContext_, if we find a matching function
+        // definition, we can resolve the type
+        auto it = std::find_if(
+            typeContext_.back().begin(),
+            typeContext_.back().end(),
+            [this, &fType](const auto &pair)
+            {
+                auto *fnType = dynamic_cast<const FnType *>(pair.second.get());
+                if (fnType && *fnType == *fType)
+                {
+                    return true;
+                }
+                return false;
+            });
+        if (it != typeContext_.back().end())
+        {
+            return it->second->clone();
+        }
+
+        // Else, try resolving it one by one
+        Ptr<BaseType> retType = (fType->retType_->isComplete())
+                                    ? fType->retType_->clone()
+                                    : tryComplete(fType->retType_.get());
+        Ptr<BaseType> params = (fType->params_->isComplete())
+                                   ? fType->params_->clone()
+                                   : tryComplete(fType->params_.get());
+        // Coerce params to ParamType
+        if (auto *p = dynamic_cast<const ParamType *>(params.get()))
+        {
+            return std::make_unique<FnType>(
+                p->cloneAsDerived(), retType->clone());
+        }
+    }
+
+    return nullptr;
+}
+
 void TypeChecker::pushScope()
 {
     typeContext_.push_back({});
+    incompleteNodes_.push_back({});
 }
 
 void TypeChecker::popScope()
 {
     typeContext_.pop_back();
+    clearIncompleteNodes();
+    incompleteNodes_.pop_back();
 }
 
-Ptr<BaseType> TypeChecker::lookupType(const std::string &name) const
+Ptr<BaseType> TypeChecker::lookupType(const std::string &name, size_t id) const
 {
     for (auto it = typeContext_.rbegin(); it != typeContext_.rend(); ++it)
     {
         if (it->find(name) != it->end())
         {
-            return it->at(name)->clone();
+            if (id == -1 || id == it->at(name)->getID())
+            {
+                return it->at(name)->clone();
+            }
         }
     }
 
     return nullptr;
+}
+
+void TypeChecker::insertIncompleteNode(const BaseNode *node)
+{
+    incompleteNodes_.back().push_back(node);
 }
 
 void TypeChecker::insertType(const std::string &name, Ptr<BaseType> type)

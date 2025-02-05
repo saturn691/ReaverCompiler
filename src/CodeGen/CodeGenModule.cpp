@@ -31,7 +31,10 @@ namespace CodeGen
  *                          Public functions                                  *
  *****************************************************************************/
 
-CodeGenModule::CodeGenModule(std::string outputFile, TypeMap &typeMap)
+CodeGenModule::CodeGenModule(
+    std::string sourceFile,
+    std::string outputFile,
+    TypeMap &typeMap)
     : outputFile_(std::move(outputFile)), typeMap_(typeMap),
       context_(std::make_unique<llvm::LLVMContext>()),
       builder_(std::make_unique<llvm::IRBuilder<>>(*context_)),
@@ -62,8 +65,10 @@ CodeGenModule::CodeGenModule(std::string outputFile, TypeMap &typeMap)
 
     module_->setDataLayout(targetMachine_->createDataLayout());
     module_->setTargetTriple(targetTriple);
-    module_->setSourceFileName(outputFile_);
-    module_->setModuleIdentifier(outputFile_);
+    module_->setSourceFileName(sourceFile);
+    module_->setModuleIdentifier(sourceFile);
+
+    abi_ = std::make_unique<X86_64ABI>(*module_);
 }
 
 void CodeGenModule::emitLLVM()
@@ -217,8 +222,7 @@ void CodeGenModule::visit(const EnumMemberList &node)
 
 void CodeGenModule::visit(const FnDecl &node)
 {
-    // Label the function arguments
-    node.params_->accept(*this);
+    // Intentionally left blank
 }
 
 void CodeGenModule::visit(const FnDef &node)
@@ -233,19 +237,10 @@ void CodeGenModule::visit(const FnDef &node)
     // If we haven't declared the function yet, create it
     if (!fn)
     {
-        std::vector<llvm::Type *> paramTypes;
-        for (const auto &p : type->params_->types_)
-        {
-            paramTypes.push_back(getLLVMType(p.second.get()));
-        }
-
-        llvm::FunctionType *fnType =
-            llvm::FunctionType::get(retType, paramTypes, false);
         auto linkage = (type->linkage_ == Linkage::INTERNAL)
                            ? llvm::Function::InternalLinkage
                            : llvm::Function::ExternalLinkage;
-
-        fn = llvm::Function::Create(fnType, linkage, fnName, module_.get());
+        fn = createFunction(type, linkage, fnName);
     }
 
     llvm::BasicBlock *bb = llvm::BasicBlock::Create(*context_, "entry", fn);
@@ -256,15 +251,61 @@ void CodeGenModule::visit(const FnDef &node)
     // arguments
     pushScope();
 
-    // Label the function arguments
-    node.decl_->accept(*this);
-    for (auto &arg : fn->args())
+    std::vector<llvm::Type *> paramTypes = getParamTypes(type);
+    auto fnParams = abi_->getFunctionParams(retType, paramTypes);
+    unsigned argPtr = fnParams.structReturnInMemory ? 1 : 0;
+
+    for (size_t j = 0; j < type->params_->types_.size(); j++)
     {
-        std::string paramName = arg.getName().str();
-        llvm::AllocaInst *allocaInst =
-            createAlignedAlloca(arg.getType(), arg.getName());
-        symbolTablePush(paramName, allocaInst);
-        builder_->CreateStore(&arg, allocaInst);
+        std::string paramName = type->params_->types_.at(j).first;
+        llvm::Type *paramType = paramTypes.at(j);
+
+        if (paramType->isStructTy() && fn->getArg(argPtr)->hasByValAttr())
+        {
+            symbolTablePush(paramName, fn->getArg(argPtr));
+            argPtr++;
+        }
+        else
+        {
+            llvm::AllocaInst *allocaInst;
+
+            if (paramType->isStructTy() && !fn->getArg(argPtr)->hasByValAttr())
+            {
+                std::vector<llvm::Type *> tys =
+                    fnParams.paramTypes.at(j + fnParams.structReturnInMemory);
+                auto *assignedType = llvm::StructType::get(*context_, tys);
+                llvm::AllocaInst *tempAlloca =
+                    createAlignedAlloca(assignedType);
+                allocaInst = createAlignedAlloca(paramType, paramName);
+
+                // Copy the params to an alloca of the (anonymous) struct type
+                for (size_t i = 0; i < tys.size(); i++)
+                {
+                    llvm::Value *gep = builder_->CreateGEP(
+                        assignedType,
+                        tempAlloca,
+                        {builder_->getInt32(0), builder_->getInt32(i)});
+                    builder_->CreateStore(fn->getArg(argPtr), gep);
+                    argPtr++;
+                }
+
+                // Copy the alloca to the actual alloca
+                builder_->CreateMemCpy(
+                    allocaInst,
+                    getAlign(paramType),
+                    tempAlloca,
+                    getAlign(assignedType),
+                    module_->getDataLayout().getTypeAllocSize(paramType));
+            }
+            else
+            {
+                allocaInst = createAlignedAlloca(paramType, paramName);
+                builder_->CreateStore(fn->getArg(argPtr), allocaInst);
+                argPtr++;
+            }
+
+            symbolTablePush(paramName, allocaInst);
+        }
     }
 
     // Generate the function body
@@ -275,7 +316,7 @@ void CodeGenModule::visit(const FnDef &node)
     // If the function does not have a return statement, add one
     if (!builder_->GetInsertBlock()->getTerminator())
     {
-        if (retType->isVoidTy())
+        if (fn->getReturnType()->isVoidTy())
         {
             builder_->CreateRetVoid();
         }
@@ -291,11 +332,13 @@ void CodeGenModule::visit(const FnDef &node)
     fn->addFnAttr(llvm::Attribute::NoInline);
     fn->addFnAttr(llvm::Attribute::NoUnwind);
     fn->addFnAttr(llvm::Attribute::OptimizeNone);
+
+    llvm::verifyFunction(*fn, &llvm::errs());
 }
 
 void CodeGenModule::visit(const InitDecl &node)
 {
-    auto *ty = typeMap_[&node].get();
+    const auto *ty = typeMap_[&node].get();
     llvm::Type *type = getLLVMType(ty);
     bool hasStatic = ty->linkage_ == Linkage::INTERNAL;
     bool hasExtern = ty->linkage_ == Linkage::EXTERNAL;
@@ -310,11 +353,8 @@ void CodeGenModule::visit(const InitDecl &node)
         if (!fn)
         {
             // Function declaration
-            fn = llvm::Function::Create(
-                static_cast<llvm::FunctionType *>(type),
-                linkage,
-                node.getID(),
-                module_.get());
+            fn = createFunction(
+                dynamic_cast<const FnType *>(ty), linkage, node.getID());
         }
         else if (
             hasExtern && fn->getLinkage() != llvm::GlobalValue::InternalLinkage)
@@ -323,6 +363,9 @@ void CodeGenModule::visit(const InitDecl &node)
             // internal linkage
             fn->setLinkage(llvm::Function::ExternalLinkage);
         }
+
+        // Label the function arguments
+        node.decl_->accept(*this);
     }
     else if (isGlobal_ || hasStatic)
     {
@@ -400,7 +443,7 @@ void CodeGenModule::visit(const InitDecl &node)
 
         if (node.init_)
         {
-            if (type->isArrayTy())
+            if (type->isAggregateType())
             {
                 try
                 {
@@ -452,20 +495,12 @@ void CodeGenModule::visit(const InitDeclList &node)
 
 void CodeGenModule::visit(const ParamDecl &node)
 {
-    // Taken care of in ParamList
+    // Intentionally left blank
 }
 
 void CodeGenModule::visit(const ParamList &node)
 {
-    // Label the function arguments
-    llvm::Function *fn = getCurrentFunction();
-    unsigned int i = 0;
-
-    for (auto &arg : fn->args())
-    {
-        arg.setName(std::get<Ptr<ParamDecl>>(node.nodes_[i])->getID());
-        i++;
-    }
+    // Intentionally left blank
 }
 
 void CodeGenModule::visit(const PtrDecl &node)
@@ -486,25 +521,52 @@ void CodeGenModule::visit(const Struct &node)
         // Anonymous struct, only useful inside structs
         return;
     }
-    if (!node.members_)
-    {
-        // Forward declaration or used as a type
-        return;
-    }
+
+    // TypeChecker does semantic analysis, so all structs are complete
+    // If not then, it's an opaque struct
 
     // All information is available in the typeMap
     const StructType *type =
         dynamic_cast<const StructType *>(typeMap_[&node].get());
-    std::vector<llvm::Type *> memberTypes;
-    for (const auto &member : type->params_->types_)
+
+    std::string name = "struct." + node.name_;
+    if (structIDs_.find(name) == structIDs_.end())
     {
-        memberTypes.push_back(getLLVMType(member.second.get()));
+        structIDs_[name] = {type->getID()};
+    }
+    else
+    {
+        auto it = std::find(
+            structIDs_[name].begin(), structIDs_[name].end(), type->getID());
+        if (it != structIDs_[name].end())
+        {
+            // Struct already defined
+            return;
+        }
+
+        // New ID - add to the list
+        structIDs_[name].push_back(type->getID());
+        name += "." + std::to_string(structIDs_[name].size() - 1);
     }
 
-    // Set the type in LLVM
-    llvm::StructType *structType =
-        llvm::StructType::create(*context_, "struct." + node.name_);
-    structType->setBody(memberTypes);
+    if (type->params_)
+    {
+        std::vector<llvm::Type *> memberTypes;
+        for (const auto &member : type->params_->types_)
+        {
+            memberTypes.push_back(getLLVMType(member.second.get()));
+        }
+
+        // Set the type in LLVM
+        llvm::StructType *structType =
+            llvm::StructType::create(*context_, name);
+        structType->setBody(memberTypes);
+    }
+    else
+    {
+        // Opaque struct
+        llvm::StructType::create(*context_, name);
+    }
 }
 
 void CodeGenModule::visit(const StructDecl &node)
@@ -586,7 +648,7 @@ void CodeGenModule::visit(const ArrayAccess &node)
             getLLVMType(arrNode), arr, {zero, index}, "gep");
     }
 
-    if (valueCategory == ValueCategory::LVALUE)
+    if (valueCategory == ValueCategory::LVALUE || elementType->isStructTy())
     {
         currentValue_ = arrayPtr;
     }
@@ -600,27 +662,79 @@ void CodeGenModule::visit(const Assignment &node)
 {
     if (valueCategory_ == ValueCategory::LVALUE)
     {
-        throw std::runtime_error("Assignment to LValue not supported");
+        // throw std::runtime_error("Assignment to LValue not supported");
     }
 
     using Op = Assignment::Op;
 
     auto *lhsType = typeMap_[node.lhs_.get()].get();
     llvm::Value *lhs = visitAsLValue(*node.lhs_);
+    bool isFloatTy = lhs->getType()->isFloatingPointTy();
+    bool isSigned = false;
+    if (auto *basicType = dynamic_cast<const BasicType *>(lhsType))
+    {
+        isSigned = basicType->isSigned();
+    }
+
+    // Handle simple assignment separately
+    if (node.op_ == Assignment::Op::ASSIGN)
+    {
+        // This has to be compatible with structs (e.g. struct x = y;) which
+        // uses memcpy(), not store
+        currentValue_ = visitAsStore(*node.rhs_, lhs, lhsType);
+        return;
+    }
+
+    llvm::Value *lhsVal = visitAsRValue(*node.lhs_);
     llvm::Value *rhs = visitAsCastedRValue(*node.rhs_, lhsType);
+    llvm::Value *expr;
 
     switch (node.op_)
     {
     case Op::ASSIGN:
-        builder_->CreateStore(rhs, lhs);
-        currentValue_ = rhs;
+        // Handled separately
+        return;
+    case Op::MUL_ASSIGN:
+        expr = (isFloatTy) ? builder_->CreateFMul(lhsVal, rhs, "mul")
+                           : builder_->CreateMul(lhsVal, rhs, "mul");
+        break;
+    case Op::DIV_ASSIGN:
+        expr = (isFloatTy)  ? builder_->CreateFDiv(lhsVal, rhs, "div")
+               : (isSigned) ? builder_->CreateSDiv(lhsVal, rhs, "div")
+                            : builder_->CreateUDiv(lhsVal, rhs, "div");
+        break;
+    case Op::MOD_ASSIGN:
+        expr = (isFloatTy)  ? builder_->CreateFRem(lhsVal, rhs, "mod")
+               : (isSigned) ? builder_->CreateSRem(lhsVal, rhs, "mod")
+                            : builder_->CreateURem(lhsVal, rhs, "mod");
         break;
     case Op::ADD_ASSIGN:
-        llvm::Value *lhsVal = visitAsRValue(*node.lhs_);
-        currentValue_ =
-            builder_->CreateStore(builder_->CreateAdd(lhsVal, rhs), lhs);
+        expr = (isFloatTy) ? builder_->CreateFAdd(lhsVal, rhs, "add")
+                           : builder_->CreateAdd(lhsVal, rhs, "add");
+        break;
+    case Op::SUB_ASSIGN:
+        expr = (isFloatTy) ? builder_->CreateFSub(lhsVal, rhs, "sub")
+                           : builder_->CreateSub(lhsVal, rhs, "sub");
+        break;
+    case Op::LEFT_ASSIGN:
+        expr = builder_->CreateShl(lhsVal, rhs, "shl");
+        break;
+    case Op::RIGHT_ASSIGN:
+        expr = (isSigned) ? builder_->CreateAShr(lhsVal, rhs, "shr")
+                          : builder_->CreateLShr(lhsVal, rhs, "shr");
+        break;
+    case Op::AND_ASSIGN:
+        expr = builder_->CreateAnd(lhsVal, rhs, "and");
+        break;
+    case Op::XOR_ASSIGN:
+        expr = builder_->CreateXor(lhsVal, rhs, "xor");
+        break;
+    case Op::OR_ASSIGN:
+        expr = builder_->CreateOr(lhsVal, rhs, "or");
         break;
     }
+
+    builder_->CreateStore(expr, lhs);
 }
 
 void CodeGenModule::visit(const ArgExprList &node)
@@ -927,34 +1041,127 @@ void CodeGenModule::visit(const FnCall &node)
 {
     if (valueCategory_ != ValueCategory::RVALUE)
     {
-        throw std::runtime_error("FnCall to LValue not supported");
+        // throw std::runtime_error("FnCall to LValue not supported");
     }
 
     llvm::Function *fn = visitAsFnDesignator(*node.fn_);
-
+    const FnType *fnType =
+        dynamic_cast<const FnType *>(typeMap_[node.fn_.get()].get());
+    auto paramTypes = getParamTypes(fnType);
+    llvm::Type *originalRetType = getLLVMType(fnType->retType_.get());
+    auto fnParams = abi_->getFunctionParams(originalRetType, paramTypes);
     std::vector<llvm::Value *> args;
+
+    if (fnParams.structReturnInMemory)
+    {
+        llvm::AllocaInst *allocaInst = createAlignedAlloca(originalRetType);
+        args.push_back(allocaInst);
+    }
+
+    // Refers to the ABI for the calling convention
     if (node.args_)
     {
         for (size_t i = 0; i < node.args_->nodes_.size(); i++)
         {
             auto &arg = node.args_->nodes_[i];
             std::visit(
-                [this, &args, &node, &fn, i](const auto &arg)
+                [&](const auto &arg)
                 {
                     auto *expectedType = dynamic_cast<const ParamType *>(
                                              typeMap_[node.args_.get()].get())
                                              ->at(i);
+                    auto *ty = getLLVMType(expectedType);
 
-                    // Arrays cannot be passed by value
-                    llvm::Value *argVal =
-                        visitAsCastedRValue(*arg, expectedType);
-                    args.push_back(argVal);
+                    std::vector<llvm::Type *> types = fnParams.paramTypes.at(
+                        i + fnParams.structReturnInMemory);
+
+                    if (ty->isStructTy())
+                    {
+                        llvm::Value *argL = visitAsLValue(*arg);
+
+                        if (types.size() > 1)
+                        {
+                            // Struct with 2 elements
+                            auto *accessTy =
+                                llvm::StructType::get(*context_, types);
+                            llvm::AllocaInst *tempAlloca =
+                                createAlignedAlloca(accessTy);
+
+                            builder_->CreateMemCpy(
+                                tempAlloca,
+                                getAlign(tempAlloca->getType()),
+                                argL,
+                                getAlign(argL->getType()),
+                                module_->getDataLayout().getTypeAllocSize(ty));
+
+                            for (size_t j = 0; j < types.size(); j++)
+                            {
+                                llvm::Value *gep = builder_->CreateInBoundsGEP(
+                                    accessTy,
+                                    tempAlloca,
+                                    {builder_->getInt32(0),
+                                     builder_->getInt32(j)});
+                                args.push_back(
+                                    builder_->CreateLoad(types[j], gep));
+                            }
+                        }
+                        else if (fn->getArg(args.size())->hasByValAttr())
+                        {
+                            // Struct passed by value
+                            // Global variables must be copied to an alloca
+                            if (auto *global =
+                                    llvm::dyn_cast<llvm::GlobalVariable>(argL))
+                            {
+                                llvm::AllocaInst *tempAlloca =
+                                    createAlignedAlloca(global->getValueType());
+                                builder_->CreateMemCpy(
+                                    tempAlloca,
+                                    getAlign(tempAlloca->getType()),
+                                    global,
+                                    getAlign(global->getValueType()),
+                                    module_->getDataLayout().getTypeAllocSize(
+                                        global->getValueType()));
+                                args.push_back(tempAlloca);
+                            }
+                            else
+                            {
+                                args.push_back(argL);
+                            }
+                        }
+                        else
+                        {
+                            // Struct with 1 element
+                            args.push_back(
+                                builder_->CreateLoad(types[0], argL));
+                        }
+                    }
+                    else
+                    {
+                        // Normal case
+                        args.push_back(visitAsCastedRValue(*arg, expectedType));
+                    }
                 },
                 arg);
         }
     }
 
-    currentValue_ = builder_->CreateCall(fn, args);
+    auto *callInst = builder_->CreateCall(fn, args);
+
+    if (fnParams.structReturnInMemory)
+    {
+        callInst->addParamAttr(0, llvm::Attribute::DeadOnUnwind);
+        callInst->addParamAttr(0, llvm::Attribute::Writable);
+        callInst->addParamAttr(
+            0,
+            llvm::Attribute::getWithStructRetType(
+                *context_, getLLVMType(&node)));
+
+        currentValue_ = callInst->getArgOperand(0);
+    }
+    else
+    {
+        currentValue_ = callInst;
+    }
 }
 
 void CodeGenModule::visit(const Identifier &node)
@@ -966,6 +1173,10 @@ void CodeGenModule::visit(const Identifier &node)
         if (auto **alloca = std::get_if<llvm::AllocaInst *>(&symbol))
         {
             currentValue_ = *alloca;
+        }
+        else if (auto **arg = std::get_if<llvm::Argument *>(&symbol))
+        {
+            currentValue_ = *arg;
         }
         else if (auto **global = std::get_if<llvm::GlobalVariable *>(&symbol))
         {
@@ -979,8 +1190,9 @@ void CodeGenModule::visit(const Identifier &node)
     else if (valueCategory_ == ValueCategory::RVALUE)
     {
         // Special handling needed for arrays, they decay to pointers
+        // Structs cannot be passed by value
         llvm::Type *type = getLLVMType(&node);
-        if (type->isArrayTy())
+        if (type->isAggregateType())
         {
             currentValue_ = visitAsLValue(node);
         }
@@ -988,6 +1200,11 @@ void CodeGenModule::visit(const Identifier &node)
         {
             currentValue_ = builder_->CreateLoad(
                 (*alloca)->getAllocatedType(), *alloca, node.getID());
+        }
+        else if (auto **arg = std::get_if<llvm::Argument *>(&symbol))
+        {
+            // For byvals, no need to load
+            currentValue_ = *arg;
         }
         else if (auto **constant = std::get_if<llvm::Constant *>(&symbol))
         {
@@ -1013,22 +1230,13 @@ void CodeGenModule::visit(const Init &node)
 {
     if (valueCategory_ != ValueCategory::RVALUE)
     {
-        throw std::runtime_error("Init to LValue not supported");
+        // throw std::runtime_error("Init to LValue not supported");
     }
 
     if (currentStore_)
     {
         // Scenario 1. visitAsStore
-        if (auto *initList = dynamic_cast<const InitList *>(node.expr_.get()))
-        {
-            initList->accept(*this);
-        }
-        else
-        {
-            llvm::Value *val =
-                visitAsCastedRValue(*node.expr_, currentExpectedType_);
-            builder_->CreateStore(val, currentStore_);
-        }
+        node.expr_->accept(*this);
     }
     else
     {
@@ -1071,16 +1279,17 @@ void CodeGenModule::visit(const Init &node)
             }
             else if (dynamic_cast<const PtrType *>(currentExpectedType_))
             {
-                if (node.expr_->eval().getUInt().value() == 0)
+                if (node.expr_->eval().is<std::string>())
+                {
+                    // String literal (decays to a pointer)
+                    std::string value = node.expr_->eval().getString().value();
+                    currentValue_ = builder_->CreateGlobalString(
+                        value, "", 0U, module_.get());
+                }
+                else if (node.expr_->eval().getUInt().value() == 0)
                 {
                     currentValue_ = llvm::ConstantPointerNull::get(
                         static_cast<llvm::PointerType *>(expectedType));
-                }
-                else if (node.expr_->eval().is<std::string>())
-                {
-                    // String literal (decays to a pointer)
-                    currentValue_ = llvm::ConstantDataArray::getString(
-                        *context_, node.expr_->eval().getString().value());
                 }
                 else
                 {
@@ -1115,15 +1324,15 @@ void CodeGenModule::visit(const InitList &node)
 {
     if (valueCategory_ != ValueCategory::RVALUE)
     {
-        throw std::runtime_error("InitList to LValue not supported");
+        // throw std::runtime_error("InitList to LValue not supported");
     }
 
     if (currentStore_)
     {
         // Scenario 1. visitAsStore
-        llvm::Value *zero =
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
-        visitRecursiveStore(node, std::vector<llvm::Value *>{zero});
+        visitRecursiveStore(
+            node, std::vector<llvm::Value *>{builder_->getInt32(0)});
+        currentValue_ = nullptr;
     }
     else
     {
@@ -1224,6 +1433,10 @@ llvm::Constant *CodeGenModule::visitRecursiveConst(const InitList &node)
             node.nodes_[i]);
     }
 
+    // C99 6.7.8.21
+    // Essentially, if the array/string literal/struct is not fully initialized,
+    // the rest of the elements are initialized like static variables, i.e. 0
+
     if (type->isArrayTy())
     {
         // Fill the array with zeroes
@@ -1235,6 +1448,12 @@ llvm::Constant *CodeGenModule::visitRecursiveConst(const InitList &node)
 
         return llvm::ConstantArray::get(
             static_cast<llvm::ArrayType *>(type), values);
+    }
+
+    for (size_t i = values.size(); i < type->getStructNumElements(); i++)
+    {
+        values.push_back(llvm::Constant::getNullValue(
+            static_cast<llvm::StructType *>(type)->getElementType(i)));
     }
 
     return llvm::ConstantStruct::get(
@@ -1274,7 +1493,8 @@ void CodeGenModule::visit(const StringLiteral &node)
 {
     // C99 6.5.1: A string literal is a primary expression. It is an lvalue with
     // type as detailed in 6.4.5.
-    llvm::GlobalVariable *str = builder_->CreateGlobalString(node.value_);
+    llvm::GlobalVariable *str =
+        builder_->CreateGlobalString(node.value_, "", 0U, module_.get());
     llvm::Value *zero =
         llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
     currentValue_ = builder_->CreateInBoundsGEP(
@@ -1294,9 +1514,10 @@ void CodeGenModule::visit(const StructAccess &node)
         llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), index)};
 
     llvm::Value *memberPtr = builder_->CreateInBoundsGEP(
-        getLLVMType(node.expr_.get()), structPtr, indices, "gep");
+        getLLVMType(structType), structPtr, indices, "gep");
 
-    if (valueCategory == ValueCategory::LVALUE)
+    if (valueCategory == ValueCategory::LVALUE ||
+        getLLVMType(&node)->isStructTy())
     {
         currentValue_ = memberPtr;
     }
@@ -1309,13 +1530,39 @@ void CodeGenModule::visit(const StructAccess &node)
 
 void CodeGenModule::visit(const StructPtrAccess &node)
 {
+    // Equivalent to (*expr).member
+    auto valueCategory = valueCategory_;
+
+    // Only difference is that we need to load the pointer
+    llvm::Value *structPtr = visitAsRValue(*node.expr_);
+    auto ptrType =
+        dynamic_cast<const PtrType *>(typeMap_[node.expr_.get()].get());
+    auto structType = dynamic_cast<const StructType *>(ptrType->type_.get());
+    auto index = structType->getMemberIndex(node.member_);
+    llvm::Value *indices[] = {
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0),
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), index)};
+
+    llvm::Value *memberPtr = builder_->CreateInBoundsGEP(
+        getLLVMType(structType), structPtr, indices, "gep");
+
+    if (valueCategory == ValueCategory::LVALUE ||
+        getLLVMType(&node)->isStructTy())
+    {
+        currentValue_ = memberPtr;
+    }
+    else
+    {
+        currentValue_ =
+            builder_->CreateLoad(getLLVMType(&node), memberPtr, "load");
+    }
 }
 
 void CodeGenModule::visit(const TernaryOp &node)
 {
     if (valueCategory_ == ValueCategory::LVALUE)
     {
-        throw std::runtime_error("TernaryOp to LValue not supported");
+        // throw std::runtime_error("TernaryOp to LValue not supported");
     }
 
     llvm::Function *fn = getCurrentFunction();
@@ -1395,8 +1642,7 @@ void CodeGenModule::visit(const UnaryOp &node)
         llvm::Value *one =
             (isFloat) ? llvm::ConstantFP::get(type, 1.0)
                       : llvm::ConstantInt::get(type, 1, /* isSigned */ false);
-        llvm::Value *zero =
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
+        llvm::Value *zero = builder_->getInt32(0);
 
         switch (node.op_)
         {
@@ -1416,9 +1662,18 @@ void CodeGenModule::visit(const UnaryOp &node)
                 // Normal pointer type
                 expr = visitAsRValue(*node.expr_);
             }
+
             // Need to find out the type again, because of opaque pointers
-            currentValue_ =
-                builder_->CreateLoad(getLLVMType(&node), expr, "deref");
+            if (getLLVMType(&node)->isStructTy())
+            {
+                // Loading structs are useless in LLVM (always used as pointers)
+                currentValue_ = expr;
+            }
+            else
+            {
+                currentValue_ =
+                    builder_->CreateLoad(getLLVMType(&node), expr, "deref");
+            }
             break;
         case UnaryOp::Op::PLUS:
             // Integer promotions may apply
@@ -1453,28 +1708,74 @@ void CodeGenModule::visit(const UnaryOp &node)
         case UnaryOp::Op::POST_DEC:
             // `x--` is equivalent to `x = x - 1; return x;`
             expr = visitAsRValue(*node.expr_);
-            sub = (isFloat) ? builder_->CreateFSub(expr, one, "postdec")
-                            : builder_->CreateSub(expr, one, "postdec");
+            if (expr->getType()->isPointerTy())
+            {
+                sub = builder_->CreateInBoundsGEP(
+                    getPointerElementType(node.expr_.get()),
+                    expr,
+                    builder_->getInt32(-1),
+                    "postdec");
+            }
+            else
+            {
+                sub = (isFloat) ? builder_->CreateFSub(expr, one, "postdec")
+                                : builder_->CreateSub(expr, one, "postdec");
+            }
             builder_->CreateStore(sub, visitAsLValue(*node.expr_));
+            currentValue_ = expr;
             break;
         case UnaryOp::Op::POST_INC:
             // `x++` is equivalent to `x = x + 1; return x;`
             expr = visitAsRValue(*node.expr_);
-            add = (isFloat) ? builder_->CreateFAdd(expr, one, "postinc")
-                            : builder_->CreateAdd(expr, one, "postinc");
+            if (expr->getType()->isPointerTy())
+            {
+                add = builder_->CreateInBoundsGEP(
+                    getPointerElementType(node.expr_.get()),
+                    expr,
+                    builder_->getInt32(1),
+                    "postinc");
+            }
+            else
+            {
+                add = (isFloat) ? builder_->CreateFAdd(expr, one, "postinc")
+                                : builder_->CreateAdd(expr, one, "postinc");
+            }
             builder_->CreateStore(add, visitAsLValue(*node.expr_));
+            currentValue_ = expr;
             break;
         case UnaryOp::Op::PRE_DEC:
             expr = visitAsRValue(*node.expr_);
-            currentValue_ = (isFloat)
-                                ? builder_->CreateFSub(expr, one, "predec")
-                                : builder_->CreateSub(expr, one, "predec");
+            if (expr->getType()->isPointerTy())
+            {
+                currentValue_ = builder_->CreateInBoundsGEP(
+                    getPointerElementType(node.expr_.get()),
+                    expr,
+                    builder_->getInt32(-1),
+                    "predec");
+            }
+            else
+            {
+                currentValue_ = (isFloat)
+                                    ? builder_->CreateFSub(expr, one, "predec")
+                                    : builder_->CreateSub(expr, one, "predec");
+            }
             break;
         case UnaryOp::Op::PRE_INC:
             expr = visitAsRValue(*node.expr_);
-            currentValue_ = (isFloat)
-                                ? builder_->CreateFAdd(expr, one, "preinc")
-                                : builder_->CreateAdd(expr, one, "preinc");
+            if (expr->getType()->isPointerTy())
+            {
+                currentValue_ = builder_->CreateInBoundsGEP(
+                    getPointerElementType(node.expr_.get()),
+                    expr,
+                    builder_->getInt32(1),
+                    "preinc");
+            }
+            else
+            {
+                currentValue_ = (isFloat)
+                                    ? builder_->CreateFAdd(expr, one, "preinc")
+                                    : builder_->CreateAdd(expr, one, "preinc");
+            }
             break;
         }
     }
@@ -1488,13 +1789,19 @@ void CodeGenModule::visit(const BlockItemList &node)
 {
     for (const auto &item : node.nodes_)
     {
-        // Trying to insert a statement after a terminator
-        // e.g. int main() { return 0; int x; }
-        if (builder_->GetInsertBlock()->getTerminator())
-        {
-            continue;
-        }
-        std::visit([this](const auto &item) { item->accept(*this); }, item);
+        std::visit(
+            [this](const auto &item)
+            {
+                // Trying to insert a statement after a terminator
+                // e.g. int main() { return 0; int x; }
+                // A case statement will insert a BasicBlock
+                if (!builder_->GetInsertBlock()->getTerminator() ||
+                    currentSwitch_)
+                {
+                    item->accept(*this);
+                }
+            },
+            item);
     }
 }
 
@@ -1707,9 +2014,34 @@ void CodeGenModule::visit(const Return &node)
     if (node.expr_)
     {
         auto *expectedType = typeMap_[&node].get();
-        llvm::Value *retValue = visitAsCastedRValue(*node.expr_, expectedType);
+        auto *ty = getLLVMType(expectedType);
 
-        builder_->CreateRet(retValue);
+        // Return struct, in memory
+        if (dynamic_cast<const StructType *>(expectedType))
+        {
+            if (getCurrentFunction()->getReturnType()->isVoidTy())
+            {
+                llvm::Value *dest = getCurrentFunction()->getArg(0);
+                visitAsStore(*node.expr_, dest, expectedType);
+                builder_->CreateRetVoid();
+            }
+            else
+            {
+                // Structs have to be copied before returning
+                llvm::Value *dest = createAlignedAlloca(ty);
+                visitAsStore(*node.expr_, dest, expectedType);
+                llvm::Value *gep = builder_->CreateGEP(
+                    ty, dest, {builder_->getInt32(0), builder_->getInt32(0)});
+                builder_->CreateRet(builder_->CreateLoad(
+                    getCurrentFunction()->getReturnType(), gep));
+            }
+        }
+        else
+        {
+            llvm::Value *retValue =
+                visitAsCastedRValue(*node.expr_, expectedType);
+            builder_->CreateRet(retValue);
+        }
     }
     else
     {
@@ -1789,25 +2121,6 @@ CodeGenModule::createAlignedAlloca(llvm::Type *type, const llvm::Twine &name)
     return inst;
 }
 
-llvm::Align CodeGenModule::getAlign(llvm::Type *type) const
-{
-    // _Alignof returns minimum align (e.g. _Alignof(int[4]) = 4, but LLVM
-    // defaults to giving 16, as int[4] >= 16 bytes)
-    int align = module_->getDataLayout().getPrefTypeAlign(type).value();
-    int size = module_->getDataLayout().getTypeAllocSize(type);
-
-    if (size >= 16)
-    {
-        return llvm::Align(std::max(16, align));
-    }
-    else if (size >= 8)
-    {
-        return llvm::Align(std::max(8, align));
-    }
-
-    return llvm::Align(align);
-}
-
 llvm::GlobalVariable *CodeGenModule::createAlignedGlobalVariable(
     llvm::Module &M,
     llvm::Type *Ty,
@@ -1837,6 +2150,94 @@ llvm::GlobalVariable *CodeGenModule::createAlignedGlobalVariable(
     return GV;
 }
 
+llvm::Function *CodeGenModule::createFunction(
+    const FnType *fnType,
+    llvm::GlobalValue::LinkageTypes linkage,
+    const std::string &name)
+{
+    std::vector<llvm::Type *> paramTypes = getParamTypes(fnType);
+    llvm::Type *originalRetType = getLLVMType(fnType->retType_.get());
+    auto fnParams = abi_->getFunctionParams(originalRetType, paramTypes);
+
+    std::vector<llvm::Type *> flatParams;
+    for (const auto &p : fnParams.paramTypes)
+    {
+        flatParams.insert(flatParams.end(), p.begin(), p.end());
+    }
+
+    // Create the function
+    llvm::FunctionType *ft = llvm::FunctionType::get(
+        fnParams.retType, flatParams, /* isVarArg */ false);
+    llvm::Function *fn =
+        llvm::Function::Create(ft, linkage, name, module_.get());
+
+    // Add metadata
+    if (fnParams.structReturnInMemory)
+    {
+        fn->addParamAttr(0, llvm::Attribute::DeadOnUnwind);
+        fn->addParamAttr(0, llvm::Attribute::NoAlias);
+        fn->addParamAttr(0, llvm::Attribute::Writable);
+        fn->addParamAttr(
+            0,
+            llvm::Attribute::getWithStructRetType(*context_, originalRetType));
+    }
+
+    unsigned argPtr = fnParams.structReturnInMemory ? 1 : 0;
+    for (size_t i = argPtr; i < fnParams.paramTypes.size(); i++)
+    {
+        size_t astIndex = i - fnParams.structReturnInMemory;
+        std::string paramName = fnType->params_->types_[astIndex].first;
+        llvm::Type *paramType =
+            getLLVMType(fnType->params_->types_[astIndex].second.get());
+
+        // Label the function arguments
+        for (size_t j = 0; j < fnParams.paramTypes[i].size(); j++)
+        {
+            // Pointer types are all NoUndef
+            if (fnParams.paramTypes[i][j]->isPointerTy())
+            {
+                fn->addParamAttr(argPtr, llvm::Attribute::NoUndef);
+            }
+
+            if (paramType->isStructTy())
+            {
+                if (fnParams.paramTypes[i].size() > 1)
+                {
+                    // This is a struct that expands into 2 arguments
+                }
+                else if (fnParams.paramTypes[i][j]->isPointerTy())
+                {
+                    // This is a struct that is passed by memory
+                    fn->addParamAttr(
+                        argPtr,
+                        llvm::Attribute::getWithByValType(
+                            *context_, paramType));
+                    fn->addParamAttr(
+                        argPtr,
+                        llvm::Attribute::getWithAlignment(
+                            *context_,
+                            getAlign(llvm::PointerType::get(paramType, 0))));
+                    fn->getArg(argPtr)->setName(paramName);
+                }
+            }
+            else
+            {
+                // This is a normal argument
+                fn->getArg(argPtr)->setName(paramName);
+            }
+
+            argPtr++;
+        }
+    }
+
+    return fn;
+}
+
+llvm::Align CodeGenModule::getAlign(llvm::Type *type) const
+{
+    return abi_->getTypeAlign(type);
+}
+
 llvm::Function *CodeGenModule::getCurrentFunction() const
 {
     return builder_->GetInsertBlock()->getParent();
@@ -1859,7 +2260,7 @@ std::string CodeGenModule::getLocalStaticName(const std::string &name) const
 
 llvm::Type *CodeGenModule::getLLVMType(const BaseNode *node)
 {
-    return getLLVMType(typeMap_[node].get());
+    return getLLVMType(typeMap_.at(node).get());
 }
 
 llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
@@ -1871,14 +2272,9 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
     }
     else if (auto fnType = dynamic_cast<const FnType *>(type))
     {
-        std::vector<llvm::Type *> paramTypes;
-        for (const auto &p : fnType->params_->types_)
-        {
-            paramTypes.push_back(getLLVMType(p.second.get()));
-        }
-
-        return llvm::FunctionType::get(
-            getLLVMType(fnType->retType_.get()), paramTypes, false);
+        std::vector<llvm::Type *> paramTypes = getParamTypes(fnType);
+        return abi_->getFunctionType(
+            getLLVMType(fnType->retType_.get()), paramTypes);
     }
     else if (auto ptrType = dynamic_cast<const PtrType *>(type))
     {
@@ -1894,7 +2290,24 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
     {
         // Structs are not defined here
         std::string name = "struct." + structType->name_;
-        return llvm::StructType::getTypeByName(*context_, name);
+        auto it = std::find(
+            structIDs_[name].begin(),
+            structIDs_[name].end(),
+            structType->getID());
+
+        size_t index = it - structIDs_[name].begin();
+        if (index != 0)
+        {
+            name += "." + std::to_string(index);
+        }
+
+        if (auto *ty = llvm::StructType::getTypeByName(*context_, name))
+        {
+            return ty;
+        }
+
+        // Opaque structs
+        return llvm::StructType::create(*context_, name);
     }
     else if (auto enumType = dynamic_cast<const EnumType *>(type))
     {
@@ -1907,36 +2320,57 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
 
 llvm::Type *CodeGenModule::getLLVMType(Types ty)
 {
+    unsigned size = abi_->getTypeSize(ty);
+
     switch (ty)
     {
     case Types::VOID:
         return llvm::Type::getVoidTy(*context_);
     case Types::BOOL:
-        return llvm::Type::getInt1Ty(*context_);
     case Types::CHAR:
     case Types::UNSIGNED_CHAR:
-        return llvm::Type::getInt8Ty(*context_);
     case Types::SHORT:
     case Types::UNSIGNED_SHORT:
-        return llvm::Type::getInt16Ty(*context_);
     case Types::INT:
     case Types::UNSIGNED_INT:
-        return llvm::Type::getInt32Ty(*context_);
     case Types::LONG:
     case Types::UNSIGNED_LONG:
-        return llvm::Type::getInt64Ty(*context_);
     case Types::LONG_LONG:
     case Types::UNSIGNED_LONG_LONG:
-        return llvm::Type::getInt128Ty(*context_);
+        return llvm::Type::getIntNTy(*context_, size);
     case Types::FLOAT:
-        return llvm::Type::getFloatTy(*context_);
     case Types::DOUBLE:
-        return llvm::Type::getDoubleTy(*context_);
     case Types::LONG_DOUBLE:
-        return llvm::Type::getFP128Ty(*context_);
+        if (size == 32)
+        {
+            return llvm::Type::getFloatTy(*context_);
+        }
+        else if (size == 64)
+        {
+            return llvm::Type::getDoubleTy(*context_);
+        }
+        else if (size == 80)
+        {
+            return llvm::Type::getX86_FP80Ty(*context_);
+        }
+        else if (size == 128)
+        {
+            return llvm::Type::getFP128Ty(*context_);
+        }
     }
 
     throw std::runtime_error("Unknown type");
+}
+
+std::vector<llvm::Type *> CodeGenModule::getParamTypes(const FnType *fnType)
+{
+    std::vector<llvm::Type *> paramTypes;
+    for (const auto &p : fnType->params_->types_)
+    {
+        paramTypes.push_back(getLLVMType(p.second.get()));
+    }
+
+    return paramTypes;
 }
 
 llvm::Type *CodeGenModule::getPointerElementType(const BaseNode *node)
@@ -1957,7 +2391,17 @@ llvm::Value *CodeGenModule::visitAsLValue(const Expr &node)
 {
     valueCategory_ = ValueCategory::LVALUE;
     node.accept(*this);
-    return currentValue_;
+
+    // If no allocaInst is found, a temporary is assigned
+    if (currentValue_->getType()->isPointerTy())
+    {
+        return currentValue_;
+    }
+
+    llvm::AllocaInst *allocaInst =
+        createAlignedAlloca(getLLVMType(typeMap_[&node].get()));
+    builder_->CreateStore(currentValue_, allocaInst);
+    return allocaInst;
 }
 
 llvm::Value *CodeGenModule::visitAsRValue(const Expr &node)
@@ -2004,15 +2448,86 @@ CodeGenModule::visitAsConstant(const Expr &node, const BaseType *expectedType)
     return static_cast<llvm::Constant *>(currentValue_);
 }
 
-void CodeGenModule::visitAsStore(
+llvm::Value *CodeGenModule::visitAsStore(
     const Expr &node,
-    llvm::Value *val,
+    llvm::Value *storeVal,
     const BaseType *expectedType)
 {
-    ScopeGuard sg(currentStore_, static_cast<llvm::Value *>(val));
+    ScopeGuard sg(currentStore_, static_cast<llvm::Value *>(storeVal));
     ScopeGuard sg2(currentExpectedType_, expectedType);
-    valueCategory_ = ValueCategory::RVALUE;
-    node.accept(*this);
+    llvm::Type *ty = getLLVMType(expectedType);
+
+    if (ty->isStructTy())
+    {
+        // Not guaranteed to be a struct of the correct type
+        llvm::Value *val = visitAsRValue(node);
+
+        // Case: struct x = { 1, 2 }; (no need to do anything)
+        if (!val)
+        {
+            return currentStore_;
+        }
+
+        // Case: struct x f(); (returns struct x in memory)
+        if (val->getType()->isPointerTy())
+        {
+            llvm::Value *gep = builder_->CreateGEP(
+                ty,
+                currentStore_,
+                {builder_->getInt32(0), builder_->getInt32(0)});
+            builder_->CreateMemCpy(
+                gep,
+                getAlign(ty),
+                val,
+                getAlign(val->getType()),
+                module_->getDataLayout().getTypeAllocSize(ty));
+        }
+        // Case: struct x f(); (returns { i64, i8 } or i8)
+        else if (val->getType() != ty)
+        {
+            llvm::Value *gep = builder_->CreateGEP(
+                ty,
+                currentStore_,
+                {builder_->getInt32(0), builder_->getInt32(0)});
+            auto *tempAlloca = createAlignedAlloca(val->getType());
+            builder_->CreateStore(val, tempAlloca);
+            builder_->CreateMemCpy(
+                gep,
+                getAlign(ty),
+                tempAlloca,
+                getAlign(val->getType()),
+                module_->getDataLayout().getTypeAllocSize(ty));
+        }
+
+        return val;
+    }
+    else if (ty->isArrayTy())
+    {
+        llvm::Value *val = visitAsRValue(node);
+
+        // Case: int x[3] = { 1, 2 }; (no need to do anything)
+        if (!val)
+        {
+            return val;
+        }
+        // Case: int x[3] = f(); (returns a pointer to an array)
+        else if (val->getType()->isPointerTy())
+        {
+            builder_->CreateMemCpy(
+                currentStore_,
+                getAlign(ty),
+                val,
+                getAlign(val->getType()),
+                module_->getDataLayout().getTypeAllocSize(ty));
+        }
+
+        return val;
+    }
+
+    llvm::Value *val = visitAsCastedRValue(node, currentExpectedType_);
+    builder_->CreateStore(val, currentStore_);
+
+    return val;
 }
 
 void CodeGenModule::symbolTablePush(std::string id, Symbol symbol)
@@ -2151,6 +2666,11 @@ llvm::Value *CodeGenModule::runCast(
     const BaseType *initialType,
     const BaseType *expectedType)
 {
+    if (!val)
+    {
+        return val;
+    }
+
     // Will try to do anything to make the types match
     auto valType = val->getType();
     auto type = getLLVMType(expectedType);

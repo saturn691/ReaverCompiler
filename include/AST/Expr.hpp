@@ -250,6 +250,11 @@ class InitList final : public NodeList<Init>, public Node<InitList>, public Expr
 {
 public:
     using NodeList::NodeList;
+
+    bool isLValue() const override
+    {
+        return true;
+    }
 };
 
 /**
@@ -348,7 +353,9 @@ public:
 
     bool isLValue() const override
     {
-        return true;
+        // x.a is an lvalue if x is an lvalue
+        // x().a is not an lvalue
+        return expr_->isLValue();
     }
 
     Ptr<Expr> expr_;

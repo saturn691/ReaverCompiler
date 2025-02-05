@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "AST/Visitor.hpp"
+#include "CodeGen/ABI.hpp"
 #include "CodeGen/TypeChecker.hpp"
 
 #include "llvm/IR/IRBuilder.h"
@@ -18,15 +19,19 @@ namespace CodeGen
 {
 using Symbol = std::variant<
     llvm::AllocaInst *,
-    llvm::GlobalVariable *,
+    llvm::Argument *,
     llvm::Constant *,
+    llvm::GlobalVariable *,
     std::monostate>;
 using SymbolTable = std::vector<std::unordered_map<std::string, Symbol>>;
 
 class CodeGenModule : public Visitor
 {
 public:
-    CodeGenModule(std::string outputFile, TypeMap &typeMap);
+    CodeGenModule(
+        std::string sourceFile,
+        std::string outputFile,
+        TypeMap &typeMap);
     void emitLLVM();
     void emitObject();
     void optimize();
@@ -99,20 +104,21 @@ public:
     void visit(const While &node) override;
 
 private:
-    std::string outputFile_;
-    TypeMap &typeMap_;
-
-    std::unique_ptr<llvm::LLVMContext> context_;
-    std::unique_ptr<llvm::IRBuilder<>> builder_;
-    std::unique_ptr<llvm::Module> module_;
-    llvm::TargetMachine *targetMachine_;
-
     enum class ValueCategory
     {
         LVALUE,
         RVALUE,
         FN_DESIGNATOR
     };
+
+    std::string outputFile_;
+    TypeMap &typeMap_;
+
+    std::unique_ptr<llvm::LLVMContext> context_;
+    std::unique_ptr<llvm::IRBuilder<>> builder_;
+    std::unique_ptr<llvm::Module> module_;
+    std::unique_ptr<ABI> abi_;
+    llvm::TargetMachine *targetMachine_;
 
     // Contextual information (unfortunately). Use the guard for safety.
     // Used as a "return value" for the visitor
@@ -121,15 +127,17 @@ private:
     llvm::Value *currentStore_ = nullptr;                 // For InitDecl
     bool isGlobal_ = true;                                // For InitDecl
     const BaseType *currentExpectedType_ = nullptr;       // For InitDecl
-    llvm::SwitchInst *currentSwitch_ = nullptr;           // For Switch/Case
-    SymbolTable symbolTable_;                             // For Decl
+    llvm::Function *currentFunction_ = nullptr; // For FnDecl/ParamList
+    llvm::SwitchInst *currentSwitch_ = nullptr; // For Switch/Case
+    SymbolTable symbolTable_;                   // For Decl
     // For Break/While/For/Do-While/Switch
     std::stack<llvm::BasicBlock *> breakStack_;
     // For Continue/While/For/Do-While
     std::stack<llvm::BasicBlock *> continueStack_;
+    std::unordered_map<std::string, std::vector<size_t>> structIDs_;
 
     llvm::AllocaInst *
-    createAlignedAlloca(llvm::Type *type, const llvm::Twine &name);
+    createAlignedAlloca(llvm::Type *type, const llvm::Twine &name = "");
     llvm::GlobalVariable *createAlignedGlobalVariable(
         llvm::Module &M,
         llvm::Type *Ty,
@@ -142,6 +150,10 @@ private:
             llvm::GlobalVariable::NotThreadLocal,
         std::optional<unsigned> AddressSpace = std::nullopt,
         bool isExternallyInitialized = false);
+    llvm::Function *createFunction(
+        const FnType *fnType,
+        llvm::GlobalValue::LinkageTypes linkage,
+        const std::string &name);
 
     llvm::Align getAlign(llvm::Type *type) const;
     llvm::Function *getCurrentFunction() const;
@@ -149,6 +161,7 @@ private:
     llvm::Type *getLLVMType(const BaseNode *node);
     llvm::Type *getLLVMType(const BaseType *type);
     llvm::Type *getLLVMType(Types ty);
+    std::vector<llvm::Type *> getParamTypes(const FnType *fnType);
     llvm::Type *getPointerElementType(const BaseNode *node);
     llvm::Value *visitAsLValue(const Expr &node);
     llvm::Value *visitAsRValue(const Expr &node);
@@ -157,9 +170,9 @@ private:
     llvm::Function *visitAsFnDesignator(const Expr &node);
     llvm::Constant *
     visitAsConstant(const Expr &node, const BaseType *expectedType);
-    void visitAsStore(
+    llvm::Value *visitAsStore(
         const Expr &node,
-        llvm::Value *val,
+        llvm::Value *storeVal,
         const BaseType *expectedType);
     void symbolTablePush(std::string id, Symbol symbol);
     Symbol symbolTableLookup(std::string id) const;

@@ -25,7 +25,7 @@ enum class StorageDuration;
 class BaseType
 {
 public:
-    BaseType() = default;
+    BaseType();
     BaseType(const BaseType &other);
     virtual ~BaseType() = default;
     virtual bool operator==(const BaseType &other) const = 0;
@@ -35,6 +35,11 @@ public:
     virtual bool operator<(const BaseType &other) const = 0;
     virtual bool operator<=(const BaseType &other) const = 0;
     virtual Ptr<BaseType> clone() const = 0;
+    virtual bool isComplete() const noexcept = 0;
+    size_t getID() const noexcept;
+
+    size_t id_;
+    static size_t idProvider_;
 
     // Qualifiers (mutable because we use Ptr<> everywhere and cba)
     mutable std::optional<CVRQualifier> cvrQualifier_ = std::nullopt;
@@ -164,6 +169,8 @@ public:
     bool operator==(const ArrayType &other) const override;
     bool operator<(const BaseType &other) const override;
 
+    bool isComplete() const noexcept override;
+
     Ptr<BaseType> type_;
     size_t size_;
 };
@@ -187,7 +194,8 @@ public:
     bool operator==(const BasicType &other) const override;
     bool operator<(const BaseType &other) const override;
 
-    bool isSigned() const;
+    bool isComplete() const noexcept override;
+    bool isSigned() const noexcept;
 
     Types type_;
 };
@@ -206,6 +214,8 @@ public:
     bool operator==(const EnumType &other) const override;
     bool operator<(const BaseType &other) const override;
 
+    bool isComplete() const noexcept override;
+
     std::string name_;
     EnumConsts consts_;
 };
@@ -222,6 +232,8 @@ public:
 
     bool operator==(const FnType &other) const override;
     bool operator<(const BaseType &other) const override;
+
+    bool isComplete() const noexcept override;
 
     Ptr<ParamType> params_;
     Ptr<BaseType> retType_;
@@ -240,6 +252,8 @@ public:
 
     bool operator==(const ParamType &other) const override;
     bool operator<(const BaseType &other) const override;
+
+    bool isComplete() const noexcept override;
 
     size_t size() const;
     const BaseType *at(size_t i) const;
@@ -260,6 +274,8 @@ public:
     bool operator==(const PtrType &other) const override;
     bool operator<(const BaseType &other) const override;
 
+    bool isComplete() const noexcept override;
+
     Ptr<BaseType> type_;
 };
 
@@ -278,17 +294,22 @@ public:
     // Used for forward declarations/self-references
     StructType(Type type, std::string name);
     StructType(Type type, std::string name, Ptr<ParamType> params);
+    StructType(Type type, std::string name, Ptr<ParamType> params, size_t id);
     StructType(const StructType &other);
 
     bool operator==(const StructType &other) const override;
     bool operator<(const BaseType &other) const override;
 
+    bool isComplete() const noexcept override;
+
+    std::string getName() const noexcept;
     Ptr<BaseType> getMemberType(std::string name) const;
     unsigned int getMemberIndex(std::string name) const;
+    Ptr<StructType> withParams(const ParamType *params) const;
 
     Type type_;
     std::string name_;
-    Ptr<ParamType> params_;
+    Ptr<ParamType> params_; // Optional
 };
 
 } // namespace AST

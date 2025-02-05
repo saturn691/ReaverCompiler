@@ -429,8 +429,8 @@ public:
 
     std::string getID() const override
     {
-        std::string prefix = (type_ == Type::STRUCT) ? "struct " : "union ";
-        return prefix + name_;
+        auto st = StructType(type_, name_);
+        return st.getName();
     }
 
     Ptr<BaseType> getType() const override

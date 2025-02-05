@@ -47,7 +47,8 @@ if not sys.stdout.isatty():
 SCRIPT_LOCATION = Path(__file__).resolve().parent
 PROJECT_LOCATION = SCRIPT_LOCATION
 OUTPUT_FOLDER = PROJECT_LOCATION.joinpath("output").resolve()
-J_UNIT_OUTPUT_FILE = PROJECT_LOCATION.joinpath("output/junit_results.xml").resolve()
+J_UNIT_OUTPUT_FILE = PROJECT_LOCATION.joinpath(
+    "output/junit_results.xml").resolve()
 COMPILER_TEST_FOLDER = PROJECT_LOCATION.joinpath("tests").resolve()
 BUILD_FOLDER = PROJECT_LOCATION.joinpath("build").resolve()
 COMPILER_FILE = PROJECT_LOCATION.joinpath("build/rcc").resolve()
@@ -56,6 +57,7 @@ COVERAGE_FOLDER = PROJECT_LOCATION.joinpath("coverage").resolve()
 BUILD_TIMEOUT_SECONDS = 60
 RUN_TIMEOUT_SECONDS = 5
 TIMEOUT_RETURNCODE = 124
+
 
 @dataclass
 class Result:
@@ -78,7 +80,8 @@ class Result:
         xml_tag_body = xmlescape(timeout + self.error_log)
         return (
             f'<testcase name="{self.test_case_name}">\n'
-            f'<error type="error" message={attribute}>\n{xml_tag_body}</error>\n'
+            f'<error type="error" message={
+                attribute}>\n{xml_tag_body}</error>\n'
             f'</testcase>\n'
         )
 
@@ -87,6 +90,7 @@ class Result:
         if self.passed:
             return f'{self.test_case_name}\n\t> {GREEN}Pass{RESET}\n'
         return f'{self.test_case_name}\n{RED}{timeout + self.error_log}{RESET}\n'
+
 
 class JUnitXMLFile():
     def __init__(self, path: Path):
@@ -105,6 +109,7 @@ class JUnitXMLFile():
     def __exit__(self, exception_type, exception_value, exception_traceback):
         self.fd.write('</testsuite>\n')
         self.fd.close()
+
 
 class ProgressBar:
     """
@@ -129,8 +134,8 @@ class ProgressBar:
         # Initialize the lines for the progress bar and stats
         print("Running Tests [" + " " * self.max_line_length + "]")
         print(
-            GREEN +  "Pass: 0 | " +
-            RED   +  "Fail: 0 | " +
+            GREEN + "Pass: 0 | " +
+            RED + "Fail: 0 | " +
             RESET + f"Remaining: {total_tests:2}"
         )
 
@@ -145,8 +150,10 @@ class ProgressBar:
             prop_passed = 0
             prop_failed = 0
         else:
-            prop_passed = round(self.passed / self.total_tests * self.max_line_length)
-            prop_failed = round(self.failed / self.total_tests * self.max_line_length)
+            prop_passed = round(
+                self.passed / self.total_tests * self.max_line_length)
+            prop_failed = round(
+                self.failed / self.total_tests * self.max_line_length)
 
         # Ensure at least one # for passed and failed, if they exist
         prop_passed = max(prop_passed, 1) if self.passed > 0 else 0
@@ -155,7 +162,7 @@ class ProgressBar:
         remaining = self.max_line_length - prop_passed - prop_failed
 
         progress_bar += GREEN + '#' * prop_passed    # Green
-        progress_bar += RED   + '#' * prop_failed    # Red
+        progress_bar += RED + '#' * prop_failed    # Red
         progress_bar += RESET + ' ' * remaining      # Empty space
 
         # Move the cursor up 2 lines to the beginning of the progress bar
@@ -167,7 +174,7 @@ class ProgressBar:
         # Space is left there intentionally to flush out the command line
         print(
             GREEN + f"Pass: {self.passed:2} | " +
-            RED   + f"Fail: {self.failed:2} | " +
+            RED + f"Fail: {self.failed:2} | " +
             RESET + f"Remaining: {remaining_tests:2}"
         )
 
@@ -177,6 +184,7 @@ class ProgressBar:
         else:
             self.failed += 1
         self.update()
+
 
 def run_test(driver: Path) -> Result:
     """
@@ -198,7 +206,8 @@ def run_test(driver: Path) -> Result:
 
     # Construct the path where logs would be stored, without the suffix
     # e.g. .../bin/output/_example/example/example
-    log_path = Path(OUTPUT_FOLDER).joinpath(relative_path.parent, to_assemble.stem, to_assemble.stem)
+    log_path = Path(OUTPUT_FOLDER).joinpath(
+        relative_path.parent, to_assemble.stem, to_assemble.stem)
 
     # Recreate the directory
     shutil.rmtree(log_path.parent, ignore_errors=True)
@@ -210,15 +219,17 @@ def run_test(driver: Path) -> Result:
 
     def relevant_files(component):
         return f"{log_path}.{component}.stderr.log \n\t {log_path}.{component}.stdout.log"
-    compiler_log_file_str=f"{relevant_files('compiler')}"
+    compiler_log_file_str = f"{relevant_files('compiler')}"
 
     # Reference LLVM IR
     return_code, _, timed_out = run_subprocess(
-        cmd=["clang", "-S", "-emit-llvm", to_assemble,"-o", f"{log_path}.ref.ll"],
+        cmd=["clang", "-S", "-emit-llvm",
+             to_assemble, "-o", f"{log_path}.ref.ll"],
         timeout=RUN_TIMEOUT_SECONDS,
         log_path=f"{log_path}.ref",)
     if return_code != 0:
-        msg = f"\t> Failed to generate reference: \n\t {compiler_log_file_str} \n\t {relevant_files('ref')}"
+        msg = f"\t> Failed to generate reference: \n\t {
+            compiler_log_file_str} \n\t {relevant_files('ref')}"
         return Result(
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)
@@ -243,30 +254,19 @@ def run_test(driver: Path) -> Result:
         log_path=f"{log_path}.as",
     )
     if return_code != 0:
-        msg = f"\t> Failed to assemble: \n\t {compiler_log_file_str} \n\t {relevant_files('as')}"
-        return Result(
-            test_case_name=test_name, return_code=return_code, passed=False,
-            timeout=timed_out, error_log=msg)
-    
-    return_code, _, timed_out = run_subprocess(
-        cmd=[
-            "llc", "-filetype=obj", "-o", f"{log_path}.o", f"{log_path}.bc"
-        ],
-        timeout=RUN_TIMEOUT_SECONDS,
-        log_path=f"{log_path}.llc",
-    )
-    if return_code != 0:
-        msg = f"\t> Failed to assemble: \n\t {compiler_log_file_str} \n\t {relevant_files('llc')}"
+        msg = f"\t> Failed to assemble: \n\t {
+            compiler_log_file_str} \n\t {relevant_files('as')}"
         return Result(
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)
 
     # Link
     return_code, _, timed_out = run_subprocess(
-        cmd=["clang", "-o", f"{log_path}", f"{log_path}.o", str(driver)],
+        cmd=["clang", "-o", f"{log_path}", f"{log_path}.ll", str(driver)],
         timeout=RUN_TIMEOUT_SECONDS, log_path=f"{log_path}.linker",)
     if return_code != 0:
-        msg = f"\t> Failed to link driver: \n\t {compiler_log_file_str} \n\t {relevant_files('linker')}"
+        msg = f"\t> Failed to link driver: \n\t {
+            compiler_log_file_str} \n\t {relevant_files('linker')}"
         return Result(
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)
@@ -278,13 +278,15 @@ def run_test(driver: Path) -> Result:
         log_path=f"{log_path}.sim",
     )
     if return_code != 0:
-        msg = f"\t> Failed to simulate: \n\t {compiler_log_file_str} \n\t {relevant_files('sim')}"
+        msg = f"\t> Failed to simulate: \n\t {
+            compiler_log_file_str} \n\t {relevant_files('sim')}"
         return Result(
             test_case_name=test_name, return_code=return_code, passed=False,
             timeout=timed_out, error_log=msg)
 
     return Result(test_case_name=test_name, return_code=return_code,
                   passed=True, timeout=False, error_log="")
+
 
 def run_subprocess(
     cmd: List[str],
@@ -310,12 +312,14 @@ def run_subprocess(
         stderr = open(f"{log_path}.stderr.log", "w")
 
     try:
-        subprocess.run(cmd, env=env, stdout=stdout, stderr=stderr, timeout=timeout, check=True)
+        subprocess.run(cmd, env=env, stdout=stdout,
+                       stderr=stderr, timeout=timeout, check=True)
     except subprocess.CalledProcessError as e:
         return e.returncode, f"{e.cmd} failed with return code {e.returncode}", False
     except subprocess.TimeoutExpired as e:
         return TIMEOUT_RETURNCODE, f"{e.cmd} took more than {e.timeout}", True
     return 0, "", False
+
 
 def make(silent: bool) -> bool:
     """
@@ -325,8 +329,8 @@ def make(silent: bool) -> bool:
     """
     print(GREEN + "Running make..." + RESET)
     return_code, error_msg, _ = run_subprocess(
-        cmd=["cmake", "-S", PROJECT_LOCATION, "-B", BUILD_FOLDER], 
-        timeout=BUILD_TIMEOUT_SECONDS, 
+        cmd=["cmake", "-S", PROJECT_LOCATION, "-B", BUILD_FOLDER],
+        timeout=BUILD_TIMEOUT_SECONDS,
         silent=silent
     )
     return_code, error_msg, _ = run_subprocess(
@@ -337,6 +341,7 @@ def make(silent: bool) -> bool:
         return False
 
     return True
+
 
 def coverage() -> bool:
     """
@@ -353,6 +358,7 @@ def coverage() -> bool:
         return False
     return True
 
+
 def serve_coverage_forever(host: str, port: int):
     """
     Starts a HTTP server which serves the coverage folder forever until Ctrl+C
@@ -366,11 +372,13 @@ def serve_coverage_forever(host: str, port: int):
             pass
 
     httpd = HTTPServer((host, port), Handler)
-    print(GREEN + "Serving coverage on" + RESET + f" http://{host}:{port}/ ... (Ctrl+C to exit)")
+    print(GREEN + "Serving coverage on" + RESET +
+          f" http://{host}:{port}/ ... (Ctrl+C to exit)")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         print(RED + "\nServer has been stopped!" + RESET)
+
 
 def process_result(
     result: Result,
@@ -391,6 +399,7 @@ def process_result(
         progress_bar.update_with_value(result.passed)
 
     return
+
 
 def run_tests(args, xml_file: JUnitXMLFile):
     """
@@ -427,7 +436,9 @@ def run_tests(args, xml_file: JUnitXMLFile):
     if args.short:
         return
 
-    print("\n>> Test Summary: " + GREEN + f"{passing} Passed, " + RED + f"{total-passing} Failed" + RESET)
+    print("\n>> Test Summary: " + GREEN +
+          f"{passing} Passed, " + RED + f"{total-passing} Failed" + RESET)
+
 
 def parse_args():
     """
@@ -470,6 +481,7 @@ def parse_args():
     )
     return parser.parse_args()
 
+
 def main():
     args = parse_args()
 
@@ -487,6 +499,7 @@ def main():
         if not coverage():
             exit(4)
         serve_coverage_forever('0.0.0.0', 8000)
+
 
 if __name__ == "__main__":
     try:

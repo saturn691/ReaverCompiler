@@ -1,3 +1,6 @@
+# There is an issue with linking with libc++abi
+# Run `sudo apt purge libc++abi-18-dev` to fix it
+
 cmake_minimum_required(VERSION 3.20)
 
 # Set before project()
@@ -33,6 +36,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(cli11_proj)
 
+# Boost (main.cpp)
+find_package(Boost COMPONENTS filesystem REQUIRED)
+
 # LLVM
 find_package(LLVM REQUIRED CONFIG)
 include_directories(${LLVM_INCLUDE_DIRS})
@@ -65,7 +71,22 @@ add_executable(rcc
     ${BISON_Parser_OUTPUTS}
     ${FLEX_Lexer_OUTPUTS}
 )
+include_directories(rcc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(rcc PRIVATE AST CodeGen LLVM CLI11::CLI11 ${Boost_FILESYSTEM_LIBRARY})
 
-# Affects the whole directory - allows everything to see include/
-include_directories(PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(rcc PRIVATE AST CodeGen LLVM CLI11::CLI11)
+# Tests
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG        v1.15.2
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+enable_testing()
+
+add_executable(abi_test unittests/CodeGen/ABITest.cpp)
+target_link_libraries(abi_test PRIVATE GTest::gtest_main CodeGen LLVM)
+
+include(GoogleTest)
+gtest_discover_tests(abi_test)

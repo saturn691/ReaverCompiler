@@ -99,13 +99,17 @@ private:
     // For DeclNode and FnDef
     Ptr<BaseType> currentType_;
     bool fromDecl_ = false;
+    std::vector<std::vector<const BaseNode *>> incompleteNodes_;
 
     bool checkType(const BaseType *actual, const BaseType *expected);
     bool assertIsIntegerTy(const BaseType *type);
 
+    void clearIncompleteNodes();
+    Ptr<BaseType> tryComplete(const BaseType *type);
     void pushScope();
     void popScope();
-    Ptr<BaseType> lookupType(const std::string &name) const;
+    Ptr<BaseType> lookupType(const std::string &name, size_t id = -1) const;
+    void insertIncompleteNode(const BaseNode *node);
     void insertType(const std::string &name, Ptr<BaseType> type);
 };
 } // namespace CodeGen
