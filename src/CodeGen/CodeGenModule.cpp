@@ -1641,7 +1641,7 @@ void CodeGenModule::visit(const UnaryOp &node)
         bool isFloat = type->isFloatingPointTy();
         llvm::Value *one =
             (isFloat) ? llvm::ConstantFP::get(type, 1.0)
-                      : llvm::ConstantInt::get(type, 1, /* isSigned */ false);
+                      : builder_->getInt32(1);
         llvm::Value *zero = builder_->getInt32(0);
 
         switch (node.op_)

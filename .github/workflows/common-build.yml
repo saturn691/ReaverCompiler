@@ -1,0 +1,81 @@
+name: Common Build
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ${{ inputs.os }}
+    permissions:
+      packages: read
+      statuses: write
+      checks: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Restore third_party cache
+        uses: actions/cache@v3
+        with:
+          path: third_party
+          key: ${{ inputs.os }}-third_party
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ inputs.os }}" = "ubuntu-latest" ]; then
+            sudo apt-get update
+            sudo apt-get install -y cmake git ninja-build python3 flex bison ccache
+          else
+            brew update
+            brew install cmake ninja python flex bison ccache
+            brew link --force bison
+            echo 'export PATH="/usr/local/opt/bison/bin:$PATH"' >> $GITHUB_ENV
+          fi
+
+      - name: Prepare third_party
+        run: |
+          mkdir -p third_party
+          git -C third_party clone --depth 1 --branch llvmorg-20.1.5 https://github.com/llvm/llvm-project.git || true
+          git -C third_party clone --depth 1 --branch boost-1.88.0 https://github.com/boostorg/boost.git --recursive || true
+          git -C third_party clone --depth 1 --branch v2.5.0 https://github.com/CLIUtils/CLI11.git || true
+          git -C third_party clone --depth 1 --branch v1.17.0 https://github.com/google/googletest.git || true
+
+      - name: Save third_party cache
+        uses: actions/cache@v3
+        with:
+          path: third_party
+          key: ${{ inputs.os }}-third_party
+
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+
+      - name: Configure CMake
+        run: |
+          mkdir -p build && cd build
+          cmake .. -G Ninja \
+            -DFETCHCONTENT_FULLY_DISCONNECTED=ON \
+            -DFETCHCONTENT_SOURCE_DIR_LLVM_PROJECT=../third_party/llvm-project \
+            -DFETCHCONTENT_SOURCE_DIR_BOOST=../third_party/boost \
+            -DFETCHCONTENT_SOURCE_DIR_CLI11=../third_party/CLI11 \
+            -DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=../third_party/googletest
+
+      - name: Build
+        run: |
+          cd build
+          ninja
+
+      - name: Test
+        run: |
+          ./test.py
+
+      - name: Upload test results
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test results
+          path: output/junit_results.xml
+          reporter: java-junit
+          fail-on-error: false

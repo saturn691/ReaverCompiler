@@ -1,7 +1,9 @@
 build/
 output/
 .vscode/
+third_party/
 
 # Default names
 output.o
 a.out
+.python-version

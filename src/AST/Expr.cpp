@@ -276,11 +276,13 @@ EvalType Constant::eval() const
         // std::stod does not work for Inf, NaN or subnormals
         return std::strtod(value_.c_str(), nullptr);
     }
-    else if (std::stoul(value_) > std::numeric_limits<int64_t>::max())
+    else if (
+        static_cast<uint64_t>(std::stoull(value_)) >
+        std::numeric_limits<int64_t>::max())
     {
-        return std::stoul(value_);
+        return static_cast<uint64_t>(std::stoull(value_));
     }
-    return std::stol(value_);
+    return static_cast<int64_t>(std::stoll(value_));
 }
 
 char Constant::getChar() const

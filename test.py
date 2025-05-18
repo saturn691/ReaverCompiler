@@ -245,21 +245,6 @@ def run_test(driver: Path) -> Result:
         msg = f"\t> Failed to compile testcase: \n\t {compiler_log_file_str}"
         return Result(test_case_name=test_name, return_code=return_code, passed=False, timeout=timed_out, error_log=msg)
 
-    # Assemble
-    return_code, _, timed_out = run_subprocess(
-        cmd=[
-            "llvm-as", "-o", f"{log_path}.bc", f"{log_path}.ll"
-        ],
-        timeout=RUN_TIMEOUT_SECONDS,
-        log_path=f"{log_path}.as",
-    )
-    if return_code != 0:
-        msg = f"\t> Failed to assemble: \n\t {
-            compiler_log_file_str} \n\t {relevant_files('as')}"
-        return Result(
-            test_case_name=test_name, return_code=return_code, passed=False,
-            timeout=timed_out, error_log=msg)
-
     # Link
     return_code, _, timed_out = run_subprocess(
         cmd=["clang", "-o", f"{log_path}", f"{log_path}.ll", str(driver)],

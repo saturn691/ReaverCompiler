@@ -1,0 +1,19 @@
+name: Mac OS X
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  packages: read
+  statuses: write
+  checks: write
+  contents: read
+
+jobs:
+  build-on-macos:
+    uses: ./.github/workflows/common-build.yml
+    with:
+      os: macos-latest

@@ -29,7 +29,7 @@ ABI::FunctionParamsInfo X86_64ABI::getFunctionParams(
     if (!retType->isVoidTy() &&
         getArgClassification(retType)[0].cls == ArgClass::MEMORY)
     {
-        actualParamTypes.push_back({retType->getPointerTo()});
+        actualParamTypes.push_back({llvm::PointerType::get(retType, 0)});
         intRegs++;
         retType = llvm::Type::getVoidTy(module_.getContext());
         structReturnInMemory = true;
@@ -82,7 +82,7 @@ ABI::FunctionParamsInfo X86_64ABI::getFunctionParams(
             }
             else
             {
-                currentParamTypes.push_back(paramType->getPointerTo());
+                currentParamTypes.push_back(llvm::PointerType::get(paramType, 0));
                 intRegs++;
             }
         }
@@ -163,7 +163,7 @@ std::vector<llvm::Type *> X86_64ABI::getParamType(llvm::Type *type) const
                 break;
             case ArgClass::MEMORY:
                 // argClasses.size() must be 1
-                actualParamTypes.push_back(type->getPointerTo());
+                actualParamTypes.push_back(llvm::PointerType::get(type, 0));
                 break;
             default:
                 throw std::runtime_error("Unknown argument class");
@@ -297,7 +297,7 @@ X86_64ABI::ArgClasses X86_64ABI::getArgClassification(llvm::Type *type) const
                 llvm::ArrayType *arrayType = llvm::cast<llvm::ArrayType>(type);
 
                 elemType = arrayType->getArrayElementType();
-                elemOffset = i * layout.getTypeAllocSize(elemType);
+                elemOffset = (uint64_t)i * layout.getTypeAllocSize(elemType);
                 elemSize = layout.getTypeAllocSize(elemType);
             }
 

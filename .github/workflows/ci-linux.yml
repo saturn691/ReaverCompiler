@@ -1,0 +1,19 @@
+name: Linux
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  packages: read
+  statuses: write
+  checks: write
+  contents: read
+
+jobs:
+  build-on-linux:
+    uses: ./.github/workflows/common-build.yml
+    with:
+      os: ubuntu-latest

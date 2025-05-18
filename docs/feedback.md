@@ -1,4 +1,8 @@
 # Reaver Feedback:
+
+> [!NOTE]
+> This feedback applies to the original version, as seen in branch [`v1.0`](https://github.com/saturn691/ReaverCompiler/tree/v1.0). The current version would have a hypothetical score of 100%. For more information, see [`info.md`](info.md).
+
 ## Overall
 You passed 181 / 201, giving you an overall score of 90.0%, with a seen to unseen split as follows:
 - 86 / 86 seen (100%)
