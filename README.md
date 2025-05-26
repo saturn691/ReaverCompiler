@@ -5,7 +5,6 @@
 Reaver C Compiler (`rcc`) is a C99 compiler. It features a lexer, parser,
 preprocessor, AST, and compiles to LLVM IR. It supports both x86 and AArch64.
 
-
 ## Why?
 
 For fun! We started [`v1.0`](https://github.com/saturn691/ReaverCompiler/tree/v1.0)
@@ -95,6 +94,23 @@ To run all unit tests, run the following commands:
 ```bash
 cd build
 ctest
+```
+
+### Running Integration Tests
+
+To run the provided integration tests, run the following command:
+
+```bash
+./test.py
+```
+
+To run the additional integration tests, run the following commands:
+
+```bash
+# Only run this once
+git submodule update --init --recursive
+# More options available. Does not pass all tests yet
+./writing-a-c-compiler-tests/test_compiler --chapter 18 --skip-invaliid build/rcc
 ```
 
 ## Credits

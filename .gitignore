@@ -4,6 +4,6 @@ output/
 third_party/
 
 # Default names
-output.o
+*.o
 a.out
 .python-version

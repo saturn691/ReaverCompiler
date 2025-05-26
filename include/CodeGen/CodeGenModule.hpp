@@ -5,8 +5,9 @@
 #include <unordered_map>
 
 #include "AST/Visitor.hpp"
-#include "CodeGen/ABI.hpp"
+#include "CodeGen/AArch64ABI.hpp"
 #include "CodeGen/TypeChecker.hpp"
+#include "CodeGen/X86_64ABI.hpp"
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
@@ -31,7 +32,8 @@ public:
     CodeGenModule(
         std::string sourceFile,
         std::string outputFile,
-        TypeMap &typeMap);
+        TypeMap &typeMap,
+        std::string targetTriple);
     void emitLLVM();
     void emitObject();
     void optimize();

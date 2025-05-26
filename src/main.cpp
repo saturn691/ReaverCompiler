@@ -10,7 +10,7 @@
 #define TCPP_IMPLEMENTATION
 #include "Preprocessor.hpp"
 
-std::string preprocess(const std::string &sourcePath)
+void preprocess(const std::string &sourcePath, const std::string &outputPath)
 {
     // Open sourcePath, spill contents as std::string
     std::ifstream ifs(sourcePath);
@@ -29,7 +29,10 @@ std::string preprocess(const std::string &sourcePath)
             boost::filesystem::path(sourcePath).parent_path();
         boost::filesystem::path includePath = sourceDir / path;
 
-        std::string processedCPath = preprocess(includePath.string());
+        auto tempFile = boost::filesystem::temp_directory_path() /
+                        boost::filesystem::unique_path();
+        std::string processedCPath = tempFile.string();
+        preprocess(includePath.string(), processedCPath);
         std::ifstream ifs(processedCPath);
         std::string processedC(
             (std::istreambuf_iterator<char>(ifs)),
@@ -43,48 +46,105 @@ std::string preprocess(const std::string &sourcePath)
 
     std::string processedC = preprocessor.Process();
 
-    // Create a file with the preprocessed contents
-    auto tempFile = boost::filesystem::temp_directory_path() /
-                    boost::filesystem::unique_path();
     {
-        std::ofstream ofs(tempFile.string());
+        std::ofstream ofs(outputPath);
         ofs << processedC;
     }
+}
 
-    return tempFile.string();
+void link(const std::string &sourcePath, const std::string &outputPath)
+{
+    FILE *pipe = popen("which clang", "r");
+    if (!pipe)
+    {
+        std::cerr << "Error: failed to run which clang\n";
+        return;
+    }
+
+    char buffer[256];
+    std::string clangPath;
+    if (fgets(buffer, sizeof(buffer), pipe))
+    {
+        clangPath = buffer;
+        clangPath.erase(
+            std::remove(clangPath.begin(), clangPath.end(), '\n'),
+            clangPath.end());
+    }
+    pclose(pipe);
+
+    if (clangPath.empty())
+    {
+        std::cerr << "Error: clang not found in PATH\n";
+        return;
+    }
+
+    std::cout << "Invoking: " << clangPath << std::endl;
+
+    // Calling std::system is not best practice, however, it works here
+    std::string cmd = clangPath + " " + sourcePath + " -o " + outputPath;
+    if (std::system(cmd.c_str()) != 0)
+    {
+        std::cerr << "Error: clang invocation failed\n";
+    }
 }
 
 void compile(
     const std::string &sourcePath,
-    const std::string &out,
-    bool emitLLVM)
+    const std::string &outputPath,
+    const std::string &targetTriple,
+    bool emitLLVM,
+    bool useLinker,
+    bool print)
 {
+    bool needLinker = useLinker && !emitLLVM;
+    std::string outputPathCGM = outputPath;
+
+    // Temporary file needed. *.c -> *.o -> a.out
+    if (needLinker)
+    {
+        auto tempFile = boost::filesystem::temp_directory_path() /
+                        boost::filesystem::unique_path();
+        outputPathCGM = tempFile.string();
+    }
+
+    auto tempFile = boost::filesystem::temp_directory_path() /
+                    boost::filesystem::unique_path();
+    std::string preprocessedPath = tempFile.string();
+
     // Preprocess the input
-    std::string preprocessedPath = preprocess(sourcePath);
+    preprocess(sourcePath, preprocessedPath);
 
     // Parse the AST
     const AST::TranslationUnit *tu = AST::parseAST(preprocessedPath);
 
-    // Print the AST
-    AST::Printer printer(std::cout);
-    tu->accept(printer);
+    if (print)
+    {
+        AST::Printer printer(std::cout);
+        tu->accept(printer);
+    }
 
     // Type check the AST
     CodeGen::TypeChecker typeChecker(std::cerr);
     tu->accept(typeChecker);
 
     // Code generation
-    CodeGen::CodeGenModule CGM(sourcePath, out, typeChecker.getTypeMap());
+    CodeGen::CodeGenModule CGM(
+        sourcePath, outputPathCGM, typeChecker.getTypeMap(), targetTriple);
     tu->accept(CGM);
 
     if (emitLLVM)
     {
-        // Print the LLVM IR
         CGM.emitLLVM();
     }
     else
     {
         CGM.emitObject();
+    }
+
+    // Link (if possible)
+    if (needLinker)
+    {
+        link(outputPathCGM, outputPath);
     }
 }
 
@@ -92,8 +152,11 @@ int main(int argc, char **argv)
 {
     CLI::App app;
     std::string sourcePath;
-    std::string outputPath = "output.o";
+    std::string outputPath;
+    std::string targetTriple;
     bool emitLLVM = false;
+    bool noLink = false;
+    bool print = false;
 
     // Options for the CLI
 
@@ -101,14 +164,39 @@ int main(int argc, char **argv)
     app.add_option("source", sourcePath, "Source file path")
         ->required()
         ->check(CLI::ExistingFile);
-    app.add_option("-o", outputPath, "Output file path")->capture_default_str();
+    app.add_option("-o", outputPath, "Output file path");
+    app.add_flag(
+        "-c", noLink, "Only run preprocess, compile and assemble steps");
     app.add_flag("-S", emitLLVM, "Emit LLVM IR instead of object code");
+    app.add_flag("-v", print, "Show parser output");
+    app.add_flag(
+        "--target", targetTriple, "Generate code for the given target");
 
     CLI11_PARSE(app, argc, argv);
 
-    // Compile the input
+    // Follows conventions set by clang
+    if (outputPath.empty())
+    {
+        std::filesystem::path p{sourcePath};
+        std::string stem = p.stem().string();
+
+        // Descending order: assembly -> executable
+        if (emitLLVM)
+        {
+            outputPath = stem + ".ll";
+        }
+        else if (noLink)
+        {
+            outputPath = stem + ".o";
+        }
+        else
+        {
+            outputPath = "a.out";
+        }
+    }
+
     std::cout << "Compiling: " << sourcePath << std::endl;
-    compile(sourcePath, outputPath, emitLLVM);
+    compile(sourcePath, outputPath, targetTriple, emitLLVM, !noLink, print);
     std::cout << "Compiled to: " << outputPath << std::endl;
 
     return 0;

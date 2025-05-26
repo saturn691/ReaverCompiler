@@ -44,12 +44,6 @@ jobs:
           git -C third_party clone --depth 1 --branch v2.5.0 https://github.com/CLIUtils/CLI11.git || true
           git -C third_party clone --depth 1 --branch v1.17.0 https://github.com/google/googletest.git || true
 
-      - name: Save third_party cache
-        uses: actions/cache@v3
-        with:
-          path: third_party
-          key: ${{ inputs.os }}-third_party
-
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2
 
