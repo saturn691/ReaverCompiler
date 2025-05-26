@@ -47,7 +47,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(boost)
 
-
 # CLI11
 FetchContent_Declare(
     cli11
@@ -132,7 +131,7 @@ target_link_libraries(rcc PRIVATE
 enable_testing()
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-add_executable(abi_test unittests/CodeGen/ABITest.cpp)
+add_executable(abi_test unittests/CodeGen/X86_64ABITest.cpp)
 target_link_libraries(abi_test PRIVATE GTest::gtest_main CodeGen ${llvm_libs})
 
 include(GoogleTest)

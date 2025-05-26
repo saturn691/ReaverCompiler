@@ -234,6 +234,8 @@ public:
     bool operator<(const BaseType &other) const override;
 
     bool isComplete() const noexcept override;
+    std::string getParamName(size_t i) const noexcept;
+    const BaseType *getParamType(size_t i) const noexcept;
 
     Ptr<ParamType> params_;
     Ptr<BaseType> retType_;
@@ -255,7 +257,7 @@ public:
 
     bool isComplete() const noexcept override;
 
-    size_t size() const;
+    size_t size() const noexcept;
     const BaseType *at(size_t i) const;
 
     Params types_;

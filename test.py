@@ -474,9 +474,8 @@ def main():
     Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
     Path(BUILD_FOLDER).mkdir(parents=True, exist_ok=True)
 
-    if not make(silent=args.short):
-        exit(3)
-
+    # TODO: write function called setup()- make is a bit more complicated now
+    
     with JUnitXMLFile(J_UNIT_OUTPUT_FILE) as xml_file:
         run_tests(args, xml_file)
 

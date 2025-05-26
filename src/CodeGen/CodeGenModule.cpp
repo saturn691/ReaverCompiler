@@ -34,7 +34,8 @@ namespace CodeGen
 CodeGenModule::CodeGenModule(
     std::string sourceFile,
     std::string outputFile,
-    TypeMap &typeMap)
+    TypeMap &typeMap,
+    std::string targetTriple)
     : outputFile_(std::move(outputFile)), typeMap_(typeMap),
       context_(std::make_unique<llvm::LLVMContext>()),
       builder_(std::make_unique<llvm::IRBuilder<>>(*context_)),
@@ -47,7 +48,11 @@ CodeGenModule::CodeGenModule(
     llvm::InitializeAllAsmPrinters();
     llvm::InitializeAllAsmParsers();
 
-    auto targetTriple = llvm::sys::getDefaultTargetTriple();
+    if (targetTriple.empty())
+    {
+        targetTriple = llvm::sys::getDefaultTargetTriple();
+    }
+
     auto CPU = "generic";
     auto features = "";
 
@@ -68,7 +73,22 @@ CodeGenModule::CodeGenModule(
     module_->setSourceFileName(sourceFile);
     module_->setModuleIdentifier(sourceFile);
 
-    abi_ = std::make_unique<X86_64ABI>(*module_);
+    llvm::Triple triple = llvm::Triple(targetTriple);
+
+    if (triple.isAArch64())
+    {
+        abi_ = std::make_unique<AArch64ABI>(*module_);
+    }
+    else if (triple.isX86())
+    {
+        abi_ = std::make_unique<X86_64ABI>(*module_);
+    }
+    else
+    {
+        llvm::errs() << "Warning: Target architecture not recognised, "
+                        "defaulting to x86-64\n";
+        abi_ = std::make_unique<X86_64ABI>(*module_);
+    }
 }
 
 void CodeGenModule::emitLLVM()
@@ -251,16 +271,17 @@ void CodeGenModule::visit(const FnDef &node)
     // arguments
     pushScope();
 
-    std::vector<llvm::Type *> paramTypes = getParamTypes(type);
-    auto fnParams = abi_->getFunctionParams(retType, paramTypes);
+    // Make distinction of RAW paramType (before ABI modifications)
+    std::vector<llvm::Type *> rawParamTypes = getParamTypes(type);
+    auto fnParams = abi_->getFunctionParams(retType, rawParamTypes);
     unsigned argPtr = fnParams.structReturnInMemory ? 1 : 0;
 
-    for (size_t j = 0; j < type->params_->types_.size(); j++)
+    for (size_t j = 0; j < type->params_->size(); j++)
     {
-        std::string paramName = type->params_->types_.at(j).first;
-        llvm::Type *paramType = paramTypes.at(j);
+        std::string paramName = type->getParamName(j);
+        llvm::Type *rawParamType = rawParamTypes.at(j);
 
-        if (paramType->isStructTy() && fn->getArg(argPtr)->hasByValAttr())
+        if (rawParamType->isStructTy() && fn->getArg(argPtr)->getType()->isPointerTy())
         {
             symbolTablePush(paramName, fn->getArg(argPtr));
             argPtr++;
@@ -269,14 +290,22 @@ void CodeGenModule::visit(const FnDef &node)
         {
             llvm::AllocaInst *allocaInst;
 
-            if (paramType->isStructTy() && !fn->getArg(argPtr)->hasByValAttr())
+            if (rawParamType->isStructTy() &&
+                !fn->getArg(argPtr)->getType()->isPointerTy())
             {
                 std::vector<llvm::Type *> tys =
                     fnParams.paramTypes.at(j + fnParams.structReturnInMemory);
-                auto *assignedType = llvm::StructType::get(*context_, tys);
+
+                // AArch64 uses ArrayType for HFA e.g. [2 x i64]
+                // x86-64 uses exploded structs e.g. [ i64, i64 ], pack them
+                auto *assignedType =
+                    (tys[0]->isArrayTy())
+                        ? tys[0]
+                        : llvm::StructType::get(*context_, tys);
+
                 llvm::AllocaInst *tempAlloca =
                     createAlignedAlloca(assignedType);
-                allocaInst = createAlignedAlloca(paramType, paramName);
+                allocaInst = createAlignedAlloca(rawParamType, paramName);
 
                 // Copy the params to an alloca of the (anonymous) struct type
                 for (size_t i = 0; i < tys.size(); i++)
@@ -292,14 +321,14 @@ void CodeGenModule::visit(const FnDef &node)
                 // Copy the alloca to the actual alloca
                 builder_->CreateMemCpy(
                     allocaInst,
-                    getAlign(paramType),
+                    getAlign(rawParamType),
                     tempAlloca,
                     getAlign(assignedType),
-                    module_->getDataLayout().getTypeAllocSize(paramType));
+                    module_->getDataLayout().getTypeAllocSize(rawParamType));
             }
             else
             {
-                allocaInst = createAlignedAlloca(paramType, paramName);
+                allocaInst = createAlignedAlloca(rawParamType, paramName);
                 builder_->CreateStore(fn->getArg(argPtr), allocaInst);
                 argPtr++;
             }
@@ -1105,6 +1134,18 @@ void CodeGenModule::visit(const FnCall &node)
                                     builder_->CreateLoad(types[j], gep));
                             }
                         }
+                        else if (types[0]->isArrayTy())
+                        {
+                            auto zero = builder_->getInt32(0);
+                            llvm::Value *gep = builder_->CreateInBoundsGEP(
+                                ty,
+                                argL,
+                                {zero, zero}
+                            );
+                            args.push_back(
+                                builder_->CreateLoad(types[0], gep)
+                            );
+                        }
                         else if (fn->getArg(args.size())->hasByValAttr())
                         {
                             // Struct passed by value
@@ -1127,6 +1168,19 @@ void CodeGenModule::visit(const FnCall &node)
                             {
                                 args.push_back(argL);
                             }
+                        }
+                        else if (fn->getArg(args.size())->getType()->isPointerTy())
+                        {
+                            // Struct passed by value, but not explictly using ByVal
+                            llvm::AllocaInst *tempAlloca = createAlignedAlloca(ty);
+                            builder_->CreateMemCpy(
+                                tempAlloca,
+                                getAlign(tempAlloca->getType()),
+                                argL,
+                                getAlign(argL->getType()),
+                                module_->getDataLayout().getTypeAllocSize(ty)
+                            );
+                            args.push_back(tempAlloca);
                         }
                         else
                         {
@@ -1173,6 +1227,14 @@ void CodeGenModule::visit(const Identifier &node)
         if (auto **alloca = std::get_if<llvm::AllocaInst *>(&symbol))
         {
             currentValue_ = *alloca;
+
+            // Only for automatic arrays, for alignment purposes
+            if ((*alloca)->getAllocatedType()->isArrayTy())
+            {
+                auto zero = builder_->getInt32(0);
+                currentValue_ = builder_->CreateInBoundsGEP(
+                    (*alloca)->getAllocatedType(), currentValue_, {zero, zero});
+            }
         }
         else if (auto **arg = std::get_if<llvm::Argument *>(&symbol))
         {
@@ -1263,13 +1325,15 @@ void CodeGenModule::visit(const Init &node)
                 {
                     if (i < str.size())
                     {
-                        values.push_back(llvm::ConstantInt::get(
-                            llvm::Type::getInt8Ty(*context_), str[i]));
+                        values.push_back(
+                            llvm::ConstantInt::get(
+                                llvm::Type::getInt8Ty(*context_), str[i]));
                     }
                     else
                     {
-                        values.push_back(llvm::ConstantInt::get(
-                            llvm::Type::getInt8Ty(*context_), 0));
+                        values.push_back(
+                            llvm::ConstantInt::get(
+                                llvm::Type::getInt8Ty(*context_), 0));
                     }
                 }
                 currentValue_ = llvm::ConstantArray::get(
@@ -1442,8 +1506,9 @@ llvm::Constant *CodeGenModule::visitRecursiveConst(const InitList &node)
         // Fill the array with zeroes
         while (values.size() < type->getArrayNumElements())
         {
-            values.push_back(llvm::Constant::getNullValue(
-                static_cast<llvm::ArrayType *>(type)->getElementType()));
+            values.push_back(
+                llvm::Constant::getNullValue(
+                    static_cast<llvm::ArrayType *>(type)->getElementType()));
         }
 
         return llvm::ConstantArray::get(
@@ -1452,8 +1517,9 @@ llvm::Constant *CodeGenModule::visitRecursiveConst(const InitList &node)
 
     for (size_t i = values.size(); i < type->getStructNumElements(); i++)
     {
-        values.push_back(llvm::Constant::getNullValue(
-            static_cast<llvm::StructType *>(type)->getElementType(i)));
+        values.push_back(
+            llvm::Constant::getNullValue(
+                static_cast<llvm::StructType *>(type)->getElementType(i)));
     }
 
     return llvm::ConstantStruct::get(
@@ -1575,7 +1641,6 @@ void CodeGenModule::visit(const TernaryOp &node)
     bool isVoidType = getLLVMType(&node)->isVoidTy();
 
     llvm::Value *cond = visitAsRValue(*node.cond_);
-    llvm::Value *zero = llvm::ConstantInt::get(cond->getType(), 0);
     llvm::Value *condBool = isNotZero(cond);
 
     // True - evaluate LHS. False - evaluate RHS.
@@ -1639,9 +1704,8 @@ void CodeGenModule::visit(const UnaryOp &node)
         auto *expectedType = typeMap_[&node].get();
         llvm::Type *type = getLLVMType(node.expr_.get());
         bool isFloat = type->isFloatingPointTy();
-        llvm::Value *one =
-            (isFloat) ? llvm::ConstantFP::get(type, 1.0)
-                      : builder_->getInt32(1);
+        llvm::Value *one = (isFloat) ? llvm::ConstantFP::get(type, 1.0)
+                                     : builder_->getInt32(1);
         llvm::Value *zero = builder_->getInt32(0);
 
         switch (node.op_)
@@ -1698,7 +1762,7 @@ void CodeGenModule::visit(const UnaryOp &node)
                     ? builder_->CreateICmpEQ(
                           expr,
                           llvm::ConstantPointerNull::get(
-                              static_cast<llvm::PointerType *>(type)),
+                              llvm::PointerType::get(*context_, 0)),
                           "lnot")
                     : builder_->CreateICmpEQ(
                           expr,
@@ -2186,9 +2250,8 @@ llvm::Function *CodeGenModule::createFunction(
     for (size_t i = argPtr; i < fnParams.paramTypes.size(); i++)
     {
         size_t astIndex = i - fnParams.structReturnInMemory;
-        std::string paramName = fnType->params_->types_[astIndex].first;
-        llvm::Type *paramType =
-            getLLVMType(fnType->params_->types_[astIndex].second.get());
+        std::string paramName = fnType->getParamName(astIndex);
+        llvm::Type *paramType = getLLVMType(fnType->getParamType(astIndex));
 
         // Label the function arguments
         for (size_t j = 0; j < fnParams.paramTypes[i].size(); j++)
@@ -2208,15 +2271,19 @@ llvm::Function *CodeGenModule::createFunction(
                 else if (fnParams.paramTypes[i][j]->isPointerTy())
                 {
                     // This is a struct that is passed by memory
-                    fn->addParamAttr(
-                        argPtr,
-                        llvm::Attribute::getWithByValType(
-                            *context_, paramType));
-                    fn->addParamAttr(
-                        argPtr,
-                        llvm::Attribute::getWithAlignment(
-                            *context_,
-                            getAlign(llvm::PointerType::get(paramType, 0))));
+                    if (abi_->useByVal())
+                    {
+                        fn->addParamAttr(
+                            argPtr,
+                            llvm::Attribute::getWithByValType(
+                                *context_, paramType));
+                        fn->addParamAttr(
+                            argPtr,
+                            llvm::Attribute::getWithAlignment(
+                                *context_,
+                                getAlign(
+                                    llvm::PointerType::get(paramType, 0))));
+                    }
                     fn->getArg(argPtr)->setName(paramName);
                 }
             }

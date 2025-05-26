@@ -1,7 +1,7 @@
-#include "CodeGen/ABI.hpp"
+#include "CodeGen/X86_64ABI.hpp"
 #include "gtest/gtest.h"
 
-class ABITest : public ::testing::Test
+class X86_64ABITest : public ::testing::Test
 {
 protected:
     void SetUp() override
@@ -20,7 +20,7 @@ protected:
     std::unique_ptr<CodeGen::ABI> abi_;
 };
 
-TEST_F(ABITest, getFunctionType_Basic)
+TEST_F(X86_64ABITest, getFunctionType_Basic)
 {
     auto retType = llvm::Type::getInt32Ty(*context_);
     auto paramTypes =
@@ -31,7 +31,7 @@ TEST_F(ABITest, getFunctionType_Basic)
     EXPECT_EQ(type->getReturnType(), llvm::Type::getInt32Ty(*context_));
 }
 
-TEST_F(ABITest, getFunctionType_only6IntRegs)
+TEST_F(X86_64ABITest, getFunctionType_only6IntRegs)
 {
     auto structType1Reg = llvm::StructType::create(*context_, "pair");
     structType1Reg->setBody(
@@ -119,7 +119,7 @@ TEST_F(ABITest, getFunctionType_only6IntRegs)
     }
 }
 
-TEST_F(ABITest, getFunctionType_retval)
+TEST_F(X86_64ABITest, getFunctionType_retval)
 {
     auto structType2Reg = llvm::StructType::create(*context_, "pair");
     structType2Reg->setBody(
@@ -139,7 +139,7 @@ TEST_F(ABITest, getFunctionType_retval)
              llvm::Type::getInt8Ty(*context_)}));
 }
 
-TEST_F(ABITest, getParamType_Basic)
+TEST_F(X86_64ABITest, getParamType_Basic)
 {
     auto type = abi_->getParamType(llvm::Type::getInt32Ty(*context_));
 
@@ -147,7 +147,7 @@ TEST_F(ABITest, getParamType_Basic)
     EXPECT_EQ(type[0], llvm::Type::getInt32Ty(*context_));
 }
 
-TEST_F(ABITest, getParamType_BasicStruct)
+TEST_F(X86_64ABITest, getParamType_BasicStruct)
 {
     auto structType = llvm::StructType::create(*context_, "pair");
     structType->setBody(
@@ -160,7 +160,7 @@ TEST_F(ABITest, getParamType_BasicStruct)
     EXPECT_EQ(type[1], llvm::Type::getDoubleTy(*context_));
 }
 
-TEST_F(ABITest, getParamType_AlignStruct)
+TEST_F(X86_64ABITest, getParamType_AlignStruct)
 {
     auto structType = llvm::StructType::create(*context_, "pair");
     structType->setBody({
@@ -173,7 +173,7 @@ TEST_F(ABITest, getParamType_AlignStruct)
     EXPECT_EQ(type[0], llvm::Type::getInt64Ty(*context_));
 }
 
-TEST_F(ABITest, getParamType_ArrayStruct)
+TEST_F(X86_64ABITest, getParamType_ArrayStruct)
 {
     auto structType = llvm::StructType::create(*context_, "pair");
     structType->setBody(
@@ -185,13 +185,13 @@ TEST_F(ABITest, getParamType_ArrayStruct)
     EXPECT_EQ(type[1], llvm::Type::getIntNTy(*context_, 24));
 }
 
-TEST_F(ABITest, getTypeAlign)
+TEST_F(X86_64ABITest, getTypeAlign)
 {
     auto align = abi_->getTypeAlign(llvm::Type::getInt32Ty(*context_));
     EXPECT_EQ(align, llvm::Align(4));
 }
 
-TEST_F(ABITest, getTypeSize)
+TEST_F(X86_64ABITest, getTypeSize)
 {
     auto size = abi_->getTypeSize(AST::Types::INT);
     EXPECT_EQ(size, 32);

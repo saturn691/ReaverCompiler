@@ -1,4 +1,4 @@
-#include "CodeGen/ABI.hpp"
+#include "CodeGen/X86_64ABI.hpp"
 
 // Refer to
 // https://lafibre.info/images/doc/202402_intel_application_binary_interface.pdf
@@ -14,7 +14,7 @@ X86_64ABI::X86_64ABI(llvm::Module &module) : module_(module)
 }
 
 ABI::FunctionParamsInfo X86_64ABI::getFunctionParams(
-    llvm::Type *retType,
+    llvm:: Type *retType,
     std::vector<llvm::Type *> &paramTypes) const
 {
     // ABI 3.2.3: Parameter Passing

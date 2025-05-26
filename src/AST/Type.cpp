@@ -199,6 +199,16 @@ bool FnType::isComplete() const noexcept
     return retType_->isComplete() && params_->isComplete();
 }
 
+std::string FnType::getParamName(size_t i) const noexcept
+{
+    return params_->types_.at(i).first;
+}
+
+const BaseType *FnType::getParamType(size_t i) const noexcept
+{
+    return params_->types_.at(i).second.get();
+}
+
 ParamType::ParamType(Params types) : types_(std::move(types))
 {
 }
@@ -267,7 +277,7 @@ bool ParamType::isComplete() const noexcept
     return true;
 }
 
-size_t ParamType::size() const
+size_t ParamType::size() const noexcept
 {
     return types_.size();
 }
