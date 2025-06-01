@@ -68,7 +68,7 @@ bool isHFA(llvm::Type *type)
         return false;
     }
 
-    std::vector<llvm::Type*> flatElements = flattenHFA(type);
+    std::vector<llvm::Type *> flatElements = flattenHFA(type);
     if (flatElements.size() < 1 || flatElements.size() > 4)
     {
         return false;

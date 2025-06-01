@@ -11,13 +11,16 @@ using namespace AST;
 
 namespace CodeGen
 {
-using TypeMap = std::unordered_map<const BaseNode *, Ptr<BaseType>>;
+
+using NodeMap = std::unordered_map<const BaseNode *, Ptr<BaseType>>;
+using StructMap = std::unordered_map<size_t, Ptr<ParamType>>;
+
 using TypeContext = std::vector<std::unordered_map<std::string, Ptr<BaseType>>>;
 
 class TypeChecker : public Visitor
 {
 public:
-    TypeChecker(std::ostream &os);
+    TypeChecker();
 
     // Declarations
     void visit(const AbstractArrayDecl &node) override;
@@ -80,18 +83,23 @@ public:
     void visit(const Switch &node) override;
     void visit(const While &node) override;
 
-    TypeMap &getTypeMap()
+    NodeMap &getNodeMap()
     {
-        return typeMap_;
+        return nodeMap_;
+    }
+
+    StructMap &getStructMap()
+    {
+        return structMap_;
     }
 
     static Types runIntegerPromotions(Types type);
     static Types runUsualArithmeticConversions(Types lhs, Types rhs);
 
 private:
-    TypeMap typeMap_;
+    NodeMap nodeMap_;
+    StructMap structMap_;
     TypeContext typeContext_;
-    std::ostream &os_;
 
     // Contextual information
     // Jumping around TUs
@@ -101,15 +109,9 @@ private:
     bool fromDecl_ = false;
     std::vector<std::vector<const BaseNode *>> incompleteNodes_;
 
-    bool checkType(const BaseType *actual, const BaseType *expected);
-    bool assertIsIntegerTy(const BaseType *type);
-
-    void clearIncompleteNodes();
-    Ptr<BaseType> tryComplete(const BaseType *type);
     void pushScope();
     void popScope();
     Ptr<BaseType> lookupType(const std::string &name, size_t id = -1) const;
-    void insertIncompleteNode(const BaseNode *node);
     void insertType(const std::string &name, Ptr<BaseType> type);
 };
 } // namespace CodeGen

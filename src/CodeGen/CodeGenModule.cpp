@@ -34,10 +34,11 @@ namespace CodeGen
 CodeGenModule::CodeGenModule(
     std::string sourceFile,
     std::string outputFile,
-    TypeMap &typeMap,
+    NodeMap &nodeMap,
+    StructMap &structMap,
     std::string targetTriple)
-    : outputFile_(std::move(outputFile)), typeMap_(typeMap),
-      context_(std::make_unique<llvm::LLVMContext>()),
+    : outputFile_(std::move(outputFile)), nodeMap_(nodeMap),
+      structMap_(structMap), context_(std::make_unique<llvm::LLVMContext>()),
       builder_(std::make_unique<llvm::IRBuilder<>>(*context_)),
       module_(std::make_unique<llvm::Module>("Module", *context_))
 {
@@ -218,7 +219,7 @@ void CodeGenModule::visit(const DefinedTypeDecl &node)
 void CodeGenModule::visit(const Enum &node)
 {
     // Register the constants
-    if (auto *enumType = dynamic_cast<const EnumType *>(typeMap_[&node].get()))
+    if (auto *enumType = dynamic_cast<const EnumType *>(nodeMap_[&node].get()))
     {
         for (const auto &member : enumType->consts_)
         {
@@ -251,7 +252,7 @@ void CodeGenModule::visit(const FnDef &node)
     llvm::Function *fn = module_->getFunction(fnName);
 
     // Safe to do... this was checked in the TypeChecker
-    const FnType *type = dynamic_cast<const FnType *>(typeMap_[&node].get());
+    const FnType *type = dynamic_cast<const FnType *>(nodeMap_[&node].get());
     llvm::Type *retType = getLLVMType(type->retType_.get());
 
     // If we haven't declared the function yet, create it
@@ -281,7 +282,8 @@ void CodeGenModule::visit(const FnDef &node)
         std::string paramName = type->getParamName(j);
         llvm::Type *rawParamType = rawParamTypes.at(j);
 
-        if (rawParamType->isStructTy() && fn->getArg(argPtr)->getType()->isPointerTy())
+        if (rawParamType->isStructTy() &&
+            fn->getArg(argPtr)->getType()->isPointerTy())
         {
             symbolTablePush(paramName, fn->getArg(argPtr));
             argPtr++;
@@ -367,7 +369,7 @@ void CodeGenModule::visit(const FnDef &node)
 
 void CodeGenModule::visit(const InitDecl &node)
 {
-    const auto *ty = typeMap_[&node].get();
+    const auto *ty = nodeMap_[&node].get();
     llvm::Type *type = getLLVMType(ty);
     bool hasStatic = ty->linkage_ == Linkage::INTERNAL;
     bool hasExtern = ty->linkage_ == Linkage::EXTERNAL;
@@ -556,7 +558,7 @@ void CodeGenModule::visit(const Struct &node)
 
     // All information is available in the typeMap
     const StructType *type =
-        dynamic_cast<const StructType *>(typeMap_[&node].get());
+        dynamic_cast<const StructType *>(nodeMap_[&node].get());
 
     std::string name = "struct." + node.name_;
     if (structIDs_.find(name) == structIDs_.end())
@@ -578,10 +580,10 @@ void CodeGenModule::visit(const Struct &node)
         name += "." + std::to_string(structIDs_[name].size() - 1);
     }
 
-    if (type->params_)
+    if (auto &params = structMap_[type->getID()])
     {
         std::vector<llvm::Type *> memberTypes;
-        for (const auto &member : type->params_->types_)
+        for (const auto &member : params->types_)
         {
             memberTypes.push_back(getLLVMType(member.second.get()));
         }
@@ -653,7 +655,7 @@ void CodeGenModule::visit(const ArrayAccess &node)
     // Weird semantics of C... `a[5] == 5[a]`
     const Expr *arrNode = node.arr_.get();
     const Expr *indexNode = node.index_.get();
-    if (dynamic_cast<const BasicType *>(typeMap_[arrNode].get()))
+    if (dynamic_cast<const BasicType *>(nodeMap_[arrNode].get()))
     {
         std::swap(arrNode, indexNode);
     }
@@ -696,7 +698,7 @@ void CodeGenModule::visit(const Assignment &node)
 
     using Op = Assignment::Op;
 
-    auto *lhsType = typeMap_[node.lhs_.get()].get();
+    auto *lhsType = nodeMap_[node.lhs_.get()].get();
     llvm::Value *lhs = visitAsLValue(*node.lhs_);
     bool isFloatTy = lhs->getType()->isFloatingPointTy();
     bool isSigned = false;
@@ -786,13 +788,10 @@ void CodeGenModule::visit(const BinaryOp &node)
         return;
     }
 
-    auto *lhsType = typeMap_[node.lhs_.get()].get();
-    auto *rhsType = typeMap_[node.rhs_.get()].get();
+    auto *lhsType = nodeMap_[node.lhs_.get()].get();
+    auto *rhsType = nodeMap_[node.rhs_.get()].get();
 
-    if (dynamic_cast<const PtrType *>(lhsType) ||
-        dynamic_cast<const PtrType *>(rhsType) ||
-        dynamic_cast<const ArrayType *>(lhsType) ||
-        dynamic_cast<const ArrayType *>(rhsType))
+    if (lhsType->isArrayOrPtrTy() || rhsType->isArrayOrPtrTy())
     {
         visitPtrOp(node);
         return;
@@ -1031,7 +1030,7 @@ void CodeGenModule::visit(const Cast &node)
         throw std::runtime_error("Cast to LValue not supported");
     }
 
-    auto *expectedType = typeMap_[node.type_.get()].get();
+    auto *expectedType = nodeMap_[node.type_.get()].get();
 
     currentValue_ = visitAsCastedRValue(*node.expr_, expectedType);
 }
@@ -1043,7 +1042,7 @@ void CodeGenModule::visit(const Constant &node)
         throw std::runtime_error("Constant to LValue not supported");
     }
 
-    auto *ty = typeMap_[&node].get();
+    auto *ty = nodeMap_[&node].get();
     auto basicType = dynamic_cast<const BasicType *>(ty);
     llvm::Type *type = getLLVMType(ty);
 
@@ -1075,7 +1074,7 @@ void CodeGenModule::visit(const FnCall &node)
 
     llvm::Function *fn = visitAsFnDesignator(*node.fn_);
     const FnType *fnType =
-        dynamic_cast<const FnType *>(typeMap_[node.fn_.get()].get());
+        dynamic_cast<const FnType *>(nodeMap_[node.fn_.get()].get());
     auto paramTypes = getParamTypes(fnType);
     llvm::Type *originalRetType = getLLVMType(fnType->retType_.get());
     auto fnParams = abi_->getFunctionParams(originalRetType, paramTypes);
@@ -1097,7 +1096,7 @@ void CodeGenModule::visit(const FnCall &node)
                 [&](const auto &arg)
                 {
                     auto *expectedType = dynamic_cast<const ParamType *>(
-                                             typeMap_[node.args_.get()].get())
+                                             nodeMap_[node.args_.get()].get())
                                              ->at(i);
                     auto *ty = getLLVMType(expectedType);
 
@@ -1138,13 +1137,8 @@ void CodeGenModule::visit(const FnCall &node)
                         {
                             auto zero = builder_->getInt32(0);
                             llvm::Value *gep = builder_->CreateInBoundsGEP(
-                                ty,
-                                argL,
-                                {zero, zero}
-                            );
-                            args.push_back(
-                                builder_->CreateLoad(types[0], gep)
-                            );
+                                ty, argL, {zero, zero});
+                            args.push_back(builder_->CreateLoad(types[0], gep));
                         }
                         else if (fn->getArg(args.size())->hasByValAttr())
                         {
@@ -1169,17 +1163,20 @@ void CodeGenModule::visit(const FnCall &node)
                                 args.push_back(argL);
                             }
                         }
-                        else if (fn->getArg(args.size())->getType()->isPointerTy())
+                        else if (fn->getArg(args.size())
+                                     ->getType()
+                                     ->isPointerTy())
                         {
-                            // Struct passed by value, but not explictly using ByVal
-                            llvm::AllocaInst *tempAlloca = createAlignedAlloca(ty);
+                            // Struct passed by value, but not explictly using
+                            // ByVal
+                            llvm::AllocaInst *tempAlloca =
+                                createAlignedAlloca(ty);
                             builder_->CreateMemCpy(
                                 tempAlloca,
                                 getAlign(tempAlloca->getType()),
                                 argL,
                                 getAlign(argL->getType()),
-                                module_->getDataLayout().getTypeAllocSize(ty)
-                            );
+                                module_->getDataLayout().getTypeAllocSize(ty));
                             args.push_back(tempAlloca);
                         }
                         else
@@ -1341,7 +1338,7 @@ void CodeGenModule::visit(const Init &node)
                         llvm::Type::getInt8Ty(*context_), strlen),
                     values);
             }
-            else if (dynamic_cast<const PtrType *>(currentExpectedType_))
+            else if (currentExpectedType_->isPtrTy())
             {
                 if (node.expr_->eval().is<std::string>())
                 {
@@ -1422,7 +1419,8 @@ void CodeGenModule::visitRecursiveStore(
                 dynamic_cast<const StructType *>(currentExpectedType_))
         {
             // Some long indirection going on but whatever...
-            newType = structType->params_->types_[i].second.get();
+            newType =
+                structMap_.at(structType->getID())->types_[i].second.get();
         }
 
         std::visit(
@@ -1474,7 +1472,8 @@ llvm::Constant *CodeGenModule::visitRecursiveConst(const InitList &node)
                 dynamic_cast<const StructType *>(currentExpectedType_))
         {
             // Some long indirection going on but whatever...
-            newType = structType->params_->types_[i].second.get();
+            newType =
+                structMap_.at(structType->getID())->types_[i].second.get();
         }
         ScopeGuard sg(currentExpectedType_, newType);
 
@@ -1573,8 +1572,9 @@ void CodeGenModule::visit(const StructAccess &node)
 
     llvm::Value *structPtr = visitAsLValue(*node.expr_);
     auto structType =
-        dynamic_cast<const StructType *>(typeMap_[node.expr_.get()].get());
-    auto index = structType->getMemberIndex(node.member_);
+        dynamic_cast<const StructType *>(nodeMap_[node.expr_.get()].get());
+    auto index =
+        structMap_.at(structType->getID())->getMemberIndex(node.member_);
     llvm::Value *indices[] = {
         llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0),
         llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), index)};
@@ -1600,14 +1600,30 @@ void CodeGenModule::visit(const StructPtrAccess &node)
     auto valueCategory = valueCategory_;
 
     // Only difference is that we need to load the pointer
-    llvm::Value *structPtr = visitAsRValue(*node.expr_);
-    auto ptrType =
-        dynamic_cast<const PtrType *>(typeMap_[node.expr_.get()].get());
-    auto structType = dynamic_cast<const StructType *>(ptrType->type_.get());
-    auto index = structType->getMemberIndex(node.member_);
-    llvm::Value *indices[] = {
-        llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0),
-        llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), index)};
+    llvm::Value *structPtr;
+    const StructType *structType;
+    llvm::Type *exprType = getLLVMType(node.expr_.get());
+    auto *zero = builder_->getInt32(0);
+    if (exprType->isArrayTy())
+    {
+        structPtr = visitAsLValue(*node.expr_);
+        structPtr =
+            builder_->CreateInBoundsGEP(exprType, structPtr, {zero, zero});
+        auto arrayType =
+            dynamic_cast<const ArrayType *>(nodeMap_[node.expr_.get()].get());
+        structType = dynamic_cast<const StructType *>(arrayType->type_.get());
+    }
+    else
+    {
+        // Normal pointer type
+        structPtr = visitAsRValue(*node.expr_);
+        auto ptrType =
+            dynamic_cast<const PtrType *>(nodeMap_[node.expr_.get()].get());
+        structType = dynamic_cast<const StructType *>(ptrType->type_.get());
+    }
+    auto index =
+        structMap_.at(structType->getID())->getMemberIndex(node.member_);
+    llvm::Value *indices[] = {zero, builder_->getInt32(index)};
 
     llvm::Value *memberPtr = builder_->CreateInBoundsGEP(
         getLLVMType(structType), structPtr, indices, "gep");
@@ -1635,8 +1651,8 @@ void CodeGenModule::visit(const TernaryOp &node)
     llvm::BasicBlock *lhsBB = llvm::BasicBlock::Create(*context_, "lhs", fn);
     llvm::BasicBlock *rhsBB = llvm::BasicBlock::Create(*context_, "rhs");
     llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(*context_, "after");
-    auto lhsType = typeMap_[node.lhs_.get()].get();
-    auto rhsType = typeMap_[node.rhs_.get()].get();
+    auto lhsType = nodeMap_[node.lhs_.get()].get();
+    auto rhsType = nodeMap_[node.rhs_.get()].get();
     // Void types in the ternary operator (lhsType and rhsType) is valid in C
     bool isVoidType = getLLVMType(&node)->isVoidTy();
 
@@ -1701,7 +1717,7 @@ void CodeGenModule::visit(const UnaryOp &node)
     else
     {
         llvm::Value *expr, *add, *sub;
-        auto *expectedType = typeMap_[&node].get();
+        auto *expectedType = nodeMap_[&node].get();
         llvm::Type *type = getLLVMType(node.expr_.get());
         bool isFloat = type->isFloatingPointTy();
         llvm::Value *one = (isFloat) ? llvm::ConstantFP::get(type, 1.0)
@@ -2077,7 +2093,7 @@ void CodeGenModule::visit(const Return &node)
 {
     if (node.expr_)
     {
-        auto *expectedType = typeMap_[&node].get();
+        auto *expectedType = nodeMap_[&node].get();
         auto *ty = getLLVMType(expectedType);
 
         // Return struct, in memory
@@ -2327,7 +2343,7 @@ std::string CodeGenModule::getLocalStaticName(const std::string &name) const
 
 llvm::Type *CodeGenModule::getLLVMType(const BaseNode *node)
 {
-    return getLLVMType(typeMap_.at(node).get());
+    return getLLVMType(nodeMap_.at(node).get());
 }
 
 llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
@@ -2343,15 +2359,16 @@ llvm::Type *CodeGenModule::getLLVMType(const BaseType *type)
         return abi_->getFunctionType(
             getLLVMType(fnType->retType_.get()), paramTypes);
     }
+    else if (auto arrType = dynamic_cast<const ArrayType *>(type))
+    {
+        // Must place ABOVE PtrType as it inherits PtrType
+        return llvm::ArrayType::get(
+            getLLVMType(arrType->type_.get()), arrType->size_);
+    }
     else if (auto ptrType = dynamic_cast<const PtrType *>(type))
     {
         // Opaque pointers do not contain the type they point to
         return llvm::PointerType::get(*context_, 0);
-    }
-    else if (auto arrType = dynamic_cast<const ArrayType *>(type))
-    {
-        return llvm::ArrayType::get(
-            getLLVMType(arrType->type_.get()), arrType->size_);
     }
     else if (auto structType = dynamic_cast<const StructType *>(type))
     {
@@ -2442,11 +2459,11 @@ std::vector<llvm::Type *> CodeGenModule::getParamTypes(const FnType *fnType)
 
 llvm::Type *CodeGenModule::getPointerElementType(const BaseNode *node)
 {
-    if (auto *ty = dynamic_cast<const PtrType *>(typeMap_[node].get()))
+    if (auto *ty = dynamic_cast<const ArrayType *>(nodeMap_[node].get()))
     {
         return getLLVMType(ty->type_.get());
     }
-    else if (auto *ty = dynamic_cast<const ArrayType *>(typeMap_[node].get()))
+    else if (auto *ty = dynamic_cast<const PtrType *>(nodeMap_[node].get()))
     {
         return getLLVMType(ty->type_.get());
     }
@@ -2466,7 +2483,7 @@ llvm::Value *CodeGenModule::visitAsLValue(const Expr &node)
     }
 
     llvm::AllocaInst *allocaInst =
-        createAlignedAlloca(getLLVMType(typeMap_[&node].get()));
+        createAlignedAlloca(getLLVMType(nodeMap_[&node].get()));
     builder_->CreateStore(currentValue_, allocaInst);
     return allocaInst;
 }
@@ -2483,7 +2500,7 @@ llvm::Value *CodeGenModule::visitAsCastedRValue(
     const Expr &node,
     const BaseType *expectedType)
 {
-    auto *initialType = typeMap_[&node].get();
+    auto *initialType = nodeMap_[&node].get();
 
     if (getLLVMType(initialType)->isArrayTy())
     {
@@ -2676,7 +2693,7 @@ llvm::Value *CodeGenModule::runConversions(
     // lhsVal = 0 (nullptr), rhs = PtrType
     if (auto val = llvm::dyn_cast<llvm::Constant>(lhsVal))
     {
-        if (val->isZeroValue() && dynamic_cast<const PtrType *>(rhs))
+        if (val->isZeroValue() && rhs->isArrayOrPtrTy())
         {
             return runCast(lhsVal, lhs, rhs);
         }

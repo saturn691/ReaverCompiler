@@ -5,7 +5,7 @@ namespace AST
 
 size_t BaseType::idProvider_ = 0;
 
-BaseType::BaseType()
+BaseType::BaseType(TypeID tid) : tid_(tid)
 {
     id_ = idProvider_++;
 }
@@ -13,6 +13,7 @@ BaseType::BaseType()
 BaseType::BaseType(const BaseType &other)
 {
     id_ = other.id_;
+    tid_ = other.tid_;
 
     cvrQualifier_ = other.cvrQualifier_;
     functionSpecifier_ = other.functionSpecifier_;
@@ -26,7 +27,7 @@ size_t BaseType::getID() const noexcept
 }
 
 ArrayType::ArrayType(Ptr<BaseType> type, size_t size)
-    : type_(std::move(type)), size_(size)
+    : size_(size), PtrType(std::move(type)), BaseType(ArrayTyID)
 {
     cvrQualifier_ = type_->cvrQualifier_;
     functionSpecifier_ = type_->functionSpecifier_;
@@ -35,7 +36,7 @@ ArrayType::ArrayType(Ptr<BaseType> type, size_t size)
 }
 
 ArrayType::ArrayType(const ArrayType &other)
-    : type_(other.type_->clone()), size_(other.size_), BaseType(other)
+    : size_(other.size_), PtrType(other), BaseType(other)
 {
 }
 
@@ -43,6 +44,7 @@ bool ArrayType::operator==(const ArrayType &other) const
 {
     return *type_ == *other.type_ && size_ == other.size_;
 }
+
 bool ArrayType::operator<(const BaseType &other) const
 {
     if (auto otherType = dynamic_cast<const PtrType *>(&other))
@@ -61,18 +63,13 @@ bool ArrayType::operator<(const BaseType &other) const
     else if (auto otherType = dynamic_cast<const StructType *>(&other))
     {
         // Initializer arrays can fit in structs
-        return size_ <= otherType->params_->size();
+        return true;
     }
 
     return false;
 }
 
-bool ArrayType::isComplete() const noexcept
-{
-    return type_->isComplete();
-}
-
-BasicType::BasicType(Types type) : type_(type)
+BasicType::BasicType(Types type) : type_(type), BaseType(BaseTypeID)
 {
 }
 
@@ -82,7 +79,7 @@ BasicType::BasicType(
     std::optional<FunctionSpecifier> functionSpecifier,
     std::optional<Linkage> linkage,
     std::optional<StorageDuration> storageDuration)
-    : type_(type)
+    : type_(type), BaseType(BaseTypeID)
 {
     cvrQualifier_ = cvrQualifier;
     functionSpecifier_ = functionSpecifier;
@@ -108,11 +105,6 @@ bool BasicType::operator<(const BaseType &other) const
            dynamic_cast<const PtrType *>(&other);
 }
 
-bool BasicType::isComplete() const noexcept
-{
-    return true;
-}
-
 bool BasicType::isSigned() const noexcept
 {
     switch (type_)
@@ -130,7 +122,7 @@ bool BasicType::isSigned() const noexcept
 }
 
 EnumType::EnumType(std::string name, EnumConsts consts)
-    : name_(std::move(name)), consts_(std::move(consts))
+    : name_(std::move(name)), consts_(std::move(consts)), BaseType(EnumTypeID)
 {
 }
 
@@ -154,13 +146,8 @@ bool EnumType::operator<(const BaseType &other) const
     return false;
 }
 
-bool EnumType::isComplete() const noexcept
-{
-    return true;
-}
-
 FnType::FnType(Ptr<ParamType> params, Ptr<BaseType> retType)
-    : params_(std::move(params)), retType_(std::move(retType))
+    : params_(std::move(params)), retType_(std::move(retType)), BaseType(FnTyID)
 {
     cvrQualifier_ = retType_->cvrQualifier_;
     functionSpecifier_ = retType_->functionSpecifier_;
@@ -194,11 +181,6 @@ bool FnType::operator<(const BaseType &other) const
     return false;
 }
 
-bool FnType::isComplete() const noexcept
-{
-    return retType_->isComplete() && params_->isComplete();
-}
-
 std::string FnType::getParamName(size_t i) const noexcept
 {
     return params_->types_.at(i).first;
@@ -209,7 +191,8 @@ const BaseType *FnType::getParamType(size_t i) const noexcept
     return params_->types_.at(i).second.get();
 }
 
-ParamType::ParamType(Params types) : types_(std::move(types))
+ParamType::ParamType(Params types)
+    : types_(std::move(types)), BaseType(ParamTyID)
 {
 }
 
@@ -264,19 +247,6 @@ bool ParamType::operator<(const BaseType &other) const
     return false;
 }
 
-bool ParamType::isComplete() const noexcept
-{
-    for (const auto &type : types_)
-    {
-        if (!type.second->isComplete())
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 size_t ParamType::size() const noexcept
 {
     return types_.size();
@@ -287,7 +257,34 @@ const BaseType *ParamType::at(size_t i) const
     return types_[i].second.get();
 }
 
-PtrType::PtrType(Ptr<BaseType> type) : type_(std::move(type))
+Ptr<BaseType> ParamType::getMemberType(std::string name) const
+{
+    for (const auto &type : types_)
+    {
+        if (type.first == name)
+        {
+            return type.second->clone();
+        }
+    }
+
+    return nullptr;
+}
+
+unsigned ParamType::getMemberIndex(std::string name) const
+{
+
+    for (size_t i = 0; i < types_.size(); ++i)
+    {
+        if (types_[i].first == name)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+PtrType::PtrType(Ptr<BaseType> type) : type_(std::move(type)), BaseType(PtrTyID)
 {
     cvrQualifier_ = type_->cvrQualifier_;
     functionSpecifier_ = type_->functionSpecifier_;
@@ -315,47 +312,25 @@ bool PtrType::operator<(const BaseType &other) const
     return false;
 }
 
-bool PtrType::isComplete() const noexcept
+StructType::StructType(Type type, std::string name, size_t id)
+    : type_(type), name_(std::move(name)), BaseType(StructTyID)
 {
-    // A pointer to a type is always complete
-    // sizeof(incomplete*) is valid
-    return true;
-}
-
-StructType::StructType(Type type, std::string name)
-    : type_(type), name_(std::move(name))
-{
-}
-
-StructType::StructType(Type type, std::string name, Ptr<ParamType> members)
-    : type_(type), name_(std::move(name)), params_(std::move(members))
-{
-}
-
-StructType::StructType(
-    Type type,
-    std::string name,
-    Ptr<ParamType> members,
-    size_t id)
-    : type_(type), name_(std::move(name)), params_(std::move(members))
-{
-    id_ = id;
+    // StructID only really useful in finding the correct scope
+    if (id != -1)
+    {
+        id_ = id;
+    }
 }
 
 StructType::StructType(const StructType &other)
     : type_(other.type_), name_(other.name_), BaseType(other)
 {
-    if (other.params_)
-    {
-        params_ = other.params_->cloneAsDerived();
-    }
 }
 
 bool StructType::operator==(const StructType &other) const
 {
     // Both nullptr = OK
-    return type_ == other.type_ && name_ == other.name_ &&
-           (!params_ || !other.params_ || *params_ == *other.params_);
+    return type_ == other.type_ && name_ == other.name_;
 }
 
 bool StructType::operator<(const BaseType &other) const
@@ -363,50 +338,10 @@ bool StructType::operator<(const BaseType &other) const
     return false;
 }
 
-bool StructType::isComplete() const noexcept
-{
-    return params_ && params_->isComplete();
-}
-
-Ptr<StructType> StructType::withParams(const ParamType *params) const
-{
-    return std::make_unique<StructType>(
-        type_, name_, std::make_unique<ParamType>(*params), id_);
-}
-
 std::string StructType::getName() const noexcept
 {
     std::string prefix = type_ == Type::STRUCT ? "struct" : "union";
     return prefix + "." + name_;
-}
-
-Ptr<BaseType> StructType::getMemberType(std::string name) const
-{
-    for (const auto &type : params_->types_)
-    {
-        if (type.first == name)
-        {
-            return type.second->clone();
-        }
-    }
-
-    return nullptr;
-}
-
-unsigned int StructType::getMemberIndex(std::string name) const
-{
-    if (params_)
-    {
-        for (size_t i = 0; i < params_->types_.size(); ++i)
-        {
-            if (params_->types_[i].first == name)
-            {
-                return i;
-            }
-        }
-    }
-
-    return -1;
 }
 
 } // namespace AST

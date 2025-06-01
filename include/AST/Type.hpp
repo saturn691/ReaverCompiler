@@ -25,7 +25,18 @@ enum class StorageDuration;
 class BaseType
 {
 public:
-    BaseType();
+    enum TypeID
+    {
+        ArrayTyID,
+        BaseTypeID,
+        EnumTypeID,
+        FnTyID,
+        ParamTyID,
+        PtrTyID,
+        StructTyID
+    };
+
+    BaseType(TypeID tid);
     BaseType(const BaseType &other);
     virtual ~BaseType() = default;
     virtual bool operator==(const BaseType &other) const = 0;
@@ -35,10 +46,43 @@ public:
     virtual bool operator<(const BaseType &other) const = 0;
     virtual bool operator<=(const BaseType &other) const = 0;
     virtual Ptr<BaseType> clone() const = 0;
-    virtual bool isComplete() const noexcept = 0;
     size_t getID() const noexcept;
 
+    bool isArrayTy() const
+    {
+        return tid_ == ArrayTyID;
+    }
+    bool isBaseTy() const
+    {
+        return tid_ == BaseTypeID;
+    }
+    bool isEnumTy() const
+    {
+        return tid_ == EnumTypeID;
+    }
+    bool isFnTy() const
+    {
+        return tid_ == FnTyID;
+    }
+    bool isParamTy() const
+    {
+        return tid_ == ParamTyID;
+    }
+    bool isPtrTy() const
+    {
+        return tid_ == PtrTyID;
+    }
+    bool isArrayOrPtrTy() const
+    {
+        return tid_ == ArrayTyID || tid_ == PtrTyID;
+    }
+    bool isStructTy() const
+    {
+        return tid_ == StructTyID;
+    }
+
     size_t id_;
+    TypeID tid_;
     static size_t idProvider_;
 
     // Qualifiers (mutable because we use Ptr<> everywhere and cba)
@@ -160,21 +204,6 @@ enum class FunctionSpecifier
     INLINE
 };
 
-class ArrayType final : public Type<ArrayType>
-{
-public:
-    ArrayType(Ptr<BaseType> type, size_t size);
-    ArrayType(const ArrayType &other);
-
-    bool operator==(const ArrayType &other) const override;
-    bool operator<(const BaseType &other) const override;
-
-    bool isComplete() const noexcept override;
-
-    Ptr<BaseType> type_;
-    size_t size_;
-};
-
 /**
  * Basic types
  * e.g. `int`, `float`, `char`
@@ -194,7 +223,6 @@ public:
     bool operator==(const BasicType &other) const override;
     bool operator<(const BaseType &other) const override;
 
-    bool isComplete() const noexcept override;
     bool isSigned() const noexcept;
 
     Types type_;
@@ -214,8 +242,6 @@ public:
     bool operator==(const EnumType &other) const override;
     bool operator<(const BaseType &other) const override;
 
-    bool isComplete() const noexcept override;
-
     std::string name_;
     EnumConsts consts_;
 };
@@ -233,7 +259,6 @@ public:
     bool operator==(const FnType &other) const override;
     bool operator<(const BaseType &other) const override;
 
-    bool isComplete() const noexcept override;
     std::string getParamName(size_t i) const noexcept;
     const BaseType *getParamType(size_t i) const noexcept;
 
@@ -255,10 +280,11 @@ public:
     bool operator==(const ParamType &other) const override;
     bool operator<(const BaseType &other) const override;
 
-    bool isComplete() const noexcept override;
-
     size_t size() const noexcept;
     const BaseType *at(size_t i) const;
+
+    Ptr<BaseType> getMemberType(std::string name) const;
+    unsigned getMemberIndex(std::string name) const;
 
     Params types_;
 };
@@ -267,22 +293,48 @@ public:
  * Pointer types
  * e.g. `int *`
  */
-class PtrType final : public Type<PtrType>
+class PtrType : public Type<PtrType>
 {
 public:
     PtrType(Ptr<BaseType> type);
     PtrType(const PtrType &other);
 
     bool operator==(const PtrType &other) const override;
-    bool operator<(const BaseType &other) const override;
-
-    bool isComplete() const noexcept override;
+    virtual bool operator<(const BaseType &other) const override;
 
     Ptr<BaseType> type_;
 };
 
 /**
+ * Array Types
+ * e.g. int x[]
+ */
+class ArrayType final : public PtrType
+{
+public:
+    ArrayType(Ptr<BaseType> type, size_t size);
+    ArrayType(const ArrayType &other);
+
+    Ptr<BaseType> clone() const override
+    {
+        return cloneAsDerived();
+    }
+
+    Ptr<ArrayType> cloneAsDerived() const
+    {
+        return std::make_unique<ArrayType>(
+            static_cast<const ArrayType &>(*this));
+    }
+
+    bool operator==(const ArrayType &other) const;
+    bool operator<(const BaseType &other) const override;
+
+    size_t size_;
+};
+
+/**
  * Struct types
+ * Most of the parameter logic belongs in the type checker
  */
 class StructType final : public Type<StructType>
 {
@@ -294,24 +346,16 @@ public:
     };
 
     // Used for forward declarations/self-references
-    StructType(Type type, std::string name);
-    StructType(Type type, std::string name, Ptr<ParamType> params);
-    StructType(Type type, std::string name, Ptr<ParamType> params, size_t id);
+    StructType(Type type, std::string name, size_t id = -1);
     StructType(const StructType &other);
 
     bool operator==(const StructType &other) const override;
     bool operator<(const BaseType &other) const override;
 
-    bool isComplete() const noexcept override;
-
     std::string getName() const noexcept;
-    Ptr<BaseType> getMemberType(std::string name) const;
-    unsigned int getMemberIndex(std::string name) const;
-    Ptr<StructType> withParams(const ParamType *params) const;
 
     Type type_;
     std::string name_;
-    Ptr<ParamType> params_; // Optional
 };
 
 } // namespace AST

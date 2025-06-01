@@ -32,7 +32,8 @@ public:
     CodeGenModule(
         std::string sourceFile,
         std::string outputFile,
-        TypeMap &typeMap,
+        NodeMap &nodeMap,
+        StructMap &structMap,
         std::string targetTriple);
     void emitLLVM();
     void emitObject();
@@ -114,7 +115,8 @@ private:
     };
 
     std::string outputFile_;
-    TypeMap &typeMap_;
+    NodeMap &nodeMap_;
+    StructMap &structMap_;
 
     std::unique_ptr<llvm::LLVMContext> context_;
     std::unique_ptr<llvm::IRBuilder<>> builder_;

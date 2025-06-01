@@ -124,12 +124,16 @@ void compile(
     }
 
     // Type check the AST
-    CodeGen::TypeChecker typeChecker(std::cerr);
+    CodeGen::TypeChecker typeChecker;
     tu->accept(typeChecker);
 
     // Code generation
     CodeGen::CodeGenModule CGM(
-        sourcePath, outputPathCGM, typeChecker.getTypeMap(), targetTriple);
+        sourcePath,
+        outputPathCGM,
+        typeChecker.getNodeMap(),
+        typeChecker.getStructMap(),
+        targetTriple);
     tu->accept(CGM);
 
     if (emitLLVM)

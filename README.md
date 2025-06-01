@@ -35,6 +35,7 @@ Reaver C Compiler relies on the following dependencies:
 It also relies on the following tools:
 
 - CMake 3.20+
+- Clang (if linking is required)
 - Git
 - Ninja
 - Python
@@ -110,7 +111,7 @@ To run the additional integration tests, run the following commands:
 # Only run this once
 git submodule update --init --recursive
 # More options available. Does not pass all tests yet
-./writing-a-c-compiler-tests/test_compiler --chapter 18 --skip-invaliid build/rcc
+./writing-a-c-compiler-tests/test_compiler --chapter 18 --skip-invalid build/rcc
 ```
 
 ## Credits
