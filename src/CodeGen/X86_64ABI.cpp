@@ -18,8 +18,8 @@ ABI::FunctionParamsInfo X86_64ABI::getFunctionParams(
     std::vector<llvm::Type *> &paramTypes) const
 {
     // ABI 3.2.3: Parameter Passing
-    constexpr unsigned INT_REGS = 6;
-    constexpr unsigned SSE_REGS = 8;
+    static constexpr unsigned INT_REGS = 6;
+    static constexpr unsigned SSE_REGS = 8;
     unsigned intRegs = 0;
     unsigned sseRegs = 0;
     std::vector<std::vector<llvm::Type *>> actualParamTypes;
